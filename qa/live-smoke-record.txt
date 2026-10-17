@@ -1,0 +1,12 @@
+S-01 phone: 4 routes loaded, 0 console errors
+S-02 phone: "Storage not configured" banner present = false
+S-02 phone: connection pill reads "Online · synced"
+S-01 tablet: 4 routes loaded, 0 console errors
+S-02 tablet: "Storage not configured" banner present = false
+S-02 tablet: connection pill reads "Online · synced"
+S-03 London day for the smoke orders: 2026-10-17
+S-03 created order 1: A-001 name=QA-SMOKE payment=card day=2026-10-17 (taken to collected)
+S-03 A-001 reached collected and left the kitchen board
+S-03 created order 2: A-002 name=QA-SMOKE payment=card day=2026-10-17 (to be cancelled)
+S-03 A-002 cancelled from the recent strip
+S-03 live reports for 2026-10-17: orders=1 sales=£5.00 (cancelled A-002 must be excluded)

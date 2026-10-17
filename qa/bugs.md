@@ -138,12 +138,85 @@ One screenshot change was needed, though: the panel now scrolls inside its own b
 
 - **Food counter 6** — the audible Web Audio beep and `navigator.wakeLock` cannot be verified in headless Chromium. The suite checks only that the sound toggle exists in the header (`K-11`).
 
-## Live smoke — not yet run
+## Round 3 — live smoke, 2026-10-17
 
-`https://nottinghambengaliassociation.github.io/nba-food-stall-app/` returned **404** as of round 2: Pages has not published yet (Trinity, workflow step 4). Not run on instruction from the coordinator. The live smoke spec is written and gated behind an environment flag:
+Run against `https://nottinghambengaliassociation.github.io/nba-food-stall-app/` (HTTP 200, real Firebase config served, `PASTE_` placeholder count = 0).
 
-```
-LIVE_SMOKE=1 npx playwright test tests/e2e/live-smoke.spec.js
-```
+Command: `LIVE_SMOKE=1 npx playwright test tests/e2e/live-smoke.spec.js` — **5 passed, 1 skipped by design, 0 failed.**
 
-It covers S-01 (all four routes load on both viewports, no console errors, screenshots to `qa/screenshots/live-*.png`), S-02 (connection pill, or the "Storage not configured" banner if the Firebase secrets are missing), and S-03 (the `QA-SMOKE` order taken to Collected plus a second one cancelled — auto-skipped when the banner is showing). It is excluded from `npm run test:e2e` so the emulator suite stays deterministic.
+| Check | phone | tablet | Result |
+|---|---|---|---|
+| S-01 `#/` loads | pass | pass | header renders |
+| S-01 `#/cash` loads | pass | pass | tiles render from the live menu |
+| S-01 `#/kitchen` loads | pass | pass | board renders |
+| S-01 `#/reports` loads | pass | pass | KPIs render |
+| S-01 console errors | **0** | **0** | nothing ignored either — the raw capture was empty |
+| S-02 "Storage not configured" banner | absent | absent | deployed config is wired up |
+| S-02 connection pill | `Online · synced` | `Online · synced` | pass |
+| S-03 QA-SMOKE round trip | skipped | **pass** | writes run once, not once per viewport |
+
+### S-03 detail
+
+The order-placing test is deliberately gated to one viewport (`tablet`) so the live smoke leaves two documents behind rather than four.
+
+- `A-001` · name `QA-SMOKE` · card · £5.00 · placed at the till → appeared on the live kitchen → **Start → Ready → Collected** → left the board. Final status `collected`.
+- `A-002` · name `QA-SMOKE` · card · £5.00 · placed, then **cancelled** from the recent strip while `new`. Final status `cancelled`.
+- Live `#/reports` for the day then read: **orders 1, sales £5.00**, tile subtitle "excludes 1 cancelled". The cancelled order is correctly excluded.
+
+Verified independently of the test, by a read-only REST query against the live project:
+
+| docId | orderNo | name | status | day | till | total | payment |
+|---|---|---|---|---|---|---|---|
+| `rBed5Z0VLcKPHzJ53Sxc` | `A-001` | QA-SMOKE | `collected` | `2026-10-17` | A | 500 | card |
+| `9OmbVmAbZ4I9hCk3KDGf` | `A-002` | QA-SMOKE | `cancelled` | `2026-10-17` | A | 500 | card |
+
+Timestamp fields were checked on both documents and behave per the data model: unset stages are written as `null`, and each stamp is filled only at its transition. `A-001` carries `createdAtMs`, `startedAtMs`, `readyAtMs`, `collectedAtMs` with `cancelledAtMs: null`; `A-002` carries `createdAtMs`, `cancelledAtMs` with the other three `null`. No bug.
+
+### The live menu seed was triggered by this run
+
+Before the smoke run, a read-only probe showed the live project held **0 `menu` documents and 0 `orders`** — completely empty. Loading `#/cash` therefore fired the first-load seed, which wrote the six menu documents. Verified afterwards:
+
+| id | price | station | colour |
+|---|---|---|---|
+| fuchka | 500 | chaat | #FDE68A |
+| momo | 500 | momo | #BFDBFE |
+| chat | 500 | chaat | #FECACA |
+| samosa | 500 | sweets | #FED7AA |
+| straw | 500 | sweets | #E9D5FF |
+| fountain | 500 | sweets | #E7D3BF |
+
+All six match the menu table in `CLAUDE.md`, all at 500 pence, `sort` 1–6. **This matters for the handover:** the live menu now exists and will not be re-seeded (seeding only runs when `menu` is empty), so prices can be edited in the Firebase console from here on, and the organisers will not see a seed happen on the day.
+
+### QA data left in the live project — needs cleanup
+
+**Yes, two documents need removing before the event**, and I did not remove them (deleting from the real project is Trinity's, per `CLAUDE.md` → Rules).
+
+- Collection `orders`, day `2026-10-17`: `A-001` and `A-002`, both named exactly `QA-SMOKE`.
+- Document ids: `rBed5Z0VLcKPHzJ53Sxc` and `9OmbVmAbZ4I9hCk3KDGf`.
+- They are identifiable by `name == "QA-SMOKE"`.
+
+If the event is on a different London date these two are harmless — reports query `where("day","==",day)`, so they will never appear in the event day's figures. They only matter if someone opens reports for `2026-10-17`. The **six `menu` documents must be kept**; only the two orders are test data.
+
+One further note for the handover: the smoke run consumed `A-001` and `A-002` from the till-A sequence, but that sequence lives in `localStorage` on the device that placed them (this CI browser context, now discarded). Volunteers' tablets start from `A-001` on the day regardless, so nothing needs resetting.
+
+### Live screenshots
+
+14 files written to `qa/screenshots/`:
+
+- `live-phone-landing.png`, `live-phone-cash.png`, `live-phone-kitchen.png`, `live-phone-reports.png`
+- `live-tablet-landing.png`, `live-tablet-cash.png`, `live-tablet-kitchen.png`, `live-tablet-reports.png`
+- `live-phone-cash-pill.png`, `live-tablet-cash-pill.png` (connection pill evidence)
+- `live-cash-qa-smoke-sent.png`, `live-kitchen-qa-smoke.png`, `live-cash-qa-smoke-cancelled.png`, `live-reports-qa-smoke.png` (the QA-SMOKE round trip)
+
+A plain-text run log is at `qa/live-smoke-record.txt`.
+
+## Final state
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| unit (Vitest) | 85 | 0 | 0 |
+| e2e phone 390×844 | 58 | 0 | — |
+| e2e tablet 1280×800 | 58 | 0 | — |
+| live smoke | 5 | 0 | 1 (by design) |
+
+**Open bugs: none.** blocker 0 · major 0 · minor 0. BUG-1, BUG-2 and BUG-3 all verified fixed.

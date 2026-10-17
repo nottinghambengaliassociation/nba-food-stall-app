@@ -47,3 +47,11 @@ picked instead.
 - 2026-10-17 — The live-smoke spec is written but gated behind `LIVE_SMOKE=1`, so `npm test` stays green on a machine with no deployed site and the smoke run is an explicit step after deploy.
 - 2026-10-17 — Unit tests include a repo guard that fails if any `git ls-files` tracked file matches the Firebase API-key pattern. Secret hygiene is then enforced by the test suite as well as the pre-commit hook.
 - 2026-10-17 — BUG-3 (Cancel pill measured at 40px, under the 48px minimum) reproduced once mid-build and never again. Logged as closed-not-reproducible and sent to Neo as a defensive fix rather than left open on a flaky observation.
+
+## Deploy and live smoke
+
+- 2026-10-17 — Push initially failed 403 because the machine's keychain resolved a different GitHub account. Fixed with a **repo-local** credential helper (`!gh auth git-credential`) rather than `gh auth setup-git`, which writes to global config and is forbidden by the brief. Documented in `HANDOVER.md` since a fresh clone on an affected machine will hit the same thing.
+- 2026-10-17 — `.claude/` (the three agent definitions and `settings.json`) was committed. It was inspected first and contains permission rules only, no secrets or machine paths, and it documents the guardrails the build ran under.
+- 2026-10-17 — The live smoke's full order round trip was gated to one viewport rather than running per project, so it left two documents in the real database instead of four.
+- 2026-10-17 — The live Firebase project was completely empty, so the smoke test's first page load fired the menu seed and wrote the six menu documents. Those are kept: they are the real menu, the seed only runs when `menu` is empty, and keeping them means organisers can edit prices in the console and will not see a seed on the day. Only the two `QA-SMOKE` orders were treated as test data to remove.
+- 2026-10-17 — Deleting live data is Trinity's alone. Morpheus identified the two test orders by id and reported them rather than removing them itself.
