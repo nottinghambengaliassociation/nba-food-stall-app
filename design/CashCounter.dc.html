@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cash counter, tablet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 800px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 24px; background: #1C1917; color: #FFFFFF">
+<div style="display: flex; align-items: baseline; gap: 14px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px">Cash counter</span>
+<span style="font-size: 18px; color: #D6D3D1">Till A · next {{nextNo}}</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; font-size: 17px">
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: #134E4A"><span style="width: 10px; height: 10px; border-radius: 50%; background: #5EEAD4"></span>Online · synced</span>
+<a href="FoodCounter.dc.html" style="font-weight: 700">Food counter</a>
+<a href="Reports.dc.html" style="font-weight: 700">Reports</a>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; align-items: flex-start">
+
+<section aria-label="Menu" style="flex: 999 1 560px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px">
+<sc-for list="{{tiles}}" as="item" hint-placeholder-count="6">
+<button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="position: relative; min-height: 212px; padding: 20px 16px; border-radius: 22px; border: 4px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center">
+<dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 76 }}" hint-size="76px,76px"></dc-import>
+<span style="font-size: 21px; line-height: 26px; font-weight: 700">{{item.name}}</span>
+<span style="font-size: 19px; color: #44403C">£5</span>
+<sc-if value="{{item.hasQty}}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; top: 12px; right: 12px; min-width: 48px; height: 48px; padding: 0 8px; box-sizing: border-box; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 24px; font-weight: 700; display: flex; align-items: center; justify-content: center">{{item.qty}}</span>
+</sc-if>
+</button>
+</sc-for>
+</section>
+
+<aside aria-label="Current order" style="flex: 1 1 380px; min-width: 0; box-sizing: border-box; background: #FFFFFF; border-radius: 22px; padding: 24px; display: flex; flex-direction: column; gap: 18px; box-shadow: 0 1px 2px rgba(28,25,23,0.08)">
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="padding: 14px 16px; border-radius: 14px; background: #CCFBF1; color: #134E4A; font-size: 18px; font-weight: 700">{{toast}}</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label for="cname" style="font-size: 16px; font-weight: 700; color: #44403C">Name to call out</label>
+<input id="cname" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Priya" autocomplete="off" style="height: 64px; box-sizing: border-box; padding: 0 18px; font-size: 26px; font-family: inherit; border: 2px solid #A8A29E; border-radius: 14px; color: #1C1917">
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; min-height: 120px">
+<sc-if value="{{empty}}" hint-placeholder-val="{{ true }}">
+<div style="padding: 28px 0; text-align: center; font-size: 19px; color: #57534E">Tap an item to start the order</div>
+</sc-if>
+<sc-for list="{{lines}}" as="line" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="flex: 1 1 auto; min-width: 0; font-size: 19px; line-height: 24px; font-weight: 700">{{line.name}}</span>
+<button onClick="{{line.dec}}" aria-label="Remove one {{line.name}}" style="width: 52px; height: 52px; flex: none; border-radius: 14px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 28px; line-height: 1; color: #1C1917">−</button>
+<span style="width: 36px; text-align: center; font-size: 24px; font-weight: 700">{{line.qty}}</span>
+<button onClick="{{line.inc}}" aria-label="Add one {{line.name}}" style="width: 52px; height: 52px; flex: none; border-radius: 14px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 28px; line-height: 1; color: #1C1917">+</button>
+<span style="width: 72px; text-align: right; font-size: 19px">{{line.amount}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding-top: 14px; border-top: 2px solid #E7E5E4">
+<span style="font-size: 20px; font-weight: 700">Total</span>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 48px">{{totalText}}</span>
+</div>
+
+<div role="group" aria-label="Payment method" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<button onClick="{{payCash}}" aria-pressed="{{isCash}}" style="height: 64px; border-radius: 14px; font-size: 22px; font-weight: 700; border: 3px solid {{cashBorder}}; background: {{cashBg}}; color: #1C1917">Cash</button>
+<button onClick="{{payCard}}" aria-pressed="{{isCard}}" style="height: 64px; border-radius: 14px; font-size: 22px; font-weight: 700; border: 3px solid {{cardBorder}}; background: {{cardBg}}; color: #1C1917">Card</button>
+</div>
+
+<sc-if value="{{showTender}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<span style="font-size: 16px; font-weight: 700; color: #44403C">Cash received</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
+<sc-for list="{{tenders}}" as="t" hint-placeholder-count="4">
+<button onClick="{{t.pick}}" style="height: 56px; border-radius: 12px; font-size: 20px; font-weight: 700; border: 2px solid {{t.border}}; background: {{t.bg}}; color: #1C1917">{{t.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{hasChange}}" hint-placeholder-val="{{ false }}">
+<div style="font-size: 24px; font-weight: 700; color: #134E4A">Change to give: {{changeText}}</div>
+</sc-if>
+</div>
+</sc-if>
+
+<button onClick="{{place}}" disabled="{{empty}}" style="height: 84px; border: none; border-radius: 18px; background: {{placeBg}}; color: #FFFFFF; font-size: 26px; font-weight: 700">Send to food counter · {{totalText}}</button>
+<button onClick="{{clear}}" style="align-self: center; height: 44px; padding: 0 16px; border: none; background: transparent; color: #57534E; font-size: 17px; text-decoration: underline">Clear order</button>
+</aside>
+</div>
+
+<section aria-label="Recent orders" style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 0 24px 24px">
+<span style="font-size: 16px; font-weight: 700; color: #44403C">Recent</span>
+<sc-for list="{{recent}}" as="r" hint-placeholder-count="3">
+<span style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: {{r.bg}}; color: {{r.fg}}; font-size: 17px"><b>{{r.no}}</b>{{r.name}} · {{r.status}}</span>
+</sc-for>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      cart: { fuchka: 2, momo: 1 },
+      name: 'Priya',
+      pay: 'cash',
+      tendered: 2000,
+      seq: 43,
+      toast: '',
+      recent: [
+        { no: 'A-042', name: 'Sam', status: 'Ready' },
+        { no: 'A-041', name: 'Ahmed', status: 'Preparing' },
+        { no: 'A-040', name: 'Lucy', status: 'Collected' }
+      ]
+    };
+  }
+  renderVals() {
+    const MENU = [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa', bg: '#FDE68A', price: 500 },
+      { id: 'momo', name: 'Momo', bg: '#BFDBFE', price: 500 },
+      { id: 'chat', name: 'Papri Chat', bg: '#FECACA', price: 500 },
+      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', bg: '#FED7AA', price: 500 },
+      { id: 'straw', name: 'Choc Strawberry & Marshmallow (V)', bg: '#E9D5FF', price: 500 },
+      { id: 'fountain', name: 'Chocolate Fountain', bg: '#E7D3BF', price: 500 }
+    ];
+    const s = this.state;
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const setQty = (id, q) => {
+      const cart = Object.assign({}, this.state.cart);
+      if (q <= 0) delete cart[id]; else cart[id] = q;
+      this.setState({ cart: cart, toast: '' });
+    };
+    const qtyOf = (id) => this.state.cart[id] || 0;
+    const tiles = MENU.map((m) => {
+      const q = s.cart[m.id] || 0;
+      return Object.assign({}, m, {
+        qty: q, hasQty: q > 0, border: q > 0 ? '#1C1917' : 'transparent',
+        add: () => setQty(m.id, qtyOf(m.id) + 1)
+      });
+    });
+    const lines = MENU.filter((m) => s.cart[m.id]).map((m) => ({
+      name: m.name, qty: s.cart[m.id], amount: gbp(m.price * s.cart[m.id]),
+      inc: () => setQty(m.id, qtyOf(m.id) + 1),
+      dec: () => setQty(m.id, qtyOf(m.id) - 1)
+    }));
+    const total = MENU.reduce((t, m) => t + m.price * (s.cart[m.id] || 0), 0);
+    const empty = total === 0;
+    const isCash = s.pay === 'cash';
+    const tenders = [500, 1000, 2000, 5000].map((v) => ({
+      label: '£' + v / 100,
+      bg: s.tendered === v ? '#FDE68A' : '#FFFFFF',
+      border: s.tendered === v ? '#1C1917' : '#A8A29E',
+      pick: () => this.setState({ tendered: v })
+    }));
+    const change = (s.tendered || 0) - total;
+    const statusColours = {
+      New: ['#FDE68A', '#1C1917'], Preparing: ['#BFDBFE', '#1C1917'],
+      Ready: ['#0F766E', '#FFFFFF'], Collected: ['#E7E5E4', '#1C1917']
+    };
+    return {
+      tiles: tiles, lines: lines, empty: empty,
+      totalText: gbp(total),
+      name: s.name,
+      onName: (e) => this.setState({ name: e.target.value }),
+      nextNo: 'A-' + String(s.seq).padStart(3, '0'),
+      isCash: isCash, isCard: !isCash,
+      cashBg: isCash ? '#FDE68A' : '#FFFFFF', cashBorder: isCash ? '#1C1917' : '#A8A29E',
+      cardBg: !isCash ? '#FDE68A' : '#FFFFFF', cardBorder: !isCash ? '#1C1917' : '#A8A29E',
+      payCash: () => this.setState({ pay: 'cash' }),
+      payCard: () => this.setState({ pay: 'card', tendered: null }),
+      showTender: isCash && !empty,
+      tenders: tenders,
+      hasChange: isCash && !empty && s.tendered != null && change >= 0,
+      changeText: gbp(Math.max(change, 0)),
+      placeBg: empty ? '#A8A29E' : '#0F766E',
+      hasToast: !!s.toast, toast: s.toast,
+      recent: s.recent.map((r) => ({
+        no: r.no, name: r.name, status: r.status,
+        bg: statusColours[r.status][0], fg: statusColours[r.status][1]
+      })),
+      clear: () => this.setState({ cart: {}, name: '', tendered: null, toast: '' }),
+      place: () => {
+        if (empty) return;
+        const no = 'A-' + String(this.state.seq).padStart(3, '0');
+        const who = this.state.name.trim() || 'Guest';
+        this.setState({
+          cart: {}, name: '', tendered: null, seq: this.state.seq + 1,
+          toast: no + ' sent to the food counter for ' + who,
+          recent: [{ no: no, name: who, status: 'New' }].concat(this.state.recent).slice(0, 5)
+        });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

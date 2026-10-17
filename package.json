@@ -1,0 +1,20 @@
+{
+  "name": "nba-food-stall-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Charity Food Stall POS - Phase I prototype",
+  "scripts": {
+    "serve": "http-server public -p 5173 -c-1 --silent",
+    "test:unit": "vitest run",
+    "test:e2e": "firebase emulators:exec --only firestore --project demo-food-stall \"playwright test\"",
+    "test": "npm run test:unit && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "@playwright/test": "^1.50.0",
+    "firebase-tools": "^14.0.0",
+    "http-server": "^14.1.1",
+    "vitest": "^3.0.0"
+  }
+}

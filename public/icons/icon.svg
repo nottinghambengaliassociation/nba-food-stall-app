@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Food stall">
+  <rect width="48" height="48" rx="10" fill="#1C1917"/>
+  <g fill="none" stroke="#FDE68A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 30c0-9 6.5-16 15-16s15 7 15 16z"/>
+    <path d="M6 30h36"/>
+    <path d="M24 14v-5"/>
+  </g>
+</svg>

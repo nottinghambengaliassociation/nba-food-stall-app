@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Pre-commit guardrail: refuse any commit whose staged content looks like a credential.
+# Installed via `git config core.hooksPath scripts/hooks`.
+set -euo pipefail
+repo_root="$(git rev-parse --show-toplevel)"
+exec "$repo_root/scripts/check-secrets.sh"

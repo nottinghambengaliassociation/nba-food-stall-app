@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food counter, tablet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 800px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 24px; background: #1C1917; color: #FFFFFF">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px; margin-right: 8px">Food counter</span>
+<div role="group" aria-label="Station" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{stations}}" as="st" hint-placeholder-count="4">
+<button onClick="{{st.pick}}" aria-pressed="{{st.on}}" style="height: 48px; padding: 0 18px; border-radius: 999px; border: 2px solid {{st.border}}; background: {{st.bg}}; color: {{st.fg}}; font-size: 18px; font-weight: 700">{{st.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; font-size: 17px">
+<span style="color: #D6D3D1">{{collected}} collected today</span>
+<button onClick="{{undo}}" disabled="{{noUndo}}" style="height: 48px; padding: 0 18px; border-radius: 12px; border: 2px solid #A8A29E; background: transparent; color: #FFFFFF; font-size: 17px; font-weight: 700">Undo last tap</button>
+<a href="CashCounter.dc.html" style="font-weight: 700">Cash counter</a>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 24px 24px; align-items: flex-start">
+
+<section aria-label="New orders" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 14px; background: #FDE68A; font-size: 22px">New <span style="font-size: 26px">{{newCount}}</span></h2>
+<sc-for list="{{newOrders}}" as="o" hint-placeholder-count="2">
+<article style="background: #FFFFFF; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px rgba(28,25,23,0.08)">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px">{{o.no}}</span>
+<span style="font-size: 17px; font-weight: 700; color: {{o.ageColour}}">{{o.age}}</span>
+</div>
+<span style="font-size: 26px; font-weight: 700">{{o.name}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{o.lines}}" as="l" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 21px; line-height: 26px; color: {{l.colour}}"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 30 }}" hint-size="30px,30px"></dc-import><b style="width: 34px">{{l.qty}}×</b><span>{{l.name}}</span></div>
+</sc-for>
+</div>
+<button onClick="{{o.next}}" style="height: 68px; border: none; border-radius: 14px; background: #1D4ED8; color: #FFFFFF; font-size: 24px; font-weight: 700">Start</button>
+</article>
+</sc-for>
+</section>
+
+<section aria-label="Preparing" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 14px; background: #BFDBFE; font-size: 22px">Preparing <span style="font-size: 26px">{{prepCount}}</span></h2>
+<sc-for list="{{prepOrders}}" as="o" hint-placeholder-count="2">
+<article style="background: #FFFFFF; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px rgba(28,25,23,0.08)">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px">{{o.no}}</span>
+<span style="font-size: 17px; font-weight: 700; color: {{o.ageColour}}">{{o.age}}</span>
+</div>
+<span style="font-size: 26px; font-weight: 700">{{o.name}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{o.lines}}" as="l" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 21px; line-height: 26px; color: {{l.colour}}"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 30 }}" hint-size="30px,30px"></dc-import><b style="width: 34px">{{l.qty}}×</b><span>{{l.name}}</span></div>
+</sc-for>
+</div>
+<button onClick="{{o.next}}" style="height: 68px; border: none; border-radius: 14px; background: #0F766E; color: #FFFFFF; font-size: 24px; font-weight: 700">Ready</button>
+</article>
+</sc-for>
+</section>
+
+<section aria-label="Ready for collection" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 14px; background: #0F766E; color: #FFFFFF; font-size: 22px">Ready, call out <span style="font-size: 26px">{{readyCount}}</span></h2>
+<sc-for list="{{readyOrders}}" as="o" hint-placeholder-count="1">
+<article style="background: #FFFFFF; border: 3px solid #0F766E; border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px">{{o.no}}</span>
+<span style="font-size: 17px; font-weight: 700; color: #57534E">{{o.age}}</span>
+</div>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: 0.02em; color: #0F766E">{{o.callName}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{o.lines}}" as="l" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 21px; line-height: 26px; color: {{l.colour}}"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 30 }}" hint-size="30px,30px"></dc-import><b style="width: 34px">{{l.qty}}×</b><span>{{l.name}}</span></div>
+</sc-for>
+</div>
+<button onClick="{{o.next}}" style="height: 68px; border: none; border-radius: 14px; background: #1C1917; color: #FFFFFF; font-size: 24px; font-weight: 700">Collected</button>
+</article>
+</sc-for>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"lateAfterMin":{"editor":"int","default":6,"min":1,"max":30,"unit":"min"},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      station: 'all',
+      collected: 38,
+      last: null,
+      orders: [
+        { no: 'A-041', name: 'Ahmed', status: 'preparing', mins: 5, items: { momo: 2, chat: 1 } },
+        { no: 'A-039', name: 'Tom', status: 'preparing', mins: 8, items: { samosa: 1, fuchka: 1 } },
+        { no: 'A-042', name: 'Sam', status: 'ready', mins: 4, items: { fuchka: 1, straw: 1 } },
+        { no: 'B-012', name: 'Meera', status: 'new', mins: 2, items: { fountain: 1 } },
+        { no: 'A-043', name: 'Priya', status: 'new', mins: 1, items: { fuchka: 2, momo: 1 } },
+        { no: 'A-044', name: 'Josh', status: 'new', mins: 0, items: { chat: 1, straw: 2 } }
+      ]
+    };
+  }
+  renderVals() {
+    const NAMES = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', samosa: 'Sweets Box', straw: 'Choc Strawberry', fountain: 'Choc Fountain' };
+    const STATIONS = [
+      { key: 'all', label: 'All', ids: null },
+      { key: 'chaat', label: 'Chaat', ids: ['fuchka', 'chat'] },
+      { key: 'momo', label: 'Momo', ids: ['momo'] },
+      { key: 'sweets', label: 'Sweets', ids: ['samosa', 'straw', 'fountain'] }
+    ];
+    const NEXT = { new: 'preparing', preparing: 'ready', ready: 'collected' };
+    const late = this.props.lateAfterMin ?? 6;
+    const s = this.state;
+    const st = STATIONS.find((x) => x.key === s.station);
+    const mine = (id) => !st.ids || st.ids.indexOf(id) >= 0;
+    const advance = (no) => {
+      const o = this.state.orders.find((x) => x.no === no);
+      const to = NEXT[o.status];
+      const orders = this.state.orders.map((x) => x.no === no ? Object.assign({}, x, { status: to }) : x);
+      this.setState({
+        orders: orders,
+        collected: this.state.collected + (to === 'collected' ? 1 : 0),
+        last: { no: no, prev: o.status, was: to }
+      });
+    };
+    const view = (status) => s.orders
+      .filter((o) => o.status === status && Object.keys(o.items).some(mine))
+      .sort((a, b) => b.mins - a.mins)
+      .map((o) => ({
+        no: o.no, name: o.name, callName: o.name.toUpperCase(),
+        age: o.mins === 0 ? 'just now' : o.mins + ' min',
+        ageColour: o.mins >= late && status !== 'ready' ? '#B45309' : '#57534E',
+        lines: Object.keys(o.items).map((id) => ({
+          id: id, qty: o.items[id], name: NAMES[id], colour: mine(id) ? '#1C1917' : '#A8A29E'
+        })),
+        next: () => advance(o.no)
+      }));
+    const newOrders = view('new');
+    const prepOrders = view('preparing');
+    const readyOrders = view('ready');
+    return {
+      stations: STATIONS.map((x) => ({
+        label: x.label, on: x.key === s.station,
+        bg: x.key === s.station ? '#FDE68A' : 'transparent',
+        fg: x.key === s.station ? '#1C1917' : '#FFFFFF',
+        border: x.key === s.station ? '#FDE68A' : '#78716C',
+        pick: () => this.setState({ station: x.key })
+      })),
+      newOrders: newOrders, prepOrders: prepOrders, readyOrders: readyOrders,
+      newCount: newOrders.length, prepCount: prepOrders.length, readyCount: readyOrders.length,
+      collected: s.collected,
+      noUndo: !s.last,
+      undo: () => {
+        const l = this.state.last;
+        if (!l) return;
+        this.setState({
+          orders: this.state.orders.map((x) => x.no === l.no ? Object.assign({}, x, { status: l.prev }) : x),
+          collected: this.state.collected - (l.was === 'collected' ? 1 : 0),
+          last: null
+        });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Generated Firebase web config — NEVER commit (written by scripts/write-firebase-config.mjs)
+public/js/firebase-config.js
+
+# Secrets and environment
+.env
+.env.*
+.secrets/
+*service-account*.json
+*-sdkconfig.json
+
+# Firebase tooling
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+database-debug.log*
+ui-debug.log*
+pubsub-debug.log*
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

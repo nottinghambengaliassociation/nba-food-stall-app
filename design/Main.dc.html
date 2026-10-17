@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food stall Phase I architecture</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0F766E}a:hover{color:#115E59}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1720px; box-sizing: border-box; padding: 64px; background: #FFFFFF; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; gap: 40px">
+
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 1040px">
+<div style="font-size: 14px; letter-spacing: 0.12em; font-weight: 700; color: #B45309">PHASE I PROPOSAL · NO LOGIN · £0 RUNNING COST</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 56px; line-height: 60px">Charity food stall: from till to pass</h1>
+<p style="margin: 0; font-size: 20px; line-height: 30px; color: #44403C">One single-page web app on GitHub Pages. The cash counter takes the order and payment, the food counter sees it in under a second and works it through to collection. Every order and status change is stored with a timestamp for daily reporting.</p>
+</div>
+
+<div style="position: relative; width: 1312px; height: 520px">
+<svg width="235" height="8" viewBox="0 0 235 8" preserveAspectRatio="none" style="position: absolute; left: 280px; top: 228px; width: 235px; height: 8px; overflow: visible; fill: none; stroke: #78716C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-1" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#78716C" stroke="none" style="stroke: none; fill: #78716C; fill: context-stroke"/></marker></defs><path d="M 0 4 L 231 4" marker-end="url(#dc-arrow-head-filled-1)"></path></svg>
+<svg width="235" height="8" viewBox="0 0 235 8" preserveAspectRatio="none" style="position: absolute; left: 796px; top: 208px; width: 235px; height: 8px; overflow: visible; fill: none; stroke: #78716C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-2" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#78716C" stroke="none" style="stroke: none; fill: #78716C; fill: context-stroke"/></marker></defs><path d="M 0 4 L 231 4" marker-end="url(#dc-arrow-head-filled-2)"></path></svg>
+<svg width="235" height="8" viewBox="0 0 235 8" preserveAspectRatio="none" style="position: absolute; left: 797px; top: 248px; width: 235px; height: 8px; overflow: visible; fill: none; stroke: #78716C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-3" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#78716C" stroke="none" style="stroke: none; fill: #78716C; fill: context-stroke"/></marker></defs><path d="M 235 4 L 4 4" marker-end="url(#dc-arrow-head-filled-3)"></path></svg>
+<svg width="8" height="95" viewBox="0 0 8 95" preserveAspectRatio="none" style="position: absolute; left: 652px; top: 304px; width: 8px; height: 95px; overflow: visible; fill: none; stroke: #78716C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round"><defs><marker id="dc-arrow-head-filled-4" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#78716C" stroke="none" style="stroke: none; fill: #78716C; fill: context-stroke"/></marker></defs><path d="M 4 0 L 4 91" marker-end="url(#dc-arrow-head-filled-4)"></path></svg>
+<svg width="235" height="8" viewBox="0 0 235 8" preserveAspectRatio="none" style="position: absolute; left: 796px; top: 448px; width: 235px; height: 8px; overflow: visible; fill: none; stroke: #78716C; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 6"><defs><marker id="dc-arrow-head-filled-5" orient="auto" markerWidth="5" markerHeight="5" refX="2" refY="2" overflow="visible"><path d="M0 0 L4 2 L0 4 Z" fill="#78716C" stroke="none" style="stroke: none; fill: #78716C; fill: context-stroke"/></marker></defs><path d="M 0 4 L 231 4" marker-end="url(#dc-arrow-head-filled-5)"></path></svg>
+
+<div style="position: absolute; left: 0px; top: 0px; width: 1312px; height: 72px; box-sizing: border-box; padding: 12px 24px; display: flex; align-items: center; justify-content: center; text-align: center; background: #F5F5F4; border: 1.5px dashed #A8A29E; border-radius: 14px; font-size: 18px; line-height: 24px"><span><b>GitHub Pages</b> (charity repo) serves one static app to every device · routes <b>#/cash</b> · <b>#/kitchen</b> · <b>#/reports</b> · free, HTTPS, no server</span></div>
+<div style="position: absolute; left: 0px; top: 176px; width: 280px; height: 112px; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center; text-align: center; background: #FFFFFF; border: 2px solid #1C1917; border-radius: 14px; font-size: 16px; line-height: 22px"><span><b style="font-size: 20px">Cash counter</b><br>Tablet or phone. Builds the order, takes cash or card, captures a name</span></div>
+<div style="position: absolute; left: 516px; top: 160px; width: 280px; height: 144px; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center; text-align: center; background: #FEF3C7; border: 2px solid #D97706; border-radius: 14px; font-size: 16px; line-height: 22px"><span><b style="font-size: 20px">Cloud Firestore</b><br>Firebase Spark plan (free)<br>menu · orders<br>offline cache on every device</span></div>
+<div style="position: absolute; left: 1032px; top: 176px; width: 280px; height: 112px; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center; text-align: center; background: #FFFFFF; border: 2px solid #1C1917; border-radius: 14px; font-size: 16px; line-height: 22px"><span><b style="font-size: 20px">Food counter</b><br>Tablet on the pass. New, Preparing, Ready, Collected</span></div>
+<div style="position: absolute; left: 516px; top: 400px; width: 280px; height: 104px; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center; text-align: center; background: #FFFFFF; border: 2px solid #1C1917; border-radius: 14px; font-size: 16px; line-height: 22px"><span><b style="font-size: 20px">Reports</b><br>Sales per day, per item, peak window</span></div>
+<div style="position: absolute; left: 1032px; top: 400px; width: 280px; height: 104px; box-sizing: border-box; padding: 16px; display: flex; align-items: center; justify-content: center; text-align: center; background: #FFFFFF; border: 1.5px dashed #A8A29E; border-radius: 14px; font-size: 16px; line-height: 22px"><span><b style="font-size: 20px">Google Sheets</b><br>Workspace. Trustee and event reports</span></div>
+
+<div style="position: absolute; left: 354px; top: 204px; width: 88px; text-align: center; font-size: 13px; line-height: 16px; color: #57534E">add order</div>
+<div style="position: absolute; left: 862px; top: 184px; width: 104px; text-align: center; font-size: 13px; line-height: 16px; color: #57534E">live listener</div>
+<div style="position: absolute; left: 858px; top: 264px; width: 112px; text-align: center; font-size: 13px; line-height: 16px; color: #57534E">status update</div>
+<div style="position: absolute; left: 668px; top: 343px; width: 104px; text-align: left; font-size: 13px; line-height: 16px; color: #57534E">query by day</div>
+<div style="position: absolute; left: 870px; top: 424px; width: 88px; text-align: center; font-size: 13px; line-height: 16px; color: #57534E">CSV export</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 28px; background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Order lifecycle</h2>
+<div style="display: flex; flex-direction: column; gap: 10px; font-size: 16px; line-height: 22px">
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 120px; flex: none; padding: 6px 0; text-align: center; border-radius: 999px; background: #FDE68A; font-weight: 700">NEW</span><span>Created at the till, payment taken</span></div>
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 120px; flex: none; padding: 6px 0; text-align: center; border-radius: 999px; background: #BFDBFE; font-weight: 700">PREPARING</span><span>Food counter taps Start</span></div>
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 120px; flex: none; padding: 6px 0; text-align: center; border-radius: 999px; background: #0F766E; color: #FFFFFF; font-weight: 700">READY</span><span>Food counter taps Ready, name called out</span></div>
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 120px; flex: none; padding: 6px 0; text-align: center; border-radius: 999px; background: #E7E5E4; font-weight: 700">COLLECTED</span><span>Handed over, card leaves the screen</span></div>
+<div style="display: flex; gap: 12px; align-items: center"><span style="width: 120px; flex: none; padding: 5px 0; text-align: center; border-radius: 999px; border: 1.5px solid #B91C1C; color: #B91C1C; font-weight: 700">CANCELLED</span><span>Till only, before Start. Excluded from sales</span></div>
+</div>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #57534E">Each step stamps its own time (createdAt, startedAt, readyAt, collectedAt), so wait time and the peak window come straight from the data.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 28px; background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Data model</h2>
+<div style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 14px; line-height: 21px; background: #FFFFFF; border: 1px solid #E7E5E4; border-radius: 10px; padding: 16px; white-space: pre-line">orders/{autoId}
+  orderNo    "A-043"  device letter + daily seq
+  name       "Priya"  called out at the pass
+  items      [{id, name, qty, price}]
+  total      1500     pence, no float maths
+  payment    "cash" | "card"
+  status     new | preparing | ready | collected | cancelled
+  day        "2026-10-17"   index: day + createdAt
+  createdAt · startedAt · readyAt · collectedAt
+  till       "A"
+
+menu/{id}
+  name · short · price · colour · active · sort</div>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #57534E">Order numbers are generated on the device (A-001, A-002…; a second till uses B-), so the till never waits on the network. Prices live in the menu collection, edited in the Firebase console in Phase I.</p>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 28px; background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Storage choice</h2>
+<div style="overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 14px; line-height: 19px">
+<thead><tr style="text-align: left; color: #57534E"><th style="padding: 8px 6px; border-bottom: 1.5px solid #D6D3D1"></th><th style="padding: 8px 6px; border-bottom: 1.5px solid #D6D3D1; color: #1C1917">Firestore</th><th style="padding: 8px 6px; border-bottom: 1.5px solid #D6D3D1">Sheets + Apps Script</th><th style="padding: 8px 6px; border-bottom: 1.5px solid #D6D3D1">Supabase</th></tr></thead>
+<tbody>
+<tr><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4; color: #57534E">Live to food counter</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Push, under 1s</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Poll every 3 to 5s</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Push</td></tr>
+<tr><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4; color: #57534E">Patchy signal</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Queues writes offline</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Order lost or retried</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Order lost or retried</td></tr>
+<tr><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4; color: #57534E">Catch</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Separate Firebase project</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Script quotas, slow writes</td><td style="padding: 8px 6px; border-bottom: 1px solid #E7E5E4">Pauses after 7 days idle</td></tr>
+<tr><td style="padding: 8px 6px; color: #57534E">Verdict</td><td style="padding: 8px 6px; font-weight: 700; color: #0F766E">Use</td><td style="padding: 8px 6px">Fallback</td><td style="padding: 8px 6px">Skip</td></tr>
+</tbody>
+</table>
+</div>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #57534E">Google Workspace still gets the data: Reports exports a CSV per day that drops straight into Sheets.</p>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px">
+<section style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">Free-tier fit</h2>
+<p style="margin: 0; font-size: 16px; line-height: 24px">500 orders in a day is about 2,500 writes (limit 20,000) and about 12,000 reads across four screens (limit 50,000). No billing account on the Spark plan, so nothing can be charged; over quota, Firestore pauses until the quota resets.</p>
+</section>
+<section style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">No login, with guardrails</h2>
+<p style="margin: 0; font-size: 16px; line-height: 24px">Firebase anonymous auth runs silently on load (no screen). Security rules accept only signed-in devices and order-shaped documents, and block deletes. The URL is shared only with volunteers. PINs per counter come in Phase II.</p>
+</section>
+<section style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid #E7E5E4; border-radius: 16px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">Menu, Phase I</h2>
+<div style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 16px; line-height: 22px">
+<span>Fuchka / Gol Gappa</span><b>£5</b>
+<span>Momo</span><b>£5</b>
+<span>Papri Chat</span><b>£5</b>
+<span>Sweets Box Samosa / Shingara</span><b>£5</b>
+<span>Choc Strawberry &amp; Marshmallow (V)</span><b>£5</b>
+<span>Chocolate Fountain</span><b>£5</b>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: #57534E">Single £5 price assumed per item. If the four £5 columns are portion sizes, they become variants on the tile.</p>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

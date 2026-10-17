@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// PROTOTYPE ONLY — Phase I of the NBA Charity Food Stall POS runs with no login,
+// so these rules are deliberately wide open: anyone who knows the project id can
+// read and write every document.
+//
+// THIS MUST CHANGE BEFORE ANY REAL OR PROLONGED USE.
+// Before Phase II: add Firebase Auth, then restrict `orders` to signed-in
+// volunteers and make `menu` read-only to the app (console-edited only).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

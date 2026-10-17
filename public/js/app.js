@@ -1,0 +1,208 @@
+// App shell: header, storage banner, routing, shared settings.
+
+import { el, clear, setText } from './ui.js';
+import { currentRoute, startRouter, href } from './router.js';
+import { start, status, seedMenuIfEmpty, onConnection } from './store.js';
+import { peekOrderNo, dayString } from './logic.js';
+import { mountLanding } from './landing.js';
+import { mountCash } from './cash.js';
+import { mountKitchen } from './kitchen.js';
+import { mountReports } from './reports.js';
+
+const TILL_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+const TITLES = {
+  '/': 'Charity food stall',
+  '/cash': 'Cash counter',
+  '/kitchen': 'Food counter',
+  '/reports': 'Reports'
+};
+
+const settings = {
+  get till() {
+    const saved = (localStorage.getItem('till') || 'A').toUpperCase().slice(0, 1);
+    return TILL_LETTERS.includes(saved) ? saved : 'A';
+  },
+  set till(value) {
+    localStorage.setItem('till', String(value).toUpperCase().slice(0, 1));
+  },
+  get beep() {
+    return localStorage.getItem('beep') !== 'off';
+  },
+  set beep(on) {
+    localStorage.setItem('beep', on ? 'on' : 'off');
+  }
+};
+
+const tillListeners = new Set();
+
+const ctx = {
+  settings,
+  onTillChange(fn) {
+    tillListeners.add(fn);
+    return () => tillListeners.delete(fn);
+  },
+  setTill(letter) {
+    settings.till = letter;
+    for (const fn of tillListeners) {
+      try { fn(settings.till); } catch (err) { console.error(err); }
+    }
+    refreshHeaderSub();
+  },
+  refreshHeaderSub: refreshHeaderSub
+};
+
+let nodes = {};
+let unmount = null;
+
+function buildShell() {
+  const root = document.getElementById('app');
+  clear(root);
+  root.className = 'app';
+
+  const title = el('h1', { class: 'header__title', testid: 'screen-title' });
+  const sub = el('span', { class: 'header__sub', testid: 'till-badge' });
+  const slotLeft = el('div', { class: 'header__left header__slot' });
+  const pill = el('span', {
+    class: 'pill',
+    testid: 'conn-pill',
+    'aria-live': 'polite',
+    role: 'status'
+  });
+  const slotRight = el('div', { class: 'header__right header__slot' });
+  const tillWrap = el('span', { class: 'till-field' });
+  const nav = el('nav', { class: 'header__right', 'aria-label': 'Screens' });
+
+  const header = el('header', { class: 'header' }, [
+    el('div', { class: 'header__left' }, [title, sub, slotLeft]),
+    el('div', { class: 'header__right' }, [pill, slotRight, tillWrap, nav])
+  ]);
+
+  const banner = el('div', { testid: 'banner-slot' });
+  const outlet = el('div', { class: 'outlet', id: 'outlet' });
+
+  root.append(header, banner, outlet);
+  nodes = { root, header, title, sub, pill, slotLeft, slotRight, tillWrap, nav, banner, outlet };
+}
+
+function renderBanner() {
+  clear(nodes.banner);
+  if (status.state === 'unconfigured' || status.state === 'error') {
+    nodes.banner.appendChild(el('p', {
+      class: 'banner',
+      role: 'alert',
+      testid: 'storage-banner'
+    }, [
+      'Storage not configured',
+      el('span', {
+        class: 'banner__note',
+        text: 'This device cannot reach the order database, so orders cannot be saved or shown. Ask the organiser to finish the Firebase setup.'
+      })
+    ]));
+  }
+}
+
+function renderPill(state) {
+  const online = state.online;
+  nodes.pill.className = 'pill' + (online ? '' : ' pill--offline');
+  clear(nodes.pill);
+  nodes.pill.append(
+    el('span', { class: 'pill__dot' }),
+    document.createTextNode(online ? 'Online · synced' : `Offline · ${state.queued} queued`)
+  );
+}
+
+function refreshHeaderSub() {
+  const route = currentRoute();
+  if (route === '/cash') {
+    setText(nodes.sub, `Till ${settings.till} · next ${peekOrderNo(settings.till, dayString())}`);
+    nodes.sub.hidden = false;
+  } else if (route === '/kitchen') {
+    setText(nodes.sub, dayString());
+    nodes.sub.hidden = false;
+  } else {
+    setText(nodes.sub, '');
+    nodes.sub.hidden = true;
+  }
+}
+
+function renderTillSelect(route) {
+  clear(nodes.tillWrap);
+  // The till letter only changes behaviour at the till, and the landing page
+  // owns the setting itself, so the header control lives on /cash alone.
+  if (route !== '/cash') return;
+  const select = el('select', {
+    id: 'till-letter',
+    testid: 'till-letter',
+    onchange: (e) => ctx.setTill(e.target.value)
+  }, TILL_LETTERS.map((l) => el('option', { value: l, text: l, selected: l === settings.till })));
+  select.value = settings.till;
+  nodes.tillWrap.append(el('label', { for: 'till-letter', text: 'Till' }), select);
+}
+
+function renderNav(route) {
+  clear(nodes.nav);
+  if (route === '/') return; // the landing page owns the three big buttons
+  const links = [
+    ['/cash', 'Cash counter', 'nav-cash'],
+    ['/kitchen', 'Food counter', 'nav-kitchen'],
+    ['/reports', 'Reports', 'nav-reports']
+  ];
+  for (const [path, label, testid] of links) {
+    nodes.nav.appendChild(el('a', {
+      class: 'navlink',
+      href: href(path),
+      testid,
+      text: label,
+      'aria-current': path === route ? 'page' : null
+    }));
+  }
+}
+
+function mountRoute(route) {
+  if (typeof unmount === 'function') {
+    try { unmount(); } catch (err) { console.error(err); }
+  }
+  unmount = null;
+
+  setText(nodes.title, TITLES[route] || TITLES['/']);
+  document.title = (TITLES[route] || TITLES['/']) + ' · Food stall';
+  clear(nodes.slotLeft);
+  clear(nodes.slotRight);
+  renderTillSelect(route);
+  renderNav(route);
+  refreshHeaderSub();
+  clear(nodes.outlet);
+
+  const screenCtx = {
+    ...ctx,
+    headerLeft: nodes.slotLeft,
+    headerRight: nodes.slotRight
+  };
+
+  if (route === '/cash') unmount = mountCash(nodes.outlet, screenCtx);
+  else if (route === '/kitchen') unmount = mountKitchen(nodes.outlet, screenCtx);
+  else if (route === '/reports') unmount = mountReports(nodes.outlet, screenCtx);
+  else unmount = mountLanding(nodes.outlet, screenCtx);
+
+  document.body.setAttribute('data-route', route);
+}
+
+async function boot() {
+  buildShell();
+  renderPill({ online: navigator.onLine !== false, queued: 0 });
+
+  const ok = await start();
+  renderBanner();
+  if (ok) {
+    onConnection(renderPill);
+    seedMenuIfEmpty().catch((err) => console.error('menu seed failed', err));
+  }
+
+  startRouter(mountRoute);
+  document.body.setAttribute('data-app-ready', 'true');
+}
+
+boot().catch((err) => {
+  console.error('App failed to start', err);
+});

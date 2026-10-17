@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daily sales report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button,select{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1240px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 24px; background: #1C1917; color: #FFFFFF">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px">Reports</span>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 17px">
+<label for="day" style="color: #D6D3D1">Day</label>
+<select id="day" style="height: 48px; padding: 0 12px; border-radius: 10px; border: 2px solid #78716C; background: #292524; color: #FFFFFF; font-size: 17px">
+<option>Sat 17 Oct 2026</option>
+<option>Sun 18 Oct 2026</option>
+<option>All days</option>
+</select>
+<button style="height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #FDE68A; color: #1C1917; font-size: 17px; font-weight: 700">Export CSV for Sheets</button>
+<a href="CashCounter.dc.html" style="font-weight: 700">Cash counter</a>
+</div>
+</header>
+
+<main style="width: 100%; max-width: 1360px; box-sizing: border-box; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 24px">
+<p style="margin: 0; font-size: 15px; color: #57534E">Illustrative figures to show the layout. The live page computes everything from that day's orders, excluding cancelled ones.</p>
+
+<section aria-label="Day totals" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 16px; color: #57534E">{{k.label}}</span>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 40px; line-height: 44px">{{k.value}}</span>
+<span style="font-size: 14px; color: #57534E">{{k.note}}</span>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<section aria-label="Peak demand" style="flex: 3 1 560px; min-width: 0; background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Orders per 30 minutes</h2>
+<button onClick="{{toggleTable}}" style="height: 44px; padding: 0 14px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 16px; font-weight: 700">{{tableLabel}}</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<div style="padding: 12px 16px; border-radius: 12px; background: #FEF3C7; font-size: 17px; line-height: 24px"><b>Peak 30 min:</b> {{peakSlot}}, {{peakCount}} orders</div>
+<div style="padding: 12px 16px; border-radius: 12px; background: #F5F5F4; font-size: 17px; line-height: 24px"><b>Busiest 2 hours:</b> {{peakWindow}}, {{windowCount}} orders ({{windowShare}} of the day)</div>
+</div>
+
+<sc-if value="{{showChart}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div aria-live="polite" style="height: 24px; font-size: 16px; color: #44403C">{{readout}}</div>
+<div style="position: relative; height: 260px">
+<sc-for list="{{grid}}" as="g" hint-placeholder-count="4">
+<div style="position: absolute; left: 0; right: 0; top: {{g.top}}; height: 0; border-top: 1px solid #E7E5E4"></div>
+<span style="position: absolute; left: 0; top: {{g.labelTop}}; width: 28px; text-align: right; font-size: 13px; color: #57534E">{{g.label}}</span>
+</sc-for>
+<div style="position: absolute; left: 40px; right: 0; top: 0; bottom: 0; display: flex; align-items: flex-end; gap: 6px">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="14">
+<button onMouseEnter="{{b.hover}}" onFocus="{{b.hover}}" onClick="{{b.hover}}" aria-label="{{b.aria}}" style="flex: 1 1 0; min-width: 0; height: 100%; padding: 0; border: none; background: transparent; display: flex; align-items: flex-end; cursor: default">
+<span style="display: block; width: 100%; height: {{b.h}}; background: {{b.colour}}; border-radius: 4px 4px 0 0"></span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; gap: 6px; padding-left: 40px">
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="14">
+<span style="flex: 1 1 0; min-width: 0; font-size: 13px; color: #57534E; text-align: left; white-space: nowrap; overflow: visible">{{b.tick}}</span>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{showTable}}" hint-placeholder-val="{{ false }}">
+<div style="overflow-x: auto">
+<table style="width: 100%; border-collapse: collapse; font-size: 16px">
+<thead><tr style="text-align: left; color: #57534E"><th style="padding: 8px; border-bottom: 1.5px solid #D6D3D1">Slot</th><th style="padding: 8px; border-bottom: 1.5px solid #D6D3D1; text-align: right">Orders</th></tr></thead>
+<tbody>
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="14">
+<tr><td style="padding: 8px; border-bottom: 1px solid #E7E5E4">{{b.slot}}</td><td style="padding: 8px; border-bottom: 1px solid #E7E5E4; text-align: right; font-weight: 700">{{b.n}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+</section>
+
+<div style="flex: 2 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+<section aria-label="Sales by item" style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Sales by item</h2>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 17px">
+<dc-import name="ItemIcon" kind="{{it.id}}" size="{{ 28 }}" hint-size="28px,28px"></dc-import>
+<span style="flex: 1 1 auto; min-width: 0; font-weight: 700">{{it.name}}</span>
+<span style="width: 48px; text-align: right">{{it.units}}</span>
+<span style="width: 84px; text-align: right; font-weight: 700">{{it.revenue}}</span>
+</div>
+<div style="height: 10px; background: #F5F5F4; border-radius: 4px"><div style="height: 10px; width: {{it.w}}; background: #D97706; border-radius: 0 4px 4px 0"></div></div>
+</div>
+</sc-for>
+<div style="display: flex; justify-content: space-between; padding-top: 10px; border-top: 2px solid #E7E5E4; font-size: 17px; font-weight: 700"><span>Total</span><span>{{unitsTotal}} items · {{salesTotal}}</span></div>
+</section>
+
+<section aria-label="Payment split" style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Cash and card</h2>
+<div style="display: flex; gap: 2px; height: 28px">
+<div style="width: {{cashW}}; background: #1C1917; border-radius: 4px 0 0 4px"></div>
+<div style="flex: 1 1 auto; background: #FBBF24; border-radius: 0 4px 4px 0"></div>
+</div>
+<div style="display: flex; justify-content: space-between; gap: 12px; font-size: 17px">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #1C1917"></span>Cash <b>{{cashText}}</b></span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #FBBF24"></span>Card <b>{{cardText}}</b></span>
+</div>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #57534E">Cash total is what should be in the tin at close. Card total should match the card reader's day report.</p>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { hover: null, table: false };
+  }
+  renderVals() {
+    const SLOTS = [4, 7, 10, 14, 18, 22, 25, 19, 14, 11, 9, 8, 6, 4];
+    const START = 12 * 60;
+    const ITEMS = [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa', units: 96 },
+      { id: 'momo', name: 'Momo', units: 84 },
+      { id: 'chat', name: 'Papri Chat', units: 52 },
+      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', units: 38 },
+      { id: 'straw', name: 'Choc Strawberry & Marshmallow', units: 30 },
+      { id: 'fountain', name: 'Chocolate Fountain', units: 22 }
+    ];
+    const PRICE = 500, CASH = 93000;
+    const gbp = (p) => '£' + (p / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const slot = (i) => hhmm(START + i * 30) + '–' + hhmm(START + i * 30 + 30);
+    const orders = SLOTS.reduce((a, b) => a + b, 0);
+    const units = ITEMS.reduce((a, b) => a + b.units, 0);
+    const sales = units * PRICE;
+    let peak = 0;
+    SLOTS.forEach((n, i) => { if (n > SLOTS[peak]) peak = i; });
+    let best = 0, bestSum = 0;
+    for (let i = 0; i + 4 <= SLOTS.length; i++) {
+      const sum = SLOTS.slice(i, i + 4).reduce((a, b) => a + b, 0);
+      if (sum > bestSum) { bestSum = sum; best = i; }
+    }
+    const MAX = 30, H = 260;
+    const maxUnits = Math.max.apply(null, ITEMS.map((x) => x.units));
+    const hi = this.state.hover;
+    const shown = hi == null ? peak : hi;
+    return {
+      kpis: [
+        { label: 'Total sales', value: gbp(sales), note: 'cash + card' },
+        { label: 'Orders', value: String(orders), note: 'excludes cancelled' },
+        { label: 'Items sold', value: String(units), note: (units / orders).toFixed(1) + ' per order' },
+        { label: 'Average order', value: gbp(Math.round(sales / orders)), note: 'per customer' },
+        { label: 'Average wait', value: '4m 10s', note: 'order placed to ready' }
+      ],
+      peakSlot: slot(peak), peakCount: SLOTS[peak],
+      peakWindow: hhmm(START + best * 30) + '–' + hhmm(START + best * 30 + 120),
+      windowCount: bestSum, windowShare: Math.round(bestSum / orders * 100) + '%',
+      readout: slot(shown) + ' · ' + SLOTS[shown] + ' orders',
+      grid: [0, 10, 20, 30].map((v) => ({
+        top: (H - v / MAX * H) + 'px', labelTop: (H - v / MAX * H - 8) + 'px', label: String(v)
+      })),
+      bars: SLOTS.map((n, i) => ({
+        n: n, slot: slot(i), aria: slot(i) + ', ' + n + ' orders',
+        h: Math.round(n / MAX * H) + 'px',
+        colour: i === peak ? '#B45309' : (i === hi ? '#F59E0B' : '#FBBF24'),
+        tick: i % 2 === 0 ? hhmm(START + i * 30) : '',
+        hover: () => this.setState({ hover: i })
+      })),
+      showChart: !this.state.table, showTable: this.state.table,
+      tableLabel: this.state.table ? 'Show chart' : 'Show as table',
+      toggleTable: () => this.setState({ table: !this.state.table }),
+      items: ITEMS.map((x) => ({
+        id: x.id, name: x.name, units: x.units, revenue: gbp(x.units * PRICE),
+        w: Math.round(x.units / maxUnits * 100) + '%'
+      })),
+      unitsTotal: units, salesTotal: gbp(sales),
+      cashW: Math.round(CASH / sales * 100) + '%',
+      cashText: gbp(CASH) + ' (' + Math.round(CASH / sales * 100) + '%)',
+      cardText: gbp(sales - CASH) + ' (' + Math.round((sales - CASH) / sales * 100) + '%)'
+    };
+  }
+}
+</script>
+</body>
+</html>
