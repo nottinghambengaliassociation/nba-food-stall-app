@@ -96,7 +96,7 @@ A second `QA-SMOKE` order was cancelled, and live Reports then read one order an
 
 **Phase I (17 October 2026).** All four routes loaded on both viewports with zero console errors and no "Storage not configured" banner. An order was taken through to Collected and a second cancelled, with Reports excluding the cancellation.
 
-All test orders from both phases have been deleted, along with earlier hand-testing data, so the `orders` collection is empty and ready for the event. Evidence: the `live-*` screenshots in [`qa/screenshots/`](qa/screenshots/) and the run log at [`qa/live-smoke-record.txt`](qa/live-smoke-record.txt).
+All test orders from both phases have been deleted, along with earlier hand-testing data: seven documents in total, removed by exact document id. The `orders` collection is empty and ready for the event, and the six `menu` documents are intact. Evidence: the `live-*` screenshots in [`qa/screenshots/`](qa/screenshots/) and the run log at [`qa/live-smoke-record.txt`](qa/live-smoke-record.txt).
 
 **The live menu is seeded and must be left alone.** The project was empty before the first smoke test, so the first load wrote the six menu documents. That is the real menu: prices are editable in the Firebase console, the seed only ever runs when `menu` is empty, and volunteers will not see a seed happen on the day.
 
@@ -122,7 +122,7 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 **The database is still wide open.** `firestore.rules` is `allow read, write: if true;`, and the login does not change that: anyone with the site URL can read every order, write to the database, and delete the lot, including the menu, without ever signing in. That was the explicit Phase I decision and it is a reasonable trade for a one-day charity stall, but do not post the URL publicly, and it must change before this is reused.
 
-**Order numbers can collide if two tills share a letter.** The sequence lives in the device's `localStorage`, which is what makes the till work offline. Give each till a different letter and check it before service starts.
+**Order numbers collide if two devices share a till letter.** This is not theoretical: three of the orders cleared from the live database were all numbered `A-001`, created on three devices that had each been left on till A, each counting from 001 independently. In service that means calling "A-001" and two customers stepping forward. The sequence lives in the device's `localStorage`, which is what makes the till work offline. Give each device its own letter on the landing page and check it before service starts.
 
 **Clearing browser data on a till resets its sequence.** The next order starts again at `001`. Orders already sent are safe in Firestore; only the numbering restarts.
 
@@ -160,7 +160,9 @@ For context, a Firebase web API key always ends up in the browser of a deployed 
 
 **3. Choose a shared password that is used nowhere else, and tell the volunteers it verbally.** The hash ships in the browser, so a weak or reused password is the weak point. Do not put it in a WhatsApp group that outlives the event.
 
-**4. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
+**4. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
+
+**5. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
 
 ---
 

@@ -104,3 +104,9 @@ picked instead.
 - 2026-10-18 — Five orders from 2026-10-17 (`Bodhi`, `Ravi`, `Guest`, `Subu Test`, `Arnab`) were the user's own hand-testing of the live site, not agent output. Left in place until the user asked for them, then deleted by exact document id.
 - 2026-10-18 — Three of those five were numbered `A-001`, because each device keeps its own `localStorage` sequence and all were set to till A. The order-number collision the handover warns about, observed in real data rather than in theory. It reinforces the day-of instruction to give every till a different letter.
 - 2026-10-18 — Deletion of live data stayed with Trinity throughout, even while Morpheus was concurrently writing to the same collection. Trinity was given exact document ids and told to expect the collection to change underneath it, rather than deleting by query.
+
+## Final state (Phase II)
+
+- 2026-10-18 — Seven live documents deleted by exact id: the five 2026-10-17 hand-test orders and Morpheus's two `QA-SMOKE` orders. `orders` is now empty, `menu` retains its six seeded documents. Correct starting state for the event.
+- 2026-10-18 — The Firebase CLI login on this Mac expired mid-run, and `firebase login --reauth` is interactive, so the deletions went through the Firestore REST API as seven individual document-path calls. The helper was hard-wired to the `orders` collection with no recursive, query-based or collection-wide mode, so `menu` was not addressable through it. Recorded as a "Needs you" since nothing else depends on that login.
+- 2026-10-18 — Phase II shipped as `8b3fc3d` (features) and `39d14a3` (handover and live artefacts), both deployed green first time. Live site 200 with both generated configs real, secret scanning reporting zero alerts.
