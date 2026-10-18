@@ -10,3 +10,48 @@ S-03 A-001 reached collected and left the kitchen board
 S-03 created order 2: A-002 name=QA-SMOKE payment=card day=2026-10-17 (to be cancelled)
 S-03 A-002 cancelled from the recent strip
 S-03 live reports for 2026-10-17: orders=1 sales=£5.00 (cancelled A-002 must be excluded)
+
+===== PHASE II LIVE SMOKE — 2026-10-18T08:58:40Z =====
+Pre-run live state (read-only, confirmed by the coordinator): orders=5 all on day 2026-10-17 (A-001 Bodhi cancelled, A-002 Ravi cancelled, A-001 Guest collected, A-001 Subu Test collected, A-003 Arnab collected), all Phase I schema with a tendered field; no QA-SMOKE order; nothing on 2026-10-18; menu intact with 6 documents.
+S-01 phone: "Login not configured" shown = false
+S-01 phone: PASS - #/login rendered the form, screenshot live-phone-login.png, 0 console errors
+S-02 phone: PASS - #/cash, #/kitchen, #/reports all redirected to #/login with no session, 0 console errors
+S-03a phone: PASS - wrong password (made-up username) showed the exact error, password cleared, no session; screenshot live-phone-login-error.png
+S-03b phone: PASS - the real credentials signed in and landed on #/ with a {user,at} session, 0 console errors
+S-04 phone: #/ loaded signed in, screenshot live-phone-landing.png
+S-04 phone: #/cash loaded signed in, screenshot live-phone-cash.png
+S-04 phone: #/kitchen loaded signed in, screenshot live-phone-kitchen.png
+S-04 phone: #/reports loaded signed in, screenshot live-phone-reports.png
+S-04 phone: PASS - 4 routes loaded signed in, 0 console errors
+S-05 phone: PASS - no "Storage not configured" banner, connection pill reads "Online · synced"
+S-06 phone: PASS - sign out returned to #/login, nba.session cleared, till letter C and 1 app key(s) preserved
+S-07a phone: PASS - Exact on a £15.00 order shows "Change £0.00"
+S-07b phone: PASS - £10 on a £15.00 order shows "Short £5.00" and Send stays enabled
+S-07c phone: PASS - £20 on a £15.00 order shows "Change £5.00"; screenshot live-phone-cash-received.png (order left unsent)
+S-01 tablet: "Login not configured" shown = false
+S-01 tablet: PASS - #/login rendered the form, screenshot live-tablet-login.png, 0 console errors
+S-02 tablet: PASS - #/cash, #/kitchen, #/reports all redirected to #/login with no session, 0 console errors
+S-03a tablet: PASS - wrong password (made-up username) showed the exact error, password cleared, no session; screenshot live-tablet-login-error.png
+S-03b tablet: PASS - the real credentials signed in and landed on #/ with a {user,at} session, 0 console errors
+S-04 tablet: #/ loaded signed in, screenshot live-tablet-landing.png
+S-04 tablet: #/cash loaded signed in, screenshot live-tablet-cash.png
+S-04 tablet: #/kitchen loaded signed in, screenshot live-tablet-kitchen.png
+S-04 tablet: #/reports loaded signed in, screenshot live-tablet-reports.png
+S-04 tablet: PASS - 4 routes loaded signed in, 0 console errors
+S-05 tablet: PASS - no "Storage not configured" banner, connection pill reads "Online · synced"
+S-06 tablet: PASS - sign out returned to #/login, nba.session cleared, till letter C and 1 app key(s) preserved
+S-07a tablet: PASS - Exact on a £15.00 order shows "Change to give: £0.00"
+S-07b tablet: PASS - £10 on a £15.00 order shows "Short by £5.00" and Send stays enabled
+S-07c tablet: PASS - £20 on a £15.00 order shows "Change to give: £5.00"; screenshot live-tablet-cash-received.png (order left unsent)
+S-08 London day for the smoke orders: 2026-10-18
+S-08 CREATED LIVE ORDER 1: A-001 name=QA-SMOKE payment=cash cash-received-keyed=£20 day=2026-10-18 (to be taken to collected)
+S-08 A-001 went New -> Preparing -> Ready -> Collected and left the kitchen board
+S-08 CREATED LIVE ORDER 2: A-002 name=QA-SMOKE payment=card day=2026-10-18 (to be cancelled)
+S-08 A-002 cancelled from the recent strip
+S-08 live Firestore holds 2 order(s) for 2026-10-18, 2 named QA-SMOKE: A-002/cancelled/card, A-001/collected/cash
+S-08 PASS - KEY ASSERTION: A-001 was sent with £20 keyed in and its live document keys are [cancelledAtMs, collectedAtMs, createdAt, createdAtMs, day, items, name, orderNo, payment, readyAtMs, startedAtMs, status, till, total] - no tendered, no changeGiven
+S-08 live menu intact: 6 documents [chat, fountain, fuchka, momo, samosa, straw]
+S-08 live reports for 2026-10-18: orders=1 sales=£5.00 (cancelled A-002 excluded)
+S-09 post-run verification (read-only REST): live orders now 7 total; the two new ones are both day=2026-10-18 name=QA-SMOKE: A-001 collected/cash (startedAtMs, readyAtMs, collectedAtMs all stamped, cancelledAtMs null) and A-002 cancelled/card (cancelledAtMs stamped). Neither document has a tendered or changeGiven key. The 5 pre-existing 2026-10-17 orders are untouched. menu still holds its 6 documents [chat, fountain, fuchka, momo, samosa, straw] with price 500 and active true.
+S-09 note: the four transition timestamps exist as null placeholders at creation (cancelledAtMs is null on the collected order). That matches the data model and the local D-02 case; tendered and changeGiven are different - their keys are absent entirely.
+RESULT: 15 live checks passed, 0 failed, 1 skipped by design (S-08 writes once, on tablet only). 0 console errors on any route, signed out or signed in. Cleanup for Trinity: 2 QA-SMOKE orders on day 2026-10-18 (A-001 collected, A-002 cancelled). Nothing deleted by QA.

@@ -96,3 +96,11 @@ picked instead.
 - 2026-10-18 — BUG-5 was withdrawn rather than fixed. It reported a short tender storing as `tendered: null`; the requirement change that stopped persisting cash received entirely made it moot.
 - 2026-10-18 — Phase I e2e tests were updated to sign in first, since login now gates every route. Expected consequence of the new requirement, not a regression, so not filed against Neo.
 - 2026-10-18 — Neo's and Morpheus's concurrent runs against the same emulator cross-contaminated each other (seeded report orders leaking into tender tests, duplicate order numbers). Final counts come from one clean run with nothing else on the machine.
+
+## Live smoke and cleanup (Phase II)
+
+- 2026-10-18 — The host Mac slept three times, killing Morpheus on its first tool call each time. The fix was to bank the read-only live-state check at the orchestrator level, then have Morpheus write `qa/live-smoke-record.txt` and each screenshot incrementally rather than composing them at the end, and prefer fewer, larger steps. No work was lost and no live data was orphaned.
+- 2026-10-18 — The decisive Phase II assertion was made against production, not the emulator: a live order sent with £20 keyed into Cash received has no `tendered` and no `changeGiven` keys at all, while the pre-existing orders in the same collection carry `tendered`. That contrast is what proves the requirement change shipped.
+- 2026-10-18 — Five orders from 2026-10-17 (`Bodhi`, `Ravi`, `Guest`, `Subu Test`, `Arnab`) were the user's own hand-testing of the live site, not agent output. Left in place until the user asked for them, then deleted by exact document id.
+- 2026-10-18 — Three of those five were numbered `A-001`, because each device keeps its own `localStorage` sequence and all were set to till A. The order-number collision the handover warns about, observed in real data rather than in theory. It reinforces the day-of instruction to give every till a different letter.
+- 2026-10-18 — Deletion of live data stayed with Trinity throughout, even while Morpheus was concurrently writing to the same collection. Trinity was given exact document ids and told to expect the collection to change underneath it, rather than deleting by query.
