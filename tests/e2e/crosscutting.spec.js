@@ -139,7 +139,7 @@ test('X-06 item icons are inline SVG, never emoji', async ({ page }) => {
       .map((t) => t.dataset.testid);
   });
   expect(emoji, 'CLAUDE.md Design: "Icons: inline stroke SVG per item. No emoji."').toEqual([]);
-  for (const id of ['fuchka', 'momo', 'chat', 'samosa', 'straw', 'fountain']) {
+  for (const id of ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain']) {
     expect(await tid(page, `tile-${id}`).locator('svg').count(), `tile-${id} needs an inline SVG`).toBeGreaterThan(0);
   }
 });

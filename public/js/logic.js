@@ -7,10 +7,19 @@ export const MENU = [
   { id: 'fuchka', name: 'Fuchka / Gol Gappa', short: 'Fuchka', price: 500, colour: '#FDE68A', station: 'chaat', active: true, sort: 1 },
   { id: 'momo', name: 'Momo', short: 'Momo', price: 500, colour: '#BFDBFE', station: 'momo', active: true, sort: 2 },
   { id: 'chat', name: 'Papri Chat', short: 'Papri Chat', price: 500, colour: '#FECACA', station: 'chaat', active: true, sort: 3 },
-  { id: 'samosa', name: 'Sweets Box Samosa / Shingara', short: 'Sweets Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
-  { id: 'straw', name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 5 },
-  { id: 'fountain', name: 'Chocolate Fountain', short: 'Choc Fountain', price: 500, colour: '#E7D3BF', station: 'sweets', active: true, sort: 6 }
+  { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
+  { id: 'samosa_only', name: 'Samosa', short: 'Samosa', price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
+  { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
+  { id: 'marshmallow', name: 'Marshmallow (V)', short: 'Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
+  { id: 'fountain', name: 'Chocolate Fountain', short: 'Choc Fountain', price: 500, colour: '#E7D3BF', station: 'sweets', active: true, sort: 8 },
+  // Retired by hotfix H1 (18 Oct 2026): kept in the seed so stationOf and the
+  // reports still resolve older orders. Never reuse these ids.
+  { id: 'samosa', name: 'Sweets Box Samosa / Shingara', short: 'Sweets Box', price: 500, colour: '#FED7AA', station: 'sweets', active: false, sort: 90 },
+  { id: 'straw', name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: false, sort: 91 }
 ];
+
+/** The items the till shows as tiles: everything in MENU that is still on sale. */
+export const ACTIVE_MENU = MENU.filter((m) => m.active !== false);
 
 /** Station filter definitions used by the food counter. */
 export const STATIONS = [

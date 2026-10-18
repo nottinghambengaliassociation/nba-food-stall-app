@@ -6,11 +6,16 @@ import {
   addItem, placeOrder, readCollection, waitForOrders, londonDay
 } from './helpers.js';
 
-const ITEMS = ['fuchka', 'momo', 'chat', 'samosa', 'straw', 'fountain'];
+// Hotfix H1 (18 Oct 2026): the till shows the eight ACTIVE menu items.
+// `samosa` and `straw` are retired (active:false) and are no longer tiles,
+// but stay in the menu collection for old orders. CLAUDE.md -> Menu, H1 1/5.
+const ITEMS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain'];
+const RETIRED = ['samosa', 'straw'];
+const SEEDED = [...ITEMS, ...RETIRED];
 
 test.beforeEach(async () => { await clearFirestore(); });
 
-test('C-01 six big item tiles with an icon, a name and £5', async ({ page }) => {
+test('C-01 eight big item tiles with an icon, a name and £5 (H-08)', async ({ page }) => {
   const errors = await openApp(page, '#/cash');
   for (const id of ITEMS) {
     const tile = tid(page, `tile-${id}`);
@@ -22,10 +27,17 @@ test('C-01 six big item tiles with an icon, a name and £5', async ({ page }) =>
     expect(text.replace(/\s+/g, ' '), `tile-${id} must show the £5 price`).toMatch(/£5(\.00)?/);
     expect(text.trim().length, `tile-${id} must show the item name`).toBeGreaterThan(2);
   }
+  // Exactly eight tiles, in sort order, and neither retired id among them.
+  const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
+    .map((t) => t.dataset.testid.replace(/^tile-/, '')));
+  expect(rendered, 'CLAUDE.md H1 5: the till shows the eight active items in sort order').toEqual(ITEMS);
+  for (const id of RETIRED) {
+    expect(await tid(page, `tile-${id}`).count(), `retired "${id}" must not be a tile`).toBe(0);
+  }
   await expectNoConsoleErrors(errors, '#/cash');
 });
 
-test('C-02 the menu is seeded once on first load', async ({ page }) => {
+test('C-02 the menu is seeded once on first load (H-07)', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fountain')).toBeVisible({ timeout: 15000 });
 
@@ -33,13 +45,13 @@ test('C-02 the menu is seeded once on first load', async ({ page }) => {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       const m = await readCollection('menu');
-      if (m.length >= 6) return m;
+      if (m.length >= SEEDED.length) return m;
       await new Promise((r) => setTimeout(r, 250));
     }
     return readCollection('menu');
   })();
 
-  expect(menu.map((m) => m._id).sort()).toEqual([...ITEMS].sort());
+  expect(menu.map((m) => m._id).sort()).toEqual([...SEEDED].sort());
   for (const m of menu) {
     expect(m.price, `${m._id} must be seeded at 500 pence`).toBe(500);
     expect(typeof m.name).toBe('string');
@@ -51,12 +63,24 @@ test('C-02 the menu is seeded once on first load', async ({ page }) => {
   expect(menu.find((m) => m._id === 'fuchka').station).toBe('chaat');
   expect(menu.find((m) => m._id === 'momo').station).toBe('momo');
   expect(menu.find((m) => m._id === 'fountain').station).toBe('sweets');
+  // H1: the four new items are all sweets, and the two retired rows are
+  // seeded with active:false so stationOf and the reports still resolve them.
+  for (const id of ['sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow']) {
+    expect(menu.find((m) => m._id === id).station, `${id} station`).toBe('sweets');
+    expect(menu.find((m) => m._id === id).active, `${id} must be active`).toBe(true);
+  }
+  for (const id of RETIRED) {
+    const row = menu.find((m) => m._id === id);
+    expect(row, `retired "${id}" must still be seeded for old orders`).toBeTruthy();
+    expect(row.active, `retired "${id}" must be active:false`).toBe(false);
+  }
+  expect(menu.filter((m) => m.active === true).map((m) => m.sort).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
   // Second load must not duplicate the seed.
   await page.reload();
   await expect(tid(page, 'tile-fountain')).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(1500);
-  expect((await readCollection('menu')).length, 'seeding must only happen when the menu collection is empty').toBe(6);
+  expect((await readCollection('menu')).length, 'seeding must only happen when the menu collection is empty').toBe(SEEDED.length);
 });
 
 test('C-03 tapping a tile adds one and shows a quantity badge', async ({ page }) => {

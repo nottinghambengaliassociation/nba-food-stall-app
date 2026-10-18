@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I + Phase II
+# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfix H1
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -17,9 +17,10 @@ In scope:
 - Offline write queueing and the connection pill.
 - Layout and touch-target constraints, accessibility (axe), console cleanliness.
 - Secret hygiene: no committed string matching `AIza[0-9A-Za-z_-]{35}`.
+- **Hotfix H1 (18 Oct 2026)** — the ten-row menu, the four new icons, `stationOf` for retired ids, the eight-tile till and phone layout, and backwards compatibility of orders holding `samosa`/`straw` (section 20–23).
 - Live smoke against `LIVE_URL`.
 
-Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
+Out of scope (per brief): **Phase III `#/reports/days` (Sales by day) — deferred, no case is written for it**, Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
 
 ## 2. Environments
 
@@ -46,7 +47,7 @@ Chromium only. HTML report to `playwright-report/`, trace and screenshot on fail
 
 ## 3. Test case index
 
-IDs: `U-*` unit, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke, **`G-*` login gate / sign out (Phase II A)**, **`T-*` cash received (Phase II B)**.
+IDs: `U-*` unit, `H-*` hotfix H1, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke, **`G-*` login gate / sign out (Phase II A)**, **`T-*` cash received (Phase II B)**.
 
 Because login now gates every route, every pre-existing `L-*`, `C-*`, `K-*`, `R-*`, `D-*`, `O-*` and `X-*` case runs with a session already seeded into `localStorage["nba.session"]` by the shared Playwright fixture (`tests/e2e/session.js`). That is a harness change, not a product change.
 
@@ -190,12 +191,16 @@ Exports under test (names fixed by the brief and `.claude/agents/neo.md`):
 ## 6. Cash counter — `#/cash`
 
 ### C-01 Six tiles, icon, name, £5 (FR Cash 1)
+> **Superseded by H-08 (hotfix H1, 18 Oct 2026): eight tiles, new ids.** The sizing and content assertions below still apply to each tile.
+
 **Steps** Load `#/cash` on a fresh database.
-**Expected** Six tiles `tile-fuchka`, `tile-momo`, `tile-chat`, `tile-samosa`, `tile-straw`, `tile-fountain`, seeded from the menu table. Each shows an inline SVG icon (no emoji), the item name and `£5.00` (or `£5`). Tiles are large: at least 48 px tall, mock-up `min-height: 212px` on tablet.
+**Expected** Eight tiles `tile-fuchka`, `tile-momo`, `tile-chat`, `tile-sweet_box`, `tile-samosa_only`, `tile-choc_strawberry`, `tile-marshmallow`, `tile-fountain`, seeded from the menu table. Each shows an inline SVG icon (no emoji), the item name and `£5.00` (or `£5`). Tiles are large: at least 48 px tall, mock-up `min-height: 212px` on tablet.
 
 ### C-02 Seed on first load (Menu table)
+> **Superseded by H-07 (hotfix H1): ten documents, eight active.**
+
 **Steps** Clear Firestore, load `#/cash`, then read the `menu` collection.
-**Expected** Six documents with ids `fuchka, momo, chat, samosa, straw, fountain`, `price: 500`, the colours and stations from the table. Seeding happens only when `menu` is empty — a second load does not duplicate.
+**Expected** Ten documents with ids `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain, samosa, straw`, `price: 500`, the colours and stations from the table. Seeding happens only when `menu` is empty — a second load does not duplicate.
 
 ### C-03 Tap adds one, quantity badge
 **Steps** Tap `tile-fuchka` three times, `tile-momo` once.
@@ -640,3 +645,118 @@ Spec: `CLAUDE.md` → Cash counter 3. "Cash received (optional)" replaces the Ph
 4. **"Teal"** for Change to give is accepted as the `#0F766E`/`#134E4A` family (the mock-up uses the darker `#134E4A` for text on white).
 5. **Exact wording of the error box.** The mock-up bolds "Username or password is wrong." inside the alert; the assertion is on the whitespace-normalised text content, so markup inside the box is free.
 6. **Login screen header.** Both login mock-ups are a plain centred card with no dark header bar, so `#/login` is not in the `X-04` route list.
+
+---
+
+# Hotfix H1 — split menu items (18 Oct 2026)
+
+Added 2026-10-18, written from `CLAUDE.md` → "Menu" (the ten-row table) and "Hotfix H1: split menu items (18 Oct 2026)" (1–6), **before reading Neo's implementation**. Case ids `H-*`.
+
+Scope of this hotfix for QA: the menu seed, the icons, `stationOf`, the till's tile set and phone layout with eight tiles, and — the part that matters most — **backwards compatibility of existing orders that contain the retired ids `samosa` and `straw`**. Live Firestore holds real trading records from this evening's service, two of which contain those ids, so a regression here corrupts actual accounts.
+
+**Explicitly out of scope here:** Phase III (`#/reports/days`, Sales by day). It is deferred and no `H-*` case touches it.
+
+**Write discipline.** Every H1 case runs against the Firestore emulator. Nothing in this hotfix writes to live Firestore; the single permitted live write is Trinity's `scripts/menu-sync.mjs` run, which Trinity tests against the emulator and which is not exercised by this suite. The H1 live verification (`H-20`) is **read-only**.
+
+## 20. H1 unit cases — `public/js/logic.js`, `public/js/icons.js`
+
+### H-01 The `MENU` seed is exactly the brief's table
+**Expected** `MENU` has exactly ten rows and, row by row, field by field, matches the table in `CLAUDE.md` → Menu: `id`, `name`, `short`, `price` (500 everywhere, integer pence), `colour` (upper-case hex), `station`, `active`, `sort`.
+
+| id | name | short | colour | station | active | sort |
+|---|---|---|---|---|---|---|
+| fuchka | Fuchka / Gol Gappa | Fuchka | #FDE68A | chaat | true | 1 |
+| momo | Momo | Momo | #BFDBFE | momo | true | 2 |
+| chat | Papri Chat | Papri Chat | #FECACA | chaat | true | 3 |
+| sweet_box | Sweet Box | Sweet Box | #FED7AA | sweets | true | 4 |
+| samosa_only | Samosa | Samosa | #D9F99D | sweets | true | 5 |
+| choc_strawberry | Chocolate Strawberry | Choc Strawberry | #E9D5FF | sweets | true | 6 |
+| marshmallow | Marshmallow (V) | Marshmallow | #FBCFE8 | sweets | true | 7 |
+| fountain | Chocolate Fountain | Choc Fountain | #E7D3BF | sweets | true | 8 |
+| samosa | Sweets Box Samosa / Shingara | Sweets Box | #FED7AA | sweets | **false** | 90 |
+| straw | Chocolate Strawberry & Marshmallow (V) | Choc Strawberry | #E9D5FF | sweets | **false** | 91 |
+
+Ids are unique; no id is reused ("Never reuse a retired id").
+
+### H-02 Eight active items, sorts 1–8
+**Expected** Exactly eight rows have `active: true`, their `sort` values are exactly 1…8 with no gaps or duplicates, and in sort order they read `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain`. Exactly two rows have `active: false`: `samosa` (90) and `straw` (91). Whatever list `logic.js` exports for the till (`ACTIVE_MENU`) holds those eight and neither retired id.
+
+### H-03 `stationOf` knows every id, old and new (H1 3)
+**Expected** `stationOf` returns `sweets` for all four new ids (`sweet_box`, `samosa_only`, `choc_strawberry`, `marshmallow`) and for `fountain`; `chaat` for `fuchka` and `chat`; `momo` for `momo`. It still returns `sweets` for the **retired** `samosa` and `straw` — it does not throw and does not fall through to a default/`null`. An unknown id is still falsy and still does not throw. `inStation` follows: a retired-id line is inside the `sweets` filter and outside `chaat`/`momo`.
+
+### H-04 Icons for the four new ids, and the two retired icons kept (H1 2)
+**Expected** `itemIcon(id)` returns an inline `<svg>` for each of the ten ids. For all ten the body differs from the `unknown` fallback body — i.e. every menu id, including `samosa` and `straw`, has a real icon of its own. `sweet_box`, `samosa_only`, `choc_strawberry` and `marshmallow` are present; `samosa` and `straw` are still present ("Keep `samosa` and `straw` icons for old orders"). The markup is `aria-hidden="true"`, `focusable="false"`, stroke-only, no emoji code point anywhere.
+
+### H-05 Reports name legacy lines by their original name (H1 6)
+**Expected** `buildReport` on a day that mixes old and new lines produces **separate** rows for `samosa` and `samosa_only`, and for `straw` and `choc_strawberry` — ids are never merged. A line carrying `{id:'samosa', name:'Sweets Box Samosa / Shingara'}` reports under that name, not "Samosa". A line carrying `{id:'straw'}` with **no** `name` falls back to the seed and reports as "Chocolate Strawberry & Marshmallow (V)" — this is the reason the retired rows stay in `MENU`. New lines report under the new names. Units and revenue are per id.
+
+### H-06 CSV exports legacy lines under their original names (H1 6)
+**Expected** `ordersToCsv` writes the stored line name for legacy lines (`Sweets Box Samosa / Shingara`, `Chocolate Strawberry & Marshmallow (V)`) and the new names for new lines, in the same thirteen-column shape. Nothing is rewritten or migrated; the `item` column of a legacy row is byte-for-byte the stored name. The names containing a comma are not an issue here, but `Marshmallow (V)` and the `/` name are checked to survive unquoted/quoted correctly.
+
+## 21. H1 end-to-end cases (both projects)
+
+### H-07 Seed writes ten menu documents, eight active (H1 1)
+**Steps** Clear Firestore, load `#/cash`, read the `menu` collection.
+**Expected** Ten documents whose ids and `name/short/price/colour/station/active/sort` fields match the H-01 table exactly. `samosa` and `straw` are present with `active: false`. A second load does not duplicate or change them.
+
+### H-08 The till shows exactly the eight active tiles (H1 5)
+**Steps** Load `#/cash`.
+**Expected** Exactly eight `[data-testid^="tile-"]` elements, in sort order `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain`. `tile-samosa` and `tile-straw` do **not** exist. Each tile shows an inline SVG, the item name and £5.00, and is at least 48 px tall.
+
+### H-09 Phone layout: all eight tiles reachable, the order bar covers none (H1 5) — **critical**
+**Steps** `phone` project (390 × 844), `#/cash`, with an order in the panel so the sticky bottom order bar is at its tallest. For each of the eight tiles: scroll it into view inside the tile area, then read `document.elementFromPoint(centreX, centreY)` at the tile's centre.
+**Expected** For every tile, the element at its own centre is the tile or a descendant of it — not the sticky order bar, not an overlay. Then tap the **eighth** tile (`fountain`) by coordinate and assert its quantity badge increments, proving the tap landed on the tile. This is the Phase I blocker failure mode (BUG-2), where a passing visibility assertion hid a covered control, so visibility alone is not accepted as evidence.
+
+### H-10 No horizontal scroll at 360 px with eight tiles
+**Steps** 360 × 740, `#/cash` with an order in the panel, and `#/kitchen`, `#/reports`, `#/`.
+**Expected** `scrollWidth <= clientWidth + 1` on every route, and no tile overflows the viewport on its right edge.
+
+### H-11 Legacy order renders on the kitchen board (H1 6) — **critical**
+**Steps** Seed an order directly into the emulator whose lines are `{id:'samosa', name:'Sweets Box Samosa / Shingara'}` and `{id:'straw', name:'Chocolate Strawberry & Marshmallow (V)'}` (the shape of a real 17 Oct order). Load `#/kitchen`.
+**Expected** The card appears, shows both lines under their **original** names with quantities and an inline SVG icon each, and the Start → Ready → Collected action works on it. No console error, no "unknown item" text. With the station filter on `Sweets` neither line is greyed; on `Chaat` both are greyed but still shown (`CLAUDE.md` → Food counter 4).
+
+### H-12 Legacy order in Reports under its original name (H1 6) — **critical**
+**Steps** With the same seeded legacy order plus a new-id order on the same day, load `#/reports`.
+**Expected** `item-row-samosa` and `item-row-straw` exist and show the original names and the right units/revenue; `item-row-samosa_only` and `item-row-choc_strawberry` are separate rows with the new names. The KPI totals include both. No row is merged or renamed.
+
+### H-13 CSV export keeps the original names (H1 6)
+**Steps** Export the CSV on that mixed day.
+**Expected** The download parses; the `item` column holds `Sweets Box Samosa / Shingara` and `Chocolate Strawberry & Marshmallow (V)` for the legacy lines and the new names for the new lines; thirteen columns, one row per line.
+
+### H-14 New orders use the new ids and names
+**Steps** Place an order through the UI with all four new tiles.
+**Expected** The written document's `items` carry ids `sweet_box, samosa_only, choc_strawberry, marshmallow` and names `Sweet Box, Samosa, Chocolate Strawberry, Marshmallow (V)`, `price: 500` each.
+
+### H-15 Nothing is migrated (H1 6) — **critical**
+**Steps** Snapshot the seeded legacy order document, then open `#/kitchen` and `#/reports` and let them run, then read it back.
+**Expected** The stored `items` array is identical — same ids, same names — before and after. The app never rewrites a legacy order's lines. (Status transitions driven by a test are the only permitted change, and are not made in this case.)
+
+### H-16 Kitchen station filter with the new ids (H1 3)
+**Steps** An order with `fuchka` (chaat), `momo` (momo) and `marshmallow` (sweets); station filter `Sweets`.
+**Expected** The `marshmallow` line is not greyed; `fuchka` and `momo` are greyed but visible. Under `Chaat` only `fuchka` is ungreyed.
+
+### H-17 Quality on the eight-tile till
+**Expected** `@axe-core/playwright`: zero serious/critical violations on `#/cash` with eight tiles, both projects. No console errors. Body text ≥ 17 px, `send-order` ≥ 72 px, `line-inc-*`/`line-dec-*` ≥ 52 px — unchanged by the extra tiles.
+
+### H-18 Screenshots refreshed
+**Expected** `qa/screenshots/<project>-cash-empty.png` and `<project>-cash-orders.png` regenerated showing eight tiles, both projects, plus `<project>-kitchen-legacy.png` showing a legacy-id card and `<project>-reports-mixed.png` showing old and new item rows side by side.
+
+## 22. H1 live verification (gated, **read-only**)
+
+### H-20 Live check after the H1 deploy
+**Gate** Runs only when `LIVE=1` is set, the same way the existing `S-*` smoke is gated. Not run before the hotfix is deployed.
+**Steps** On both projects against `LIVE_URL`: load `#/`, `#/cash`, `#/kitchen`, `#/reports`; sign in with the credentials read at run time from `.secrets/app-login.env`; read the live `menu` as the app renders it; open `#/reports` on the day of the last service.
+**Expected**
+1. Every route renders, `conn-pill` is present and reads Online, zero console errors.
+2. The till shows exactly eight tiles with the new ids; no `tile-samosa`, no `tile-straw`.
+3. The report for the last trading day still lists the legacy items under their **original** names, and its totals are unchanged from the pre-deploy figures recorded in `qa/live-smoke-record.txt`.
+4. Screenshots `qa/screenshots/live-<project>-<screen>.png`, password masked.
+**Write discipline** No order is placed, no document is written, no status is changed, nothing is cancelled. The only permitted live write in this hotfix is Trinity's single `scripts/menu-sync.mjs` run, which is not part of this spec.
+
+## 23. H1 deliberate readings of the brief
+
+1. **Tile order** is `sort` ascending. The brief gives sorts 1–8 for the active items, so that is the on-screen order; it is asserted, not left to insertion order.
+2. **`samosa_only` and `choc_strawberry` reuse the retired items' icon art** (brief H1 2 says so explicitly), so H-04 asserts "has a real icon", not "has a unique icon".
+3. **Station of the four new items is `sweets`** per H1 3, even though `samosa_only` is arguably chaat. The brief wins.
+4. **Existing fixtures that carry `samosa`** (the Phase I report day) are kept deliberately: they are now backwards-compatibility fixtures and exercise H-05/H-12 for free.
+5. **Six-tile assertions from Phase I are updated to eight.** That is the hotfix landing, not a defect, and is recorded in `qa/bugs.md` under "Test-side changes".

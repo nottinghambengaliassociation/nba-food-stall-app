@@ -110,3 +110,44 @@ picked instead.
 - 2026-10-18 — Seven live documents deleted by exact id: the five 2026-10-17 hand-test orders and Morpheus's two `QA-SMOKE` orders. `orders` is now empty, `menu` retains its six seeded documents. Correct starting state for the event.
 - 2026-10-18 — The Firebase CLI login on this Mac expired mid-run, and `firebase login --reauth` is interactive, so the deletions went through the Firestore REST API as seven individual document-path calls. The helper was hard-wired to the `orders` collection with no recursive, query-based or collection-wide mode, so `menu` was not addressable through it. Recorded as a "Needs you" since nothing else depends on that login.
 - 2026-10-18 — Phase II shipped as `8b3fc3d` (features) and `39d14a3` (handover and live artefacts), both deployed green first time. Live site 200 with both generated configs real, secret scanning reporting zero alerts.
+
+---
+
+# Hotfix H1 — split menu items (2026-10-18)
+
+- 2026-10-18 — H1 ships on its own, before Phase III. The Sales by day report is in the brief and in `design/ReportsByDay.dc.html` but is explicitly deferred; all three agents were told not to start it.
+- 2026-10-18 — **The brief's assumption that the console change was already made by hand is wrong.** Checked the live database before starting: `menu` still held the original six documents with `samosa` and `straw` active and `fountain` at sort 6. `scripts/menu-sync.mjs` therefore does the real work rather than reconciling someone else's edit. The script is written to be correct either way, since it must be idempotent.
+- 2026-10-18 — Three real orders from the evening's service (17:55–17:59, `Ritvik`, `Deeksha`, `Rimpa`) are in the live database, and two of them contain `samosa` and `straw`, the exact ids being retired. Backwards compatibility is therefore tested against a real trading record, not a hypothetical, which is why the retired ids stay in the seed with `active: false` and are never reused.
+- 2026-10-18 — Checked the clock before touching anything: service ran 17:55–17:59 and it was 22:35, so the stall was closed. Deploying a menu change and running `menu-sync` mid-service would have changed the till under the volunteers.
+- 2026-10-18 — `menu-sync` is the single permitted write to live Firestore in this hotfix. Everything else in the live check is read-only, and the script may never delete a document or overwrite a field that already differs.
+
+## Platform (Trinity)
+
+- 2026-10-18 — Added `firebase@13.0.0` to **devDependencies**, pinned exactly to the gstatic version `store.js` imports, so `scripts/menu-sync.mjs` can use the web SDK from Node. The deployed site still loads Firebase from gstatic, so the no-build-step constraint holds.
+- 2026-10-18 — `menu-sync.mjs` writes to existing documents only through a three-entry whitelist (`samosa.active`, `straw.active`, `fountain.sort`), and only when the stored value is the known pre-hotfix or target value. Every other mismatch is reported and left alone, so a deliberate console edit such as a price change survives the sync.
+- 2026-10-18 — Each create and update runs inside a Firestore transaction that re-reads and re-checks the stored value, so a document edited between read and write is skipped rather than clobbered. There is no delete path in the script at all.
+- 2026-10-18 — The retired `samosa`/`straw` `sort` values stay at their live 4 and 5 rather than being written to the brief's 90 and 91. Changing them is not among H1's three permitted field writes, and sort only affects tile ordering among *active* items, so it is cosmetic. Reported, not written, which keeps the live first run at exactly four creates and three field changes.
+- 2026-10-18 — Verified against the emulator on port **8099** rather than the default 8080, so the test could not collide with Morpheus's concurrent suite. Phase II taught us what shared-emulator contention costs.
+- 2026-10-18 — Tested the conflict path explicitly, not just the happy path: seeded a changed price, colour and sort, and confirmed all three were reported and left unchanged while the valid creates and flips still applied.
+
+## App (Neo)
+
+- 2026-10-19 — `logic.js` gained `ACTIVE_MENU` (the seed filtered to `active !== false`) next to `MENU`. `MENU` stays the full ten rows so `stationOf` and the report name lookup resolve `samosa` and `straw`; the till, and the store's offline fallback, render `ACTIVE_MENU` so a retired item can never be sold again.
+- 2026-10-19 — The two retired rows keep sort 90 and 91 in the seed exactly as the brief's table says. Sort only orders active tiles, so the values are inert, but a fresh emulator then matches the documented menu row for row.
+- 2026-10-19 — `samosa_only` reuses the existing samosa triangle and `choc_strawberry` the existing strawberry, as instructed; `sweet_box` is a new box-with-ribbon and `marshmallow` two stacked rounded cylinders. The old `samosa` and `straw` icons stay in `icons.js` so the three orders already in the live database keep their pictures.
+- 2026-10-19 — Phone layout for eight tiles: the tile area scrolls and is guaranteed `min(190px, 26dvh)`, enough for a full tile row with the next peeking, and the order sheet is now shrinkable (`flex: 0 1 auto`, cap 62dvh) instead of a fixed 68dvh block. Before the change the sheet always took 573px of an 844px phone and left the tiles 123px; now the tiles get 190px or more and no tile can end up under the bar.
+- 2026-10-19 — Send and Clear moved into a `.panel__foot` that is sticky to the bottom of the order sheet on phones. Shrinking the sheet to free tile space would otherwise have pushed "Send to food counter" below the fold for every order of one item or more, which is the Phase I "control you can see but cannot tap" failure in a new costume. Verified with `document.elementFromPoint` at the centre of all eight tiles and of the Send button.
+- 2026-10-19 — The line list, not the whole sheet, is what scrolls on a phone (`.lines` is `flex: 1 1 auto` with `overflow-y: auto`), so the total, the Cash/Card toggle and Send stay put while a long order scrolls behind them.
+- 2026-10-19 — `watchMenu` coalesces Firestore snapshots over 120 ms and `buildTiles` skips rebuilds when the item signature has not changed. Seeding ten documents makes the listener fire a burst of part-finished snapshots, which rebuilt the eight tiles roughly thirty times in two seconds and detached buttons mid-tap. Measured with a MutationObserver: thirty-odd childList bursts before, zero after.
+
+## Orchestration note
+
+- 2026-10-19 — Neo and Morpheus ran `npm run test:e2e` concurrently at 00:32 and shared one Firestore emulator, clearing each other's data mid-test. All five of Neo's tablet `menu-h1` failures fell in that window and passed in isolation. **This is the second time shared-emulator contention has produced phantom failures** (Phase II was the first). `npm run test:e2e` has no port guard, so the only mitigation currently is scheduling: one agent on the suite at a time. Worth a real fix before any future phase.
+
+## QA (Morpheus) — H1
+
+- 2026-10-19 — H1 added 50 unit cases and 22 e2e cases on top of the Phase II baseline of 116 unit / 177 e2e. Every H1 case passed against Neo's code first time; no bugs were raised this round.
+- 2026-10-19 — The eighth-tile check clicks **by coordinate** with `page.mouse.click` and then asserts the quantity badge moved, rather than using a Playwright locator click. A locator click auto-scrolls and would pass even if the order bar covered the tile in normal use, which is exactly how the Phase I blocker slipped through.
+- 2026-10-19 — A legacy line with no stored `name` still resolves to "Chocolate Strawberry & Marshmallow (V)" from the retired seed row. That is why the retired rows have to stay in the seed rather than only in Firestore.
+- 2026-10-19 — Three earlier full runs showed 5–11 failures, all environmental: missing Playwright artifact directories, a strict-mode violation from duplicate order cards, and an order `A-900 "Legacy Lil"` that exists in no test in this repo. All passed in isolation and in the clean run, so none was written up as a bug. H1 fixtures were hardened to use distinct order numbers and to look orders up by `orderNo` rather than by collection index.
+- 2026-10-19 — `tests/e2e/live-h1.spec.js` is gated on `LIVE_H1=1` and issues GETs only. Apart from Trinity's single `menu-sync` run, nothing in this hotfix writes to live Firestore.

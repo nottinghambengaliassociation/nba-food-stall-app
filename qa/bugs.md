@@ -124,7 +124,7 @@ Neo flagged that Send is no longer `position: sticky` on phone, in case a test d
 
 One screenshot change was needed, though: the panel now scrolls inside its own bounds, so a `fullPage` capture was clipping whichever part of the sheet had been scrolled past. `helpers.shot()` now resets `window.scrollTo(0, 0)` and every inner scroller to the top before capturing, so `qa/screenshots/phone-cash-orders.png` shows the sheet from the toast down. That is screenshot fidelity for the handover, not a test assertion.
 
-## Final status of every bug
+## Final status of every bug (Phase I)
 
 | Id | Severity | Screen | Status |
 |---|---|---|---|
@@ -274,3 +274,78 @@ Raised when a short amount (`10` on a £15.00 order) was stored as `tendered: nu
 3. `tests/unit/secrets.test.js` → `U-25` now also fails if either credential appears in a tracked file, and asserts `.secrets/` and `public/js/login-config.js` are untracked.
 4. CSV expectations (`U-20`, `U-28`, `R-07`) and the order-shape checks (`C-05`, `C-06`, `D-01`) were updated to the 2026-10-18 requirement change: thirteen CSV columns, no `tendered`/`changeGiven` on the document.
 5. `playwright.config.js` — `retries: 1` locally as well as in CI. The Firestore emulator is shared with whoever else is running the suite on this machine and can restart mid-run; the retry keeps a 12-minute suite from being written off by someone else's `emulators:exec`. The final numbers above come from a clean run with zero retries used.
+
+---
+
+## Round 4 — Hotfix H1 (split menu items), 2026-10-19
+
+Under test: `CLAUDE.md` → "Menu" (the ten-row table) and "Hotfix H1: split menu items (18 Oct 2026)" 1–6. Plan: `qa/test-plan.md` sections 20–23 (`H-*`), written from the brief before reading Neo's code. **Phase III (`#/reports/days`) is deliberately out of scope this round.**
+
+Clean full run with nothing else on the machine — no other Playwright process, no other Firestore emulator on 8080 (`npm run test:unit`, then `npm run test:e2e`):
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| unit (Vitest, 8 files) | 166 | 0 | 0 |
+| e2e phone 390×844 | 99 | 0 | 14 (13 live-gated + `T-08`, tablet-only by design) |
+| e2e tablet 1280×800 | 100 | 0 | 13 (live-gated) |
+| **e2e total** | **199** | **0** | **27** |
+
+Zero flaky tests, zero retries used. New this round: 50 unit cases (`tests/unit/menu.test.js`) and 22 e2e cases (`tests/e2e/menu-h1.spec.js`, 11 per viewport).
+
+The 27 skips are the gated live specs — 16 `S-*` (`LIVE_SMOKE=1`) and 10 `H-20.*` (`LIVE_H1=1`) — plus the tablet-only `T-08`. H1 is not deployed, so neither live spec is run.
+
+**Open bugs: none.** blocker 0 · major 0 · minor 0. No `BUG-*` was raised this round: every H1 case passed against Neo's implementation first time.
+
+### The two highest-risk cases, confirmed
+
+**1. Eighth tile at 390×844 is not covered by the sticky order bar** — `H-09`, both viewports.
+Not a visibility check: with an order in the panel (bar at its tallest) each of the eight tiles is scrolled into its own tile area and `document.elementFromPoint` is read at the tile's exact centre. The element returned must be the tile or a descendant for all eight; the assertion message names the covering element so a failure would say what covered it. The eighth tile (`fountain`) is then clicked **by coordinate** with `page.mouse.click` and `qty-fountain` must read 1 — a tap that lands on the bar would not move the badge. This is the Phase I `BUG-2` failure mode, where a passing visibility assertion hid a covered control, so visibility alone is not accepted as evidence. Measured geometry on phone: the tile area is its own scroller ending at y≈338 and the order panel starts at y≈338, so there is no overlap at any scroll position. `H-10` adds: no horizontal scroll at 360×740 on any of the four routes with a full cart, and no tile spilling past the right edge.
+
+**2. Orders holding the retired ids still render, report and export under their ORIGINAL names** — `H-05`, `H-06`, `H-11`, `H-12`, `H-13`, `H-15`, both viewports.
+Fixtures are shaped exactly like the live 17 Oct documents (`{id:'samosa', name:'Sweets Box Samosa / Shingara'}`, `{id:'straw', name:'Chocolate Strawberry & Marshmallow (V)'}`), seeded straight into the emulator and never touched by the UI.
+
+- **Kitchen** (`H-11`): the card renders, both lines keep their original names, each line carries an inline SVG (the retained `samosa` and `straw` icons), no "unknown"/"undefined" text, and Start → Ready → Collected still works on it. Screenshots `qa/screenshots/<project>-kitchen-legacy.png`.
+- **Reports** (`H-12`): `item-row-samosa` "Sweets Box Samosa / Shingara" 2 × £10.00 and `item-row-samosa_only` "Samosa" 3 × £15.00 are **separate rows**; likewise `item-row-straw` and `item-row-choc_strawberry`. Nothing is merged or relabelled. Screenshots `qa/screenshots/<project>-reports-mixed.png`.
+- **CSV** (`H-13`): the thirteen-column export carries `Sweets Box Samosa / Shingara` and `Chocolate Strawberry & Marshmallow (V)` verbatim alongside the new names, one row per line.
+- **A legacy line with no stored `name`** (`H-05`) falls back to the retired `MENU` row and still reads "Chocolate Strawberry & Marshmallow (V)" — this is why the two retired rows must stay in the seed.
+- **Nothing is migrated** (`H-15`): the stored `items` array is byte-identical before and after `#/kitchen`, `#/reports` and `#/cash` have all been opened and left running; status is untouched.
+- `stationOf` (`H-03`) resolves all four new ids **and** both retired ids to `sweets` — it neither throws nor falls through to a default — and `H-16` proves the station filter greys a retired-id line exactly like a new sweets line, never hiding it.
+
+### Menu and icon coverage
+
+- `H-01` asserts `MENU` field for field against the brief's ten-row table (id, name, short, price, colour, station, active, sort) with one `it()` per row, plus unique ids ("Never reuse a retired id").
+- `H-02`: exactly eight active rows, sorts 1–8 with no gaps, in the order `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain`; `samosa` 90 and `straw` 91 inactive; `ACTIVE_MENU` holds the eight and neither retired id.
+- `H-04`: every one of the ten ids returns an inline SVG whose body differs from the `unknown` fallback — so the four new icons exist *and* `samosa`/`straw` are still there for old orders — all `aria-hidden`, stroke-only, no emoji code point.
+- `H-07` (e2e): a fresh emulator seeds ten `menu/{id}` documents matching the same table, `active:false` on the two retired rows, and a second load does not duplicate them.
+- `H-08`: the till renders exactly eight tiles in sort order; `tile-samosa` and `tile-straw` do not exist.
+- `H-14`: an order built from the four new tiles is written with ids `sweet_box, samosa_only, choc_strawberry, marshmallow`, the new names and `price: 500`, and never a retired id.
+- `H-17`: axe reports zero serious/critical violations on the eight-tile till; `send-order` ≥ 72 px and `line-inc-*`/`line-dec-*` ≥ 52 px are unchanged by the extra tiles.
+
+### Contamination during the round (not bugs, not logged as such)
+
+Three earlier full runs this round showed 5–11 failures each. Every one was environmental, not behavioural: Neo and Trinity were driving the **same** Firestore emulator on 8080 and the same `test-results/` directory at the same time. The signatures were unmistakable — `ENOENT … test-results/.playwright-artifacts-*` (another run clearing the output directory mid-test), a strict-mode violation on two `order-card-A-001` elements, an order document named `A-900 / "Legacy Lil"` that exists in no test in this repository, and seeded orders disappearing mid-test from another run's `DELETE …/documents`. Every one of those cases passed in isolation and in the clean run above. Per the Phase II lesson, none was written up as a bug. `npm run test:e2e` has no port guard, so two agents running it concurrently will always collide; that is noted for Trinity as a tooling gap, not an app defect.
+
+### Test-side changes this round (not Neo's code, no app change required)
+
+1. **Six-tile assertions updated to eight.** `C-01` now expects the eight active tiles in sort order and asserts `tile-samosa`/`tile-straw` are absent; `C-02` expects ten seeded `menu` documents (eight active, two retired with `active:false`, active sorts 1–8); `X-06`'s icon list is the eight active ids; `screenshots.spec.js` taps `tile-choc_strawberry` instead of the retired `tile-straw`. This is the hotfix landing, not a defect.
+2. **`live-smoke.spec.js` S-08** now expects the ten live `menu` documents instead of six, and states why the two retired ids are never deleted.
+3. **Phase I fixtures keep `samosa`** (`tests/unit/fixtures.js`, `reportFixture()` in `helpers.js`). They were left exactly as they were on purpose: they are now backwards-compatibility fixtures and exercise the retired-id path in `U-12`, `U-15`, `R-03` and `R-07` for free.
+4. **H1 e2e fixtures use distinct order numbers** (`A-017`, `A-018`, `A-019`) and are looked up by `orderNo` rather than by collection index, so a legacy fixture can never be confused with an order the UI places (which always starts at `A-001`). This was hardened after the cross-run contamination above surfaced the fragility.
+5. **`tests/e2e/live-h1.spec.js` (new, gated and read-only).** `H-20.1`…`H-20.5`: routes load clean, the live `menu` holds the ten H1 documents, the live till shows the eight tiles (and on phone the eighth is not covered), and the last trading day's takings and legacy item names are unchanged from the pre-deploy figures. It is skipped unless `LIVE_H1=1` and **has not been run** — H1 is not deployed. It performs GETs only: no order placed, no status changed, nothing cancelled, no menu document written. Apart from Trinity's single `scripts/menu-sync.mjs` run, nothing in this hotfix may write to live Firestore. Credentials are read at run time from the gitignored `.secrets/app-login.env`; the Show/Hide toggle is never pressed, so the password stays masked in every screenshot.
+
+### Screenshots
+
+All 28 emulator screenshots regenerated in the clean run, both viewports:
+`<project>-{landing,cash,kitchen,reports}-{empty,orders}.png`, `<project>-login-{empty,error}.png`, `<project>-cash-{tender,confirm}.png`, plus the two new H1 captures `<project>-kitchen-legacy.png` (a card whose lines are `samosa` and `straw`) and `<project>-reports-mixed.png` (old and new item rows side by side). The 22 `live-*.png` are from the Phase II smoke and are deliberately **not** refreshed: H1 is not deployed yet.
+
+### Final status of every bug after round 4
+
+| id | severity | screen | status |
+|---|---|---|---|
+| BUG-1 | minor | `#/cash` | verified |
+| BUG-2 | blocker | `#/cash` phone | verified — re-proved this round by `H-09` with eight tiles |
+| BUG-3 | major | `#/cash` recent strip | verified |
+| BUG-4 | major | `#/cash` cash received | verified |
+| BUG-5 | major | `#/cash` stored order | withdrawn (requirement change) |
+
+**No new bugs in round 4.**

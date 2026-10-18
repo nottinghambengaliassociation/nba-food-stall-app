@@ -331,6 +331,10 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
    the default flex-shrink collapsed them on top of each other. */
 .panel > * { flex: 0 0 auto; }
 
+/* Send and Clear. On a phone this footer is sticky inside the scrolling
+   order sheet, so the primary action is never below the fold. */
+.panel__foot { display: flex; flex-direction: column; gap: 16px; }
+
 .toast {
   padding: 14px 16px;
   border-radius: 14px;
@@ -939,11 +943,17 @@ table.data td.num, table.data th.num { text-align: right; }
     flex: 1 1 auto;
     min-height: 0;
   }
+  /* Hotfix H1: the till has 8 tiles, so the tile area always scrolls on a
+     phone. It keeps at least one full tile row visible with the next row
+     peeking, so no tile ever ends up hidden behind the order bar. */
   .cash__scroll {
-    flex: 1 1 auto;
-    min-height: 0;
+    /* flex-basis 0: the order sheet is sized by its own content first, the
+       tile area takes what is left (never less than one full row). */
+    flex: 1 1 0;
+    min-height: min(190px, 26dvh);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 12px 16px;
     gap: 14px;
   }
@@ -959,17 +969,35 @@ table.data td.num, table.data th.num { text-align: right; }
 
   .panel {
     width: 100%;
-    flex: 0 0 auto;
+    /* Shrinkable (it scrolls inside) so the tile area above always keeps its
+       minimum height: the bar can never grow over the last tile row. */
+    flex: 0 1 auto;
     border-radius: 18px 18px 0 0;
-    padding: 14px 16px 18px;
+    padding: 14px 16px 0;
     gap: 10px;
     border-top: 1px solid var(--line);
     box-shadow: 0 -4px 16px rgba(28, 25, 23, 0.08);
-    max-height: 68dvh;
+    max-height: 62dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .lines { min-height: 0; gap: 8px; }
+  .panel__foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    gap: 6px;
+    padding: 8px 0 14px;
+    background: var(--card);
+  }
+  /* The line list is the part of the sheet that scrolls, so Total, payment,
+     Cash received and Send stay on screen however long the order is. */
+  .lines {
+    flex: 1 1 auto;
+    min-height: 56px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    gap: 8px;
+  }
   .lines__empty { padding: 12px 0; }
   .total-row { padding-top: 10px; }
   .tender__grid { gap: 8px; }

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sales by day report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button,input{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1560px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 24px; background: #1C1917; color: #FFFFFF">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px">Reports</span>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 17px">
+<button style="height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #FDE68A; color: #1C1917; font-size: 17px; font-weight: 700">Export CSV for Sheets</button>
+<a href="CashCounter.dc.html" style="font-weight: 700">Cash counter</a>
+<a href="Login.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF; font-weight: 700; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>Sign out</a>
+</div>
+</header>
+
+<main style="width: 100%; max-width: 1360px; box-sizing: border-box; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 24px">
+<nav aria-label="Report view" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="Reports.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">One day</a>
+<a href="ReportsByDay.dc.html" aria-current="page" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 17px; font-weight: 700; text-decoration: none">Sales by day</a>
+</nav>
+
+<section aria-label="Date range" style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; background: #FFFFFF; border-radius: 16px; padding: 20px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="from" style="font-size: 15px; font-weight: 700; color: #44403C">From</label>
+<input id="from" type="date" value="2026-10-16" style="height: 48px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 17px; color: #1C1917">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="to" style="font-size: 15px; font-weight: 700; color: #44403C">To</label>
+<input id="to" type="date" value="2026-10-20" style="height: 48px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 17px; color: #1C1917">
+</div>
+<div role="group" aria-label="Quick ranges" style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{ranges}}" as="r" hint-placeholder-count="3">
+<button onClick="{{r.pick}}" aria-pressed="{{r.on}}" style="height: 48px; padding: 0 16px; border-radius: 999px; border: 2px solid {{r.border}}; background: {{r.bg}}; color: #1C1917; font-size: 16px; font-weight: 700">{{r.label}}</button>
+</sc-for>
+</div>
+</section>
+
+<p style="margin: 0; font-size: 15px; color: #57534E">Illustrative figures to show the layout. Saturday matches the one-day report. Cancelled orders are excluded.</p>
+
+<section aria-label="Range totals" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="5">
+<div style="background: #FFFFFF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 16px; color: #57534E">{{k.label}}</span>
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 38px; line-height: 44px">{{k.value}}</span>
+<span style="font-size: 14px; color: #57534E">{{k.note}}</span>
+</div>
+</sc-for>
+</section>
+
+<section aria-label="Sales per day chart" style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Sales per day</h2>
+<span aria-live="polite" style="font-size: 16px; color: #44403C">{{readout}}</span>
+</div>
+<div style="position: relative; height: 260px">
+<sc-for list="{{grid}}" as="g" hint-placeholder-count="6">
+<div style="position: absolute; left: 0; right: 0; top: {{g.top}}; height: 0; border-top: 1px solid #E7E5E4"></div>
+<span style="position: absolute; left: 0; top: {{g.labelTop}}; width: 52px; text-align: right; font-size: 13px; color: #57534E">{{g.label}}</span>
+</sc-for>
+<div style="position: absolute; left: 68px; right: 0; top: 0; bottom: 0; display: flex; align-items: flex-end; gap: 24px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<button onMouseEnter="{{d.hover}}" onFocus="{{d.hover}}" onClick="{{d.hover}}" aria-label="{{d.aria}}" style="flex: 1 1 0; min-width: 0; max-width: 160px; height: 100%; padding: 0; border: none; background: transparent; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; cursor: default">
+<span style="font-size: 14px; font-weight: 700; color: #1C1917">{{d.salesShort}}</span>
+<span style="display: block; width: 100%; height: {{d.h}}; background: {{d.colour}}; border-radius: 4px 4px 0 0"></span>
+</button>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; gap: 24px; padding-left: 68px">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<span style="flex: 1 1 0; min-width: 0; max-width: 160px; text-align: center; font-size: 14px; color: #44403C; line-height: 18px"><b>{{d.dow}}</b><br>{{d.date}}</span>
+</sc-for>
+</div>
+</section>
+
+<section aria-label="Day by day table" style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Day by day</h2>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 16px">
+<thead><tr style="text-align: right; color: #57534E">
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1; text-align: left">Day</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Orders</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Items</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Sales</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Cash</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Card</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">Avg order</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1; text-align: left">Peak 30 min</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1"></th>
+</tr></thead>
+<tbody>
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<tr style="text-align: right">
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; text-align: left; font-weight: 700">{{d.dow}} {{d.date}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4">{{d.orders}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4">{{d.items}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; font-weight: 700">{{d.salesText}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4">{{d.cashText}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4">{{d.cardText}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4">{{d.avgText}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; text-align: left">{{d.peak}}</td>
+<td style="padding: 6px 8px; border-bottom: 1px solid #E7E5E4"><a href="Reports.dc.html" style="display: inline-flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 10px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">Open day</a></td>
+</tr>
+</sc-for>
+<tr style="text-align: right; font-weight: 700; background: #FAFAF9">
+<td style="padding: 12px 8px; text-align: left">Total</td>
+<td style="padding: 12px 8px">{{tot.orders}}</td>
+<td style="padding: 12px 8px">{{tot.items}}</td>
+<td style="padding: 12px 8px">{{tot.salesText}}</td>
+<td style="padding: 12px 8px">{{tot.cashText}}</td>
+<td style="padding: 12px 8px">{{tot.cardText}}</td>
+<td style="padding: 12px 8px">{{tot.avgText}}</td>
+<td style="padding: 12px 8px"></td>
+<td style="padding: 12px 8px"></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section aria-label="Items by day" style="background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 26px">Items sold by day</h2>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 860px; border-collapse: collapse; font-size: 16px">
+<thead><tr style="text-align: right; color: #57534E">
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1; text-align: left">Item</th>
+<sc-for list="{{days}}" as="d" hint-placeholder-count="5">
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1">{{d.dow}}</th>
+</sc-for>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1; color: #1C1917">Total</th>
+<th style="padding: 10px 8px; border-bottom: 1.5px solid #D6D3D1; color: #1C1917">Sales</th>
+</tr></thead>
+<tbody>
+<sc-for list="{{matrix}}" as="m" hint-placeholder-count="6">
+<tr style="text-align: right">
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; text-align: left"><span style="display: inline-flex; align-items: center; gap: 10px"><dc-import name="ItemIcon" kind="{{m.id}}" size="{{ 26 }}" hint-size="26px,26px"></dc-import><b>{{m.name}}</b></span></td>
+<sc-for list="{{m.cells}}" as="c" hint-placeholder-count="5">
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; background: {{c.bg}}">{{c.n}}</td>
+</sc-for>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; font-weight: 700">{{m.total}}</td>
+<td style="padding: 10px 8px; border-bottom: 1px solid #E7E5E4; font-weight: 700">{{m.salesText}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<p style="margin: 0; font-size: 14px; color: #57534E">Shading marks each item's best day.</p>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { hover: null, range: 'event' };
+  }
+  renderVals() {
+    const PRICE = 500;
+    const DAYS = [
+      { dow: 'Fri', date: '16 Oct', orders: 62,  cash: 34000,  peak: '18:30–19:00', items: { fuchka: 35, momo: 31, chat: 19, samosa: 14, straw: 11, fountain: 8 } },
+      { dow: 'Sat', date: '17 Oct', orders: 171, cash: 93000,  peak: '15:00–15:30', items: { fuchka: 96, momo: 84, chat: 52, samosa: 38, straw: 30, fountain: 22 } },
+      { dow: 'Sun', date: '18 Oct', orders: 208, cash: 110500, peak: '13:30–14:00', items: { fuchka: 120, momo: 104, chat: 65, samosa: 47, straw: 37, fountain: 28 } },
+      { dow: 'Mon', date: '19 Oct', orders: 154, cash: 82000,  peak: '19:00–19:30', items: { fuchka: 86, momo: 75, chat: 47, samosa: 34, straw: 27, fountain: 20 } },
+      { dow: 'Tue', date: '20 Oct', orders: 97,  cash: 50500,  peak: '17:30–18:00', items: { fuchka: 53, momo: 46, chat: 28, samosa: 21, straw: 16, fountain: 12 } }
+    ];
+    const ITEMS = [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa' }, { id: 'momo', name: 'Momo' }, { id: 'chat', name: 'Papri Chat' },
+      { id: 'samosa', name: 'Sweets Box' }, { id: 'straw', name: 'Choc Strawberry' }, { id: 'fountain', name: 'Choc Fountain' }
+    ];
+    const gbp = (p) => '£' + (p / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const gbp0 = (p) => '£' + Math.round(p / 100).toLocaleString('en-GB');
+    const rows = DAYS.map((d) => {
+      const items = Object.keys(d.items).reduce((a, k) => a + d.items[k], 0);
+      const sales = items * PRICE;
+      return Object.assign({}, d, { itemsN: items, sales: sales, card: sales - d.cash });
+    });
+    const sum = (k) => rows.reduce((a, r) => a + r[k], 0);
+    const tOrders = sum('orders'), tItems = sum('itemsN'), tSales = sum('sales'), tCash = sum('cash'), tCard = sum('card');
+    let best = 0;
+    rows.forEach((r, i) => { if (r.sales > rows[best].sales) best = i; });
+    const MAX = 250000, H = 220;
+    const hi = this.state.hover;
+    const shown = hi == null ? best : hi;
+    const RANGES = [
+      { key: 'today', label: 'Today' }, { key: '7d', label: 'Last 7 days' }, { key: 'event', label: 'This event' }
+    ];
+    return {
+      ranges: RANGES.map((r) => ({
+        label: r.label, on: r.key === this.state.range,
+        bg: r.key === this.state.range ? '#FDE68A' : '#FFFFFF',
+        border: r.key === this.state.range ? '#1C1917' : '#D6D3D1',
+        pick: () => this.setState({ range: r.key })
+      })),
+      kpis: [
+        { label: 'Total sales', value: gbp(tSales), note: rows.length + ' days' },
+        { label: 'Orders', value: tOrders.toLocaleString('en-GB'), note: 'excludes cancelled' },
+        { label: 'Items sold', value: tItems.toLocaleString('en-GB'), note: (tItems / tOrders).toFixed(1) + ' per order' },
+        { label: 'Best day', value: rows[best].dow + ' ' + rows[best].date, note: gbp(rows[best].sales) },
+        { label: 'Average per day', value: gbp(Math.round(tSales / rows.length)), note: Math.round(tOrders / rows.length) + ' orders a day' }
+      ],
+      readout: rows[shown].dow + ' ' + rows[shown].date + ' · ' + gbp(rows[shown].sales) + ' · ' + rows[shown].orders + ' orders',
+      grid: [0, 50000, 100000, 150000, 200000, 250000].map((v) => ({
+        top: (H + 40 - v / MAX * H) + 'px', labelTop: (H + 40 - v / MAX * H - 8) + 'px', label: gbp0(v)
+      })),
+      days: rows.map((r, i) => ({
+        dow: r.dow, date: r.date, orders: r.orders, items: r.itemsN, peak: r.peak,
+        salesText: gbp(r.sales), cashText: gbp(r.cash), cardText: gbp(r.card),
+        avgText: gbp(Math.round(r.sales / r.orders)),
+        salesShort: gbp0(r.sales),
+        aria: r.dow + ' ' + r.date + ', ' + gbp(r.sales) + ', ' + r.orders + ' orders',
+        h: Math.round(r.sales / MAX * H) + 'px',
+        colour: i === best ? '#B45309' : (i === hi ? '#F59E0B' : '#FBBF24'),
+        hover: () => this.setState({ hover: i })
+      })),
+      tot: {
+        orders: tOrders.toLocaleString('en-GB'), items: tItems.toLocaleString('en-GB'),
+        salesText: gbp(tSales), cashText: gbp(tCash), cardText: gbp(tCard),
+        avgText: gbp(Math.round(tSales / tOrders))
+      },
+      matrix: ITEMS.map((it) => {
+        const counts = rows.map((r) => r.items[it.id]);
+        const max = Math.max.apply(null, counts);
+        const total = counts.reduce((a, b) => a + b, 0);
+        return {
+          id: it.id, name: it.name, total: total, salesText: gbp(total * PRICE),
+          cells: counts.map((n) => ({ n: n, bg: n === max ? '#FEF3C7' : 'transparent' }))
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -67,9 +67,16 @@ The app has one shared login. The username and password are kept only in `.secre
 
 To change the password later: edit `.secrets/app-login.env`, then ask Claude Code: "Use the trinity subagent to rotate the login: rerun write-login-config, update the APP_LOGIN secrets and redeploy."
 
-**Already ran the build before login and the cash received change were added?** Start Claude Code with:
+**Hotfix H1 (split Sweets Box/Samosa and Choc Strawberry/Marshmallow into four items):**
+
 ```
-claude --permission-mode auto "Read CLAUDE.md. The app is already built; add Login and sign out, and the optional Cash received with Exact and Other amount, as described. Trinity: login config script, secrets, workflow step. Neo: build both. Morpheus: add tests for both and rerun everything. Then Trinity deploys, Morpheus smoke-tests login on the live URL, and you update HANDOVER.md. Do not ask me anything."
+caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Phases I and II are built and live. Ship Hotfix H1 only. Neo: menu seed, icons, station, phone layout for 8 tiles. Trinity: scripts/menu-sync.mjs. Morpheus: H1 tests and rerun everything. Then Trinity commits and pushes to main, watches the deploy, runs menu-sync against live once, and Morpheus does a read-only live check. Update HANDOVER.md. Do not ask me anything."
+```
+
+**Phase III follow-up run (Sales by day report), after the day's trading has finished.** Phase II (login, sign out, Cash received calculator) is already built and live.
+
+```
+caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Phases I and II are built and live. Build Phase III (Sales by day report) only. Neo: build it. Morpheus: add the Phase III tests and rerun everything, then a read-only live check (no orders written to the live database). Trinity: commit and push to main, watch the deploy. Update HANDOVER.md. Do not ask me anything."
 ```
 
 ## Keys and secrets

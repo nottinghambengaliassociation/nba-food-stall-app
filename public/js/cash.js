@@ -3,7 +3,7 @@
 import { el, clear, setText, svgNode } from './ui.js';
 import { itemIcon } from './icons.js';
 import {
-  MENU, QUICK_CASH, formatPence, orderTotal,
+  ACTIVE_MENU, QUICK_CASH, formatPence, orderTotal,
   parseAmountToPence, cashReceivedState,
   dayString, nextOrderNo
 } from './logic.js';
@@ -21,7 +21,7 @@ const STATUS_LABEL = {
 
 export function mountCash(outlet, ctx) {
   const state = {
-    menu: MENU.slice(),
+    menu: ACTIVE_MENU.slice(),
     cart: {},
     payment: 'cash',
     // Cash received (optional): either a quick button ('exact' | pence) or
@@ -168,8 +168,9 @@ export function mountCash(outlet, ctx) {
     ]),
     el('div', { class: 'pay-group', role: 'group', 'aria-label': 'Payment method' }, [payCash, payCard]),
     tenderBlock,
-    sendButton,
-    clearButton
+    // Send + Clear ride together in a footer so the phone sheet can pin them
+    // to its bottom edge (hotfix H1: 8 tiles leave the sheet shorter).
+    el('div', { class: 'panel__foot' }, [sendButton, clearButton])
   ]);
 
   const recentList = el('div', { class: 'recent__items', testid: 'recent-list' });
@@ -275,8 +276,17 @@ export function mountCash(outlet, ctx) {
   // Tiles are built once per menu change and then patched, so tapping a tile
   // never rips the focused button out of the DOM.
   const tileNodes = new Map();
+  let tileSignature = null;
 
   function buildTiles() {
+    // Every menu snapshot calls in here, most of them with identical items.
+    // Rebuilding then would swap the buttons out from under a volunteer's
+    // finger (and detach the node a test is about to tap), so skip no-ops.
+    const signature = state.menu
+      .map((m) => [m.id, m.name, m.price, m.colour].join('\u0001'))
+      .join('\u0002');
+    if (signature === tileSignature && tileNodes.size === state.menu.length) return;
+    tileSignature = signature;
     clear(tilesSection);
     tileNodes.clear();
     for (const item of state.menu) {

@@ -43,19 +43,26 @@ One static single-page app, a shared login, three working screens, shared data i
 | `#/login` | Sign in with the one shared account. Every other route redirects here until signed in | Everyone |
 | `#/cash` | Cash counter: build order, take name, cash or card, send | Till volunteer (tablet or phone) |
 | `#/kitchen` | Food counter: New → Preparing → Ready → Collected | Food counter volunteers (tablet or phone) |
-| `#/reports` | Daily totals, per item, peak demand, cash vs card, CSV export | Organisers |
+| `#/reports` | One day: daily totals, per item, peak demand, cash vs card, CSV export | Organisers |
+| `#/reports/days` | Phase III. Sales by day across a date range | Organisers |
 | `#/` | Landing page after sign-in: three big buttons to the above, till letter setting | Everyone |
 
 ### Menu (seed into Firestore on first load if `menu` is empty)
 
-| id | name | short | price (pence) | tile colour | station |
-|---|---|---|---|---|---|
-| fuchka | Fuchka / Gol Gappa | Fuchka | 500 | #FDE68A | chaat |
-| momo | Momo | Momo | 500 | #BFDBFE | momo |
-| chat | Papri Chat | Papri Chat | 500 | #FECACA | chaat |
-| samosa | Sweets Box Samosa / Shingara | Sweets Box | 500 | #FED7AA | sweets |
-| straw | Chocolate Strawberry & Marshmallow (V) | Choc Strawberry | 500 | #E9D5FF | sweets |
-| fountain | Chocolate Fountain | Choc Fountain | 500 | #E7D3BF | sweets |
+| id | name | short | price (pence) | tile colour | station | active | sort |
+|---|---|---|---|---|---|---|---|
+| fuchka | Fuchka / Gol Gappa | Fuchka | 500 | #FDE68A | chaat | true | 1 |
+| momo | Momo | Momo | 500 | #BFDBFE | momo | true | 2 |
+| chat | Papri Chat | Papri Chat | 500 | #FECACA | chaat | true | 3 |
+| sweet_box | Sweet Box | Sweet Box | 500 | #FED7AA | sweets | true | 4 |
+| samosa_only | Samosa | Samosa | 500 | #D9F99D | sweets | true | 5 |
+| choc_strawberry | Chocolate Strawberry | Choc Strawberry | 500 | #E9D5FF | sweets | true | 6 |
+| marshmallow | Marshmallow (V) | Marshmallow | 500 | #FBCFE8 | sweets | true | 7 |
+| fountain | Chocolate Fountain | Choc Fountain | 500 | #E7D3BF | sweets | true | 8 |
+| samosa | Sweets Box Samosa / Shingara | Sweets Box | 500 | #FED7AA | sweets | **false** (retired 18 Oct) | 90 |
+| straw | Chocolate Strawberry & Marshmallow (V) | Choc Strawberry | 500 | #E9D5FF | sweets | **false** (retired 18 Oct) | 91 |
+
+Hotfix H1 (18 Oct 2026) split the two combined items into four. The retired ids stay in `menu` with `active: false` so older orders keep reporting under their original names. Never reuse a retired id.
 
 Prices are edited in the Firebase console in Phase I; the app reads them from `menu`, never hard-codes them outside the seed.
 
@@ -68,8 +75,7 @@ orders/{autoId}
   items        [{id, name, qty, price}]   price in pence
   total        1500             pence, integers only
   payment      "cash" | "card"
-  tendered     2000 | null      cash received in pence; optional, cash only; null if not entered
-  changeGiven  500 | null       tendered − total when tendered ≥ total, else null
+  tendered     2000             Phase I orders only. Not written since Phase II (Cash received is a calculator, not stored)
   status       "new" | "preparing" | "ready" | "collected" | "cancelled"
   day          "2026-10-17"     Europe/London date
   till         "A"
@@ -86,7 +92,7 @@ Queries: only `where("day", "==", day)`; filter and sort on the client. No compo
 
 ## Functional requirements
 
-### Login and sign out
+### Phase II: Login and sign out (built and live, 18 Oct 2026)
 Mock-ups: `design/Login.dc.html`, `design/LoginMobile.dc.html`, and the Sign out button in the headers of the other mock-ups.
 
 1. Login screen: NBA logo (`public/img/nba-logo.png`, about 168 px tablet, 132 px phone), heading "Nottingham Bengali Association", subheading "Food Stall Application" in #B5050F, Username and Password fields (60 px tall), a Show/Hide button inside the password field, a "Sign in" button (at least 64 px, #B5050F, white text), and the helper line "One shared login for stall volunteers. Ask the stall lead if you don't have it."
@@ -102,12 +108,13 @@ Mock-ups: `design/Login.dc.html`, `design/LoginMobile.dc.html`, and the Sign out
 ### Cash counter
 1. Six big item tiles with icon, name and £5. Tap adds one. Quantity badge on the tile.
 2. Order panel: name input, line items with − and + (each at least 52×52 px), line totals, big total.
-3. Cash or Card toggle. With Cash selected, show **Cash received (optional)** (mock-ups: `design/CashCounter.dc.html`, `design/CashCounterMobile.dc.html`):
+3. Cash or Card toggle. **Phase II (built and live, 18 Oct 2026):** with Cash selected, show **Cash received (optional)** (mock-ups: `design/CashCounter.dc.html`, `design/CashCounterMobile.dc.html`):
    - Quick buttons: Exact, £5, £10, £20, £50 (at least 44 px tall on phone, 54 px on tablet). Tapping a selected button deselects it. Exact = the order total.
    - "Other amount" text box (`inputmode="decimal"`, £ prefix) for any amount. Accepts `17.50`, `17.5`, `£17.50`, `17`, `1,000`. Typing in it clears the quick button; tapping a quick button clears it.
    - Show "Change to give: £x.xx" (teal) when received ≥ total, "Short by £x.xx" (amber) when less, "Enter an amount like 17.50" (amber) when it can't be parsed, and nothing when empty. Phone shows a short form beside the label ("Change £5.00", "Short £2.00", "Check amount").
    - A Clear link (tablet) resets it. Switching to Card, sending, or clearing the order resets it.
-   - It never blocks sending: an order can go with no amount, a short amount, or an unparseable amount (saved as `tendered: null`).
+   - It never blocks sending: an order can go with no amount, a short amount, or an unparseable amount.
+   - It's a calculator for the volunteer only. Nothing about it is saved to the order or exported (decision during the Phase II build, recorded in `DECISIONS.md`). It resets when the order panel empties.
 4. "Send to food counter" button (at least 72 px tall), disabled when empty. On send: write the order, show a confirmation with the order number for 4 s, clear the panel.
 5. Recent orders strip (last 5 from this till) with live status. Cancel is available while status is `new`.
 6. Connection pill: "Online · synced" or "Offline · N queued" (use `navigator.onLine` plus snapshot `hasPendingWrites`).
@@ -126,7 +133,33 @@ Mock-ups: `design/Login.dc.html`, `design/LoginMobile.dc.html`, and the Sign out
 3. Sales by item: units, revenue, bar.
 4. Orders per 30 minutes as a bar chart, peak bar highlighted, "Peak 30 min" and "Busiest 2 hours" callouts, "Show as table" toggle.
 5. Cash vs card split with amounts and percentages.
-6. "Export CSV" downloads one row per order line: day, orderNo, till, name, item, qty, price, lineTotal, payment, tendered, changeGiven, status, createdAt, readyAt, waitSeconds (tendered and changeGiven in £, blank when null).
+6. "Export CSV" downloads one row per order line: day, orderNo, till, name, item, qty, price, lineTotal, payment, status, createdAt, readyAt, waitSeconds.
+
+### Hotfix H1: split menu items (18 Oct 2026)
+The menu change itself may already have been made by hand in the Firebase console (4 new documents, `samosa` and `straw` set `active: false`, `fountain` sort 8). The hotfix makes the code match:
+
+1. `MENU` seed in `public/js/logic.js` = the table above, including the two retired rows with `active: false`, so `stationOf` knows every id and a fresh emulator seeds the same menu.
+2. Icons in `public/js/icons.js` for the four new ids: `sweet_box` (a box with a ribbon), `samosa_only` (the existing samosa triangle), `choc_strawberry` (the existing strawberry), `marshmallow` (two stacked rounded cylinders). Keep `samosa` and `straw` icons for old orders.
+3. Station filter: all four new ids are `sweets`.
+4. `scripts/menu-sync.mjs` (Trinity): idempotent. Using the web SDK and the live Firebase config, create any missing new document and set `active: false` on `samosa` and `straw` and `sort: 8` on `fountain`. Never overwrite a field that already has a different value (it may have been edited in the console); report differences instead. Never delete a document. This is the only permitted write to live Firestore in a follow-up run.
+5. Till: 8 tiles. Phone layout must still show all 8 tiles and the bottom order bar without the bar covering a tile (scroll the tile area if needed).
+6. Reports and CSV: orders containing `samosa` or `straw` still show under their original names; new orders under the new names. Nothing is migrated in old orders.
+
+Ship H1 on its own, before Phase III: build, test, push to `main`, run `menu-sync`, live check (read-only apart from `menu-sync`).
+
+### Phase III: Sales by day report
+Mock-ups: `design/ReportsByDay.dc.html` and the One day / Sales by day toggle in `design/Reports.dc.html`. Read-only: no change to how orders are stored.
+
+1. Toggle at the top of both report screens: "One day" (`#/reports`) and "Sales by day" (`#/reports/days`), pill buttons at least 48 px, current one filled ink.
+2. Range: From and To date inputs (Europe/London days) and quick buttons Today, Last 7 days, This event. Default: Last 7 days ending today. "This event" uses `settings/event` (`{name, from, to}`, edited in the Firebase console) and is hidden when that document doesn't exist. To before From swaps them. Maximum 31 days; longer ranges show "Pick 31 days or fewer" and don't query.
+3. Query: `where("day", ">=", from)` and `where("day", "<=", to)` on `orders`, single field so no composite index. Exclude cancelled. One read per order in range.
+4. Only days with at least one order appear ("trading days"). No orders in range: "No sales in this range".
+5. Totals tiles: Total sales; Orders (note "excludes cancelled"); Items sold (note "x.x per order"); Best day (day and its sales); Average per trading day (sales, note "n orders a day").
+6. "Sales per day" bar chart: one bar per trading day, value label above each bar, weekday and date below, best day #B45309, others #FBBF24, hovered #F59E0B, £ gridlines. Hover, focus or tap shows "Sun 18 Oct · £2,005.00 · 208 orders". Each bar is a real `<button>` with an aria-label.
+7. "Day by day" table: Day, Orders, Items, Sales, Cash, Card, Avg order, Peak 30 min, and an "Open day" button linking to `#/reports?day=YYYY-MM-DD` (the One day report opens on that date). Totals row. Horizontal scroll inside the card on narrow screens.
+8. "Items sold by day" table: menu items as rows, trading days as columns, then Total and Sales. Each item's best day cell shaded #FEF3C7. Note under it: "Shading marks each item's best day."
+9. "Export CSV for Sheets" on this screen exports every order line in the range, same columns as the One day CSV, file name `nba-food-stall_<from>_<to>.csv`.
+10. Some Phase I orders carry a `tendered` field and newer ones don't. Ignore it: it's not used anywhere in this report or the CSV.
 
 ## Design
 
@@ -178,7 +211,17 @@ playwright.config.js  vitest.config.js  package.json
 
 ## Workflow
 
-**If the app is already built and deployed** (a previous run exists: `HANDOVER.md` present), do only the follow-up work: (a) Login and sign out: Trinity adds the login config script, secrets and workflow step, Neo builds it; (b) Cash received (optional, Exact button, Other amount box, short and invalid states, `changeGiven` field, two new CSV columns): Neo builds it. Morpheus adds tests for both and re-runs everything; Trinity deploys; Morpheus smoke-tests login on the live site; update `HANDOVER.md`.
+**If the app is already built and deployed** (a previous run exists: `HANDOVER.md` present), do only the follow-up work that isn't built yet:
+
+| Phase | Work | Who |
+|---|---|---|
+| II | Login and sign out | **Built and live 18 Oct 2026.** Don't rebuild |
+| II | Cash received calculator (not stored) | **Built and live 18 Oct 2026.** Don't rebuild |
+| III | Sales by day report | Neo |
+
+Morpheus adds tests for each phase built and re-runs everything. Then Trinity commits and pushes to `main` (no pull request; the user starts the run when the stall isn't trading) and Morpheus runs the live check. Update `HANDOVER.md` with a "What changed" section per phase.
+
+**Protecting live data on a follow-up run:** all build and test work uses the emulator, as before. The live check is read-only: load every route, sign in, open both reports, export a CSV. Place no orders and write nothing to the live Firestore.
 
 
 1. **Platform first (Trinity), in parallel with step 2.** Pre-flight checks, then: git repo and guardrails (`.gitignore`, pre-commit hook, example config) before any commit; Firebase project, web app, Firestore `(default)` in London, rules; local `firebase-config.js`; GitHub repo, secrets, Pages, secret scanning. Every failure goes to "Needs you" and the build carries on against the emulator.

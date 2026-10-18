@@ -367,12 +367,14 @@ test('S-08 QA-SMOKE order round trip against the real project', async ({ page },
   expect(one.payment).toBe('cash');
   expect(one.status).toBe('collected');
 
-  // The live menu must still be the six seeded items, untouched.
+  // The live menu must hold the ten H1 documents, untouched by this run.
+  // CLAUDE.md -> Menu (hotfix H1): eight active plus the two retired ids,
+  // which are never deleted because old orders report under their names.
   const menu = await liveFirestore('/menu?pageSize=50');
   const menuIds = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
   record(`S-08 live menu intact: ${menuIds.length} documents [${menuIds.join(', ')}]`);
-  expect(menuIds, 'the live menu must still hold the six seeded items').toEqual(
-    ['chat', 'fountain', 'fuchka', 'momo', 'samosa', 'straw']
+  expect(menuIds, 'the live menu must hold the ten H1 items').toEqual(
+    ['chat', 'choc_strawberry', 'fountain', 'fuchka', 'marshmallow', 'momo', 'samosa', 'samosa_only', 'straw', 'sweet_box']
   );
 
   // The collected order counts, the cancelled one does not.

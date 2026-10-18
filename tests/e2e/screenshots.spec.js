@@ -29,7 +29,7 @@ test('screenshots: with orders', async ({ page }, info) => {
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
   await placeOrder(page, { items: { fuchka: 2, momo: 1 }, name: 'Priya', payment: 'cash', tender: 2000 });
   await tid(page, 'tile-chat').click();
-  await tid(page, 'tile-straw').click();
+  await tid(page, 'tile-choc_strawberry').click();
   await tid(page, 'customer-name').fill('Sam');
   await page.waitForTimeout(600);
   await shot(page, info.project.name, 'cash', 'orders');

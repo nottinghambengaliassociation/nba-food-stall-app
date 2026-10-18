@@ -20,7 +20,7 @@ import {
   writeBatch
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
-import { MENU } from './logic.js';
+import { MENU, ACTIVE_MENU } from './logic.js';
 
 const EMULATOR_PROJECT = 'demo-food-stall';
 const EMULATOR_HOST = '127.0.0.1';
@@ -147,7 +147,7 @@ function setQueued(n) {
 
 /* ----------------------------------------------------------------- menu */
 
-/** Write the six seed items if the menu collection is empty. Safe to call repeatedly. */
+/** Write the seed items (including the retired ones) if the menu collection is empty. Safe to call repeatedly. */
 export async function seedMenuIfEmpty() {
   if (!isReady()) return false;
   const snap = await getDocs(collection(db, 'menu'));
@@ -161,25 +161,52 @@ export async function seedMenuIfEmpty() {
   return true;
 }
 
-/** Live menu. Falls back to the seed list if Firestore has nothing yet. */
+/**
+ * Live menu, active items only. Falls back to the seed list if Firestore has
+ * nothing yet.
+ *
+ * Seeding the collection makes the listener fire a burst of part-finished
+ * snapshots (one per document as the cache catches up with the server), so
+ * the callback is coalesced: only the settled snapshot reaches the till and
+ * the tiles are not rebuilt under a volunteer's finger.
+ */
+const MENU_SETTLE_MS = 120;
+
 export function watchMenu(callback) {
   if (!isReady()) {
-    callback(MENU.slice());
+    callback(ACTIVE_MENU.slice());
     return () => {};
   }
-  return onSnapshot(
+  let timer = null;
+  let pending = null;
+  const emit = () => {
+    timer = null;
+    const items = pending;
+    pending = null;
+    if (items) callback(items);
+  };
+  const queue = (items) => {
+    pending = items;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(emit, MENU_SETTLE_MS);
+  };
+  const stop = onSnapshot(
     collection(db, 'menu'),
     (snap) => {
       const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         .filter((m) => m.active !== false)
         .sort((a, b) => (a.sort || 0) - (b.sort || 0) || a.id.localeCompare(b.id));
-      callback(items.length ? items : MENU.slice());
+      queue(items.length ? items : ACTIVE_MENU.slice());
     },
     (err) => {
       console.error('menu listener failed', err);
-      callback(MENU.slice());
+      queue(ACTIVE_MENU.slice());
     }
   );
+  return () => {
+    if (timer) clearTimeout(timer);
+    stop();
+  };
 }
 
 /* --------------------------------------------------------------- orders */
