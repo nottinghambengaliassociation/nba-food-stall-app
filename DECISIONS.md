@@ -55,3 +55,44 @@ picked instead.
 - 2026-10-17 — The live smoke's full order round trip was gated to one viewport rather than running per project, so it left two documents in the real database instead of four.
 - 2026-10-17 — The live Firebase project was completely empty, so the smoke test's first page load fired the menu seed and wrote the six menu documents. Those are kept: they are the real menu, the seed only runs when `menu` is empty, and keeping them means organisers can edit prices in the console and will not see a seed on the day. Only the two `QA-SMOKE` orders were treated as test data to remove.
 - 2026-10-17 — Deleting live data is Trinity's alone. Morpheus identified the two test orders by id and reported them rather than removing them itself.
+
+---
+
+# Phase II — login, sign out and Cash received (2026-10-18)
+
+## Orchestration
+
+- 2026-10-18 — Followed the brief's "already built" path: no rebuild, no refactor of working Phase I code. Only the two new features, their tests, a redeploy and a handover update.
+- 2026-10-18 — Trinity's `write-login-config.mjs` was put first in its queue because both Neo and Morpheus are blocked on `public/js/login-config.js` existing locally.
+- 2026-10-18 — Test credentials are read from the gitignored `.secrets/app-login.env` at runtime. They are never written into a test file, fixture, screenshot, `qa/test-plan.md` or `qa/bugs.md`, all of which are committed to a public repo. Failed-login cases use an obviously fake wrong password.
+- 2026-10-18 — Existing Phase I e2e tests needing a sign-in step is expected, not a regression. Morpheus updates them rather than filing bugs against Neo.
+- 2026-10-18 — `claude-setup/` reappeared untracked, a re-dropped copy of a kit already installed in `.claude/`. Left out of the repo.
+
+## Platform (Trinity)
+
+- 2026-10-18 — `scripts/write-login-config.mjs` hashes the password in-process. The plaintext is read only from `.secrets/app-login.env` and is never written to a file, a GitHub secret or a log; only the SHA-256 leaves the machine.
+- 2026-10-18 — `--from-env` writes `PASTE_` placeholders and exits 0 when a login secret is absent, matching the Firebase precedent. A missing secret degrades to "Login not configured" rather than breaking the Pages deploy.
+- 2026-10-18 — The `--actions-env` helper writes username plus hash only and refuses any path outside `.secrets/`. The file was deleted immediately after `gh secret set -f`.
+- 2026-10-18 — The secret scanner now blocks `(APP_)?LOGIN_PASSWORD` followed by an assignment and a plain value. `APP_LOGIN_PASSWORD_SHA256=` is deliberately **not** matched: the hash is designed to ship in the browser bundle, so blocking it would be a permanent false positive.
+- 2026-10-18 — `claude-setup/` added to `.gitignore`. It is a re-dropped copy of a kit already installed in `.claude/`, so it cannot now be committed by accident.
+
+## App (Neo)
+
+- 2026-10-18 — **Cash received is not persisted at all.** User instruction on the day, overriding CLAUDE.md: it is a quick calculator for the cashier and nothing more. Neither `tendered` nor `changeGiven` is written to the order (the fields are omitted, not set to `null`), and the CSV reverts to the Phase I header. The on-screen behaviour is unchanged. **CLAUDE.md's data model and CSV spec are now out of step with the app** — the brief was not edited, so anyone reading it later should treat this line as the authority.
+- 2026-10-18 — ~~A short cash amount is stored, not nulled.~~ **Superseded** by the line above; retained because it records a real ambiguity in the brief. The original reading was: The brief's "no amount, a short amount, or an unparseable amount (saved as `tendered: null`)" reads as if all three null out, but the data model settles it: `changeGiven` is defined as "`tendered − total` when `tendered ≥ total`, else `null`", which only has meaning if a below-total `tendered` is stored, and `tendered` is documented as "null if **not entered**". A short amount is entered. So empty and unparseable store `null`; a short amount stores the pence with `changeGiven: null`. Orchestrator-endorsed reading.
+- 2026-10-18 — Sign out is exactly 44×44 below 700px, per the brief's explicit requirement 7. It is the only interactive control under the global 48px minimum on phone, so the cross-cutting touch-target test carries a sign-out exemption below 700px rather than the brief being violated in one direction or the other.
+- 2026-10-18 — No dark header on `#/login`. Both login mock-ups show a plain centred card, so the "dark header on every screen" design rule is taken to mean every *working* screen, not the gate in front of them.
+- 2026-10-18 — Quick cash buttons are 48px on phone rather than the brief's minimum of 44, so they satisfy the global 48px touch target as well, and 54px on tablet.
+- 2026-10-18 — `"0"`, negative numbers and junk all count as unparseable and show "Enter an amount like 17.50", matching the mock-up's `!(pence > 0)` rule.
+- 2026-10-18 — CSV `tendered` and `changeGiven` are written as plain pounds (`20.00`, no £ glyph), blank when null, and always blank on card rows.
+- 2026-10-18 — The Cash received block is hidden while the order panel is empty, and emptying the panel resets it, following the mock-up's `showTender: isCash && !empty`.
+- 2026-10-18 — The landing page eyebrow "PHASE I · NO LOGIN" was removed, since it became false.
+
+## QA (Morpheus)
+
+- 2026-10-18 — Test credentials are read at runtime from the gitignored `.secrets/app-login.env` via `tests/e2e/creds.js`. A unit test (`U-25`) fails the build if either value appears anywhere in the tracked tree, so the rule is enforced on every run rather than relying on discipline.
+- 2026-10-18 — An early login screenshot captured the real username and was deleted. The committed error screenshots use a made-up username with the password field cleared and masked. Verified visually by the orchestrator before the push, since no text scanner can read a PNG.
+- 2026-10-18 — BUG-4 (major): cash received survived emptying the order panel, so a fresh order opened showing a stale "Change to give". Fixed and re-verified at both viewports.
+- 2026-10-18 — BUG-5 was withdrawn rather than fixed. It reported a short tender storing as `tendered: null`; the requirement change that stopped persisting cash received entirely made it moot.
+- 2026-10-18 — Phase I e2e tests were updated to sign in first, since login now gates every route. Expected consequence of the new requirement, not a regression, so not filed against Neo.
+- 2026-10-18 — Neo's and Morpheus's concurrent runs against the same emulator cross-contaminated each other (seeded report orders leaking into tender tests, duplicate order numbers). Final counts come from one clean run with nothing else on the machine.

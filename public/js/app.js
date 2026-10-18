@@ -5,6 +5,7 @@ import { currentRoute, startRouter, href } from './router.js';
 import { start, status, seedMenuIfEmpty, onConnection } from './store.js';
 import { peekOrderNo, dayString } from './logic.js';
 import { mountLanding } from './landing.js';
+import { mountLogin, createSignOutButton, hasSession } from './login.js';
 import { mountCash } from './cash.js';
 import { mountKitchen } from './kitchen.js';
 import { mountReports } from './reports.js';
@@ -13,6 +14,7 @@ const TILL_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 const TITLES = {
   '/': 'Charity food stall',
+  '/login': 'Sign in',
   '/cash': 'Cash counter',
   '/kitchen': 'Food counter',
   '/reports': 'Reports'
@@ -36,11 +38,26 @@ const settings = {
 
 const tillListeners = new Set();
 
+// Screens register a guard that returns true while they hold work that would
+// be lost: the cash counter uses it so Sign out can ask first.
+const unsentGuards = new Set();
+
+function hasUnsentWork() {
+  for (const fn of unsentGuards) {
+    try { if (fn()) return true; } catch (err) { console.error(err); }
+  }
+  return false;
+}
+
 const ctx = {
   settings,
   onTillChange(fn) {
     tillListeners.add(fn);
     return () => tillListeners.delete(fn);
+  },
+  setUnsentGuard(fn) {
+    unsentGuards.add(fn);
+    return () => unsentGuards.delete(fn);
   },
   setTill(letter) {
     settings.till = letter;
@@ -72,17 +89,21 @@ function buildShell() {
   const slotRight = el('div', { class: 'header__right header__slot' });
   const tillWrap = el('span', { class: 'till-field' });
   const nav = el('nav', { class: 'header__right', 'aria-label': 'Screens' });
+  const signOut = createSignOutButton({
+    guard: hasUnsentWork,
+    onSignOut: () => { location.hash = '#/login'; }
+  });
 
   const header = el('header', { class: 'header' }, [
     el('div', { class: 'header__left' }, [title, sub, slotLeft]),
-    el('div', { class: 'header__right' }, [pill, slotRight, tillWrap, nav])
+    el('div', { class: 'header__right' }, [pill, slotRight, tillWrap, nav, signOut])
   ]);
 
   const banner = el('div', { testid: 'banner-slot' });
   const outlet = el('div', { class: 'outlet', id: 'outlet' });
 
   root.append(header, banner, outlet);
-  nodes = { root, header, title, sub, pill, slotLeft, slotRight, tillWrap, nav, banner, outlet };
+  nodes = { root, header, title, sub, pill, slotLeft, slotRight, tillWrap, nav, signOut, banner, outlet };
 }
 
 function renderBanner() {
@@ -165,6 +186,16 @@ function mountRoute(route) {
   }
   unmount = null;
 
+  // Route guard, both ways (CLAUDE.md "Login and sign out" 6).
+  if (route !== '/login' && !hasSession()) {
+    location.replace('#/login');
+    return;
+  }
+  if (route === '/login' && hasSession()) {
+    location.replace('#/');
+    return;
+  }
+
   setText(nodes.title, TITLES[route] || TITLES['/']);
   document.title = (TITLES[route] || TITLES['/']) + ' · Food stall';
   clear(nodes.slotLeft);
@@ -174,13 +205,19 @@ function mountRoute(route) {
   refreshHeaderSub();
   clear(nodes.outlet);
 
+  // The sign-in screen is a plain centred card, no dark header (design/Login.dc.html).
+  nodes.header.hidden = route === '/login';
+  nodes.signOut.hidden = route === '/login';
+
   const screenCtx = {
     ...ctx,
     headerLeft: nodes.slotLeft,
-    headerRight: nodes.slotRight
+    headerRight: nodes.slotRight,
+    onSignedIn: () => { location.hash = '#/'; }
   };
 
-  if (route === '/cash') unmount = mountCash(nodes.outlet, screenCtx);
+  if (route === '/login') unmount = mountLogin(nodes.outlet, screenCtx);
+  else if (route === '/cash') unmount = mountCash(nodes.outlet, screenCtx);
   else if (route === '/kitchen') unmount = mountKitchen(nodes.outlet, screenCtx);
   else if (route === '/reports') unmount = mountReports(nodes.outlet, screenCtx);
   else unmount = mountLanding(nodes.outlet, screenCtx);

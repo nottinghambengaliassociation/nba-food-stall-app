@@ -85,6 +85,7 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
   background: var(--ink);
   color: #FFFFFF;
 }
+.header[hidden] { display: none; }
 
 .header__left,
 .header__right {
@@ -392,20 +393,68 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
 }
 .pay-btn[aria-pressed='true'] { border-color: var(--ink); background: var(--marigold); }
 
-.tender { display: flex; flex-direction: column; gap: 10px; }
+/* Cash received (optional). One grid so the change line can sit under the
+   controls on tablet and beside the label on phone. */
+.tender {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'head   clear'
+    'quick  quick'
+    'other  other'
+    'status status';
+  align-items: center;
+  gap: 10px;
+}
 .tender[hidden] { display: none; }
-.tender__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tender__head { grid-area: head; display: flex; align-items: center; gap: 6px; }
+.tender__optional { font-weight: 400; color: var(--muted); }
+.tender__clear { grid-area: clear; align-self: center; justify-self: end; padding: 0 10px; font-size: 15px; }
+.tender__clear[hidden] { display: none; }
+.tender__grid { grid-area: quick; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .tender__btn {
-  height: 56px;
+  min-height: 54px;
+  padding: 0 4px;
   border-radius: 12px;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   border: 2px solid var(--stone-400);
   background: var(--card);
   color: var(--ink);
 }
 .tender__btn[aria-pressed='true'] { border-color: var(--ink); background: var(--marigold); }
-.change { font-size: 22px; font-weight: 700; color: var(--teal-dark); }
+
+.tender__other { grid-area: other; display: flex; align-items: center; gap: 12px; }
+.tender__other .field-label { flex: none; }
+.tender__input { position: relative; flex: 1 1 auto; min-width: 0; display: block; }
+.tender__prefix {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.tender__input input {
+  width: 100%;
+  height: 54px;
+  padding: 0 14px 0 32px;
+  font-size: 20px;
+  border: 2px solid var(--stone-400);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--card);
+}
+.tender__input input[data-state='invalid'] { border-color: var(--amber); }
+.tender__input input[data-state='change'],
+.tender__input input[data-state='short'] { border-color: var(--ink); }
+
+.change { grid-area: status; margin: 0; font-size: 22px; font-weight: 700; color: var(--teal-dark); }
+.change[hidden] { display: none; }
+.change[data-state='short'],
+.change[data-state='invalid'] { color: var(--amber); }
+.change[data-state='invalid'] { font-size: 17px; font-weight: 400; }
 
 .send-btn {
   min-height: 84px;
@@ -676,9 +725,201 @@ table.data td.num, table.data th.num { text-align: right; }
   font-size: 17px;
 }
 
+/* ------------------------------------------------------------- sign out */
+
+.signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 2px solid var(--stone-500);
+  border-radius: 10px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 17px;
+  font-weight: 700;
+}
+.signout:hover { background: #292524; }
+.signout[hidden] { display: none; }
+.signout svg { flex: none; }
+
+/* ------------------------------------------------------------- modal */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(28, 25, 23, 0.55);
+}
+.modal__card {
+  width: 100%;
+  max-width: 460px;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 12px 32px rgba(28, 25, 23, 0.28);
+}
+.modal__title { font-size: 24px; line-height: 1.2; }
+.modal__note { margin: 0; font-size: 17px; color: var(--muted); }
+.modal__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.modal__btn {
+  min-height: 64px;
+  border-radius: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+}
+.modal__btn--danger { border-color: #B5050F; background: #B5050F; color: #FFFFFF; }
+
+/* ------------------------------------------------------------- login */
+
+.login {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  background: var(--page);
+}
+.login__card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card);
+  border-radius: 24px;
+  padding: 40px 40px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06), 0 12px 32px rgba(28, 25, 23, 0.08);
+}
+.login__logo { width: 168px; height: 168px; object-fit: contain; }
+.login__heads { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.login__title { font-size: 32px; line-height: 38px; }
+.login__sub { margin: 0; font-size: 20px; line-height: 26px; color: #B5050F; font-weight: 700; }
+.login__slot, .login__body { width: 100%; display: flex; flex-direction: column; gap: 18px; }
+.login__form { width: 100%; display: flex; flex-direction: column; gap: 18px; }
+.login__field { display: flex; flex-direction: column; gap: 8px; }
+.login__label { font-size: 17px; font-weight: 700; }
+.login__form input {
+  width: 100%;
+  height: 60px;
+  padding: 0 18px;
+  font-size: 22px;
+  border: 2px solid var(--stone-400);
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--card);
+}
+.login__form input[data-invalid='true'] { border-color: #B91C1C; }
+.login__pass { position: relative; }
+.login__pass input { padding-right: 104px; }
+.login__show {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  height: 48px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.login__submit {
+  min-height: 68px;
+  border: none;
+  border-radius: 16px;
+  background: #B5050F;
+  color: #FFFFFF;
+  font-size: 22px;
+  font-weight: 700;
+}
+.login__error {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #FEE2E2;
+  color: #7F1D1D;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 700;
+}
+.login__error[hidden] { display: none; }
+.login__help { margin: 0; font-size: 15px; line-height: 22px; color: var(--muted); text-align: center; }
+.login__blocked {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--amber-pale);
+  color: #78350F;
+  border: 2px solid #D97706;
+  font-size: 19px;
+}
+.login__blocked-note { font-size: 16px; font-weight: 400; }
+
 /* ------------------------------------------------------------- phone */
 
 @media (max-width: 699px) {
+  /* Sign out is icon-only below 700px (CLAUDE.md "Login and sign out" 7).
+     The tighter nav spacing keeps it on the same row as the screen links. */
+  .signout { width: 44px; height: 44px; min-height: 44px; padding: 0; flex: none; }
+  .signout__text { display: none; }
+  .header__right { gap: 6px 8px; }
+  .header__right .navlink { padding: 0 6px; }
+
+  .login { padding: 0; align-items: flex-start; background: var(--card); }
+  .login__card {
+    max-width: none;
+    border-radius: 0;
+    padding: 56px 20px 24px;
+    gap: 22px;
+    box-shadow: none;
+  }
+  .login__logo { width: 132px; height: 132px; }
+  .login__title { font-size: 26px; line-height: 31px; }
+  .login__sub { font-size: 18px; line-height: 24px; }
+  .login__slot, .login__body, .login__form { gap: 16px; }
+  .login__field { gap: 6px; }
+  .login__label { font-size: 16px; }
+  .login__form input { height: 56px; font-size: 20px; border-radius: 12px; padding: 0 16px; }
+  .login__pass input { padding-right: 96px; }
+  .login__show { height: 46px; top: 5px; right: 5px; padding: 0 12px; font-size: 15px; }
+  .login__submit { min-height: 64px; border-radius: 14px; font-size: 21px; }
+  .login__error { font-size: 16px; line-height: 22px; padding: 12px 14px; }
+  .login__help { font-size: 14px; line-height: 20px; }
+
+  .modal__card { padding: 18px; }
+  .modal__title { font-size: 21px; }
+  .modal__btn { min-height: 56px; font-size: 18px; }
+
+  .tender {
+    grid-template-areas:
+      'head   status'
+      'quick  quick'
+      'other  other';
+    gap: 6px 8px;
+  }
+  .tender__clear { display: none; }
+  .tender__btn { min-height: 48px; font-size: 16px; }
+  .tender__input input { height: 48px; font-size: 18px; }
+  .tender__prefix { left: 12px; font-size: 18px; }
+  .change { justify-self: end; text-align: right; font-size: 16px; }
+  .change[data-state='invalid'] { font-size: 16px; font-weight: 700; }
+
   .header { padding: 8px 14px; gap: 6px 10px; }
   .header__title { font-size: 22px; }
   .header__sub, .pill, .navlink { font-size: 15px; }

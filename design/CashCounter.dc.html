@@ -27,6 +27,7 @@ button:disabled{cursor:not-allowed}
 <span style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; background: #134E4A"><span style="width: 10px; height: 10px; border-radius: 50%; background: #5EEAD4"></span>Online · synced</span>
 <a href="FoodCounter.dc.html" style="font-weight: 700">Food counter</a>
 <a href="Reports.dc.html" style="font-weight: 700">Reports</a>
+<a href="Login.dc.html" style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF; font-weight: 700; text-decoration: none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>Sign out</a>
 </div>
 </header>
 
@@ -81,14 +82,32 @@ button:disabled{cursor:not-allowed}
 
 <sc-if value="{{showTender}}" hint-placeholder-val="{{ false }}">
 <div style="display: flex; flex-direction: column; gap: 10px">
-<span style="font-size: 16px; font-weight: 700; color: #44403C">Cash received</span>
-<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px">
-<sc-for list="{{tenders}}" as="t" hint-placeholder-count="4">
-<button onClick="{{t.pick}}" style="height: 56px; border-radius: 12px; font-size: 20px; font-weight: 700; border: 2px solid {{t.border}}; background: {{t.bg}}; color: #1C1917">{{t.label}}</button>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-size: 16px; font-weight: 700; color: #44403C">Cash received <span style="font-weight: 400; color: #57534E">(optional)</span></span>
+<sc-if value="{{hasTendered}}" hint-placeholder-val="{{ false }}">
+<button onClick="{{clearTender}}" style="height: 44px; padding: 0 10px; border: none; background: transparent; color: #57534E; font-size: 15px; text-decoration: underline">Clear</button>
+</sc-if>
+</div>
+<div role="group" aria-label="Quick cash amounts" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{tenders}}" as="t" hint-placeholder-count="5">
+<button onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 54px; border-radius: 12px; font-size: 19px; font-weight: 700; border: 2px solid {{t.border}}; background: {{t.bg}}; color: #1C1917">{{t.label}}</button>
 </sc-for>
 </div>
+<div style="display: flex; align-items: center; gap: 12px">
+<label for="tother" style="flex: none; font-size: 16px; font-weight: 700; color: #44403C">Other amount</label>
+<div style="position: relative; flex: 1 1 auto; min-width: 0">
+<span aria-hidden="true" style="position: absolute; left: 14px; top: 13px; font-size: 20px; color: #57534E">£</span>
+<input id="tother" inputmode="decimal" autocomplete="off" placeholder="e.g. 17.50" value="{{other}}" onChange="{{onOther}}" style="width: 100%; height: 54px; box-sizing: border-box; padding: 0 14px 0 32px; font-size: 20px; font-family: inherit; border: 2px solid {{otherBorder}}; border-radius: 12px; color: #1C1917; background: #FFFFFF">
+</div>
+</div>
+<sc-if value="{{otherInvalid}}" hint-placeholder-val="{{ false }}">
+<div style="font-size: 15px; color: #B45309">Enter an amount like 17.50</div>
+</sc-if>
 <sc-if value="{{hasChange}}" hint-placeholder-val="{{ false }}">
-<div style="font-size: 24px; font-weight: 700; color: #134E4A">Change to give: {{changeText}}</div>
+<div role="status" style="font-size: 24px; font-weight: 700; color: #134E4A">Change to give: {{changeText}}</div>
+</sc-if>
+<sc-if value="{{isShort}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="font-size: 20px; font-weight: 700; color: #B45309">Short by {{shortText}}</div>
 </sc-if>
 </div>
 </sc-if>
@@ -114,7 +133,8 @@ class Component extends DCLogic {
       cart: { fuchka: 2, momo: 1 },
       name: 'Priya',
       pay: 'cash',
-      tendered: 2000,
+      tendered: null,
+      other: '17.50',
       seq: 43,
       toast: '',
       recent: [
@@ -156,13 +176,20 @@ class Component extends DCLogic {
     const total = MENU.reduce((t, m) => t + m.price * (s.cart[m.id] || 0), 0);
     const empty = total === 0;
     const isCash = s.pay === 'cash';
-    const tenders = [500, 1000, 2000, 5000].map((v) => ({
-      label: '£' + v / 100,
-      bg: s.tendered === v ? '#FDE68A' : '#FFFFFF',
-      border: s.tendered === v ? '#1C1917' : '#A8A29E',
-      pick: () => this.setState({ tendered: v })
-    }));
-    const change = (s.tendered || 0) - total;
+    const tenders = ['exact', 500, 1000, 2000, 5000].map((v) => {
+      const on = s.other === '' && s.tendered === v;
+      return {
+        label: v === 'exact' ? 'Exact' : '£' + v / 100, on: on,
+        bg: on ? '#FDE68A' : '#FFFFFF', border: on ? '#1C1917' : '#A8A29E',
+        pick: () => this.setState({ tendered: on ? null : v, other: '' })
+      };
+    });
+    const raw = s.other.replace(/[£,\s]/g, '');
+    const otherPence = raw === '' ? null : Math.round(parseFloat(raw) * 100);
+    const otherInvalid = raw !== '' && !(otherPence > 0);
+    const received = raw !== '' ? (otherInvalid ? null : otherPence)
+      : s.tendered === 'exact' ? total : s.tendered;
+    const change = received == null ? 0 : received - total;
     const statusColours = {
       New: ['#FDE68A', '#1C1917'], Preparing: ['#BFDBFE', '#1C1917'],
       Ready: ['#0F766E', '#FFFFFF'], Collected: ['#E7E5E4', '#1C1917']
@@ -177,24 +204,32 @@ class Component extends DCLogic {
       cashBg: isCash ? '#FDE68A' : '#FFFFFF', cashBorder: isCash ? '#1C1917' : '#A8A29E',
       cardBg: !isCash ? '#FDE68A' : '#FFFFFF', cardBorder: !isCash ? '#1C1917' : '#A8A29E',
       payCash: () => this.setState({ pay: 'cash' }),
-      payCard: () => this.setState({ pay: 'card', tendered: null }),
+      payCard: () => this.setState({ pay: 'card', tendered: null, other: '' }),
       showTender: isCash && !empty,
       tenders: tenders,
-      hasChange: isCash && !empty && s.tendered != null && change >= 0,
+      other: s.other,
+      onOther: (e) => this.setState({ other: e.target.value, tendered: null }),
+      otherInvalid: otherInvalid,
+      otherBorder: otherInvalid ? '#B45309' : (raw !== '' ? '#1C1917' : '#A8A29E'),
+      hasTendered: received != null || raw !== '',
+      clearTender: () => this.setState({ tendered: null, other: '' }),
+      hasChange: isCash && !empty && received != null && change >= 0,
       changeText: gbp(Math.max(change, 0)),
+      isShort: isCash && !empty && received != null && change < 0,
+      shortText: gbp(Math.abs(change)),
       placeBg: empty ? '#A8A29E' : '#0F766E',
       hasToast: !!s.toast, toast: s.toast,
       recent: s.recent.map((r) => ({
         no: r.no, name: r.name, status: r.status,
         bg: statusColours[r.status][0], fg: statusColours[r.status][1]
       })),
-      clear: () => this.setState({ cart: {}, name: '', tendered: null, toast: '' }),
+      clear: () => this.setState({ cart: {}, name: '', tendered: null, other: '', toast: '' }),
       place: () => {
         if (empty) return;
         const no = 'A-' + String(this.state.seq).padStart(3, '0');
         const who = this.state.name.trim() || 'Guest';
         this.setState({
-          cart: {}, name: '', tendered: null, seq: this.state.seq + 1,
+          cart: {}, name: '', tendered: null, other: '', seq: this.state.seq + 1,
           toast: no + ' sent to the food counter for ' + who,
           recent: [{ no: no, name: who, status: 'New' }].concat(this.state.recent).slice(0, 5)
         });

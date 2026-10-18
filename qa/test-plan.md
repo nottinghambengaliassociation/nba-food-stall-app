@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I
+# QA test plan — Charity Food Stall POS, Phase I + Phase II
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -9,15 +9,17 @@ Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design
 
 In scope:
 
-- Pure logic in `public/js/logic.js` (money, order numbers, Europe/London day string, change due, report aggregation, CSV) — unit tested with Vitest.
-- The four routes `#/`, `#/cash`, `#/kitchen`, `#/reports` — end-to-end tested with Playwright against the Firestore emulator.
+- Pure logic in `public/js/logic.js` (money, order numbers, Europe/London day string, change due, cash-received parsing and change calculation, report aggregation, CSV) — unit tested with Vitest.
+- The five routes `#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports` — end-to-end tested with Playwright against the Firestore emulator.
+- **Phase II Feature A** — login, session, route guard, Sign out in every header, the cash-counter discard confirm (sections 16).
+- **Phase II Feature B** — Cash received (optional): quick buttons, Other amount, the four display states, resets, that it never blocks sending, and that **nothing about it is persisted** (section 17).
 - Live data flow between two browser contexts (till → kitchen) via Firestore `onSnapshot`.
 - Offline write queueing and the connection pill.
 - Layout and touch-target constraints, accessibility (axe), console cleanliness.
 - Secret hygiene: no committed string matching `AIza[0-9A-Za-z_-]{35}`.
 - Live smoke against `LIVE_URL`.
 
-Out of scope for Phase I (per brief): authentication, Firestore rules hardening, Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
+Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
 
 ## 2. Environments
 
@@ -44,7 +46,9 @@ Chromium only. HTML report to `playwright-report/`, trace and screenshot on fail
 
 ## 3. Test case index
 
-IDs: `U-*` unit, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke.
+IDs: `U-*` unit, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke, **`G-*` login gate / sign out (Phase II A)**, **`T-*` cash received (Phase II B)**.
+
+Because login now gates every route, every pre-existing `L-*`, `C-*`, `K-*`, `R-*`, `D-*`, `O-*` and `X-*` case runs with a session already seeded into `localStorage["nba.session"]` by the shared Playwright fixture (`tests/e2e/session.js`). That is a harness change, not a product change.
 
 ---
 
@@ -211,7 +215,7 @@ Exports under test (names fixed by the brief and `.claude/agents/neo.md`):
 
 ### C-07 Cash/card toggle and change due (FR Cash 3)
 **Steps** Build a £15.00 order. `pay-cash` is selected by default or selectable; quick tender buttons `tender-500`, `tender-1000`, `tender-2000`, `tender-5000` are present. Tap `tender-2000`.
-**Expected** `change-due` reads `£5.00`. Tap `tender-1000` (short of £15): change is not shown or shows `£0.00` — never a negative amount. Tap `pay-card`: the tender buttons and `change-due` disappear and `tendered` is written as `null`.
+**Expected** `change-due` reads `£5.00`. Tap `tender-1000` (short of £15): change is not shown or shows `£0.00` — never a negative amount. Tap `pay-card`: the quick cash buttons and `change-due` disappear. (Phase II: nothing about the tender is written to the order at all — see section 17.)
 
 ### C-08 Send button size and disabled state (FR Cash 4)
 **Steps** Load `#/cash` with nothing in the order.
@@ -219,7 +223,7 @@ Exports under test (names fixed by the brief and `.claude/agents/neo.md`):
 
 ### C-09 Send writes the order, toasts, clears
 **Steps** Build 3 × Fuchka (£15.00), name `Priya`, cash, tendered £20, tap `send-order`.
-**Expected** `order-toast` appears containing the order number `A-001`; the panel clears (no lines, `order-total` £0.00, name empty, `send-order` disabled again); the toast disappears after about 4 s. Firestore holds one order with `orderNo:"A-001"`, `name:"Priya"`, `total:1500`, `payment:"cash"`, `tendered:2000`, `status:"new"`, today's `day`, `till:"A"`, numeric `createdAtMs`.
+**Expected** `order-toast` appears containing the order number `A-001`; the panel clears (no lines, `order-total` £0.00, name empty, `send-order` disabled again); the toast disappears after about 4 s. Firestore holds one order with `orderNo:"A-001"`, `name:"Priya"`, `total:1500`, `payment:"cash"`, `status:"new"`, today's `day`, `till:"A"`, numeric `createdAtMs`, and **no** `tendered`/`changeGiven` key.
 
 ### C-10 Recent orders strip (FR Cash 5)
 **Steps** Send three orders.
@@ -348,7 +352,7 @@ Cash vs card: cash A-001 1000 + A-003 1500 + A-005 2000 = £45.00 (75%); card A-
 ## 9. Data model invariants
 
 ### D-01 Order document shape
-**Expected** A sent order has every field from the data model block: `orderNo, name, items[{id,name,qty,price}], total, payment, tendered, status, day, till, createdAtMs, createdAt`. `total` and every `price` are integers.
+**Expected** A sent order has every field from the data model block: `orderNo, name, items[{id,name,qty,price}], total, payment, status, day, till, createdAtMs, createdAt`. `total` and every `price` are integers. It carries **no** `tendered` and **no** `changeGiven` key (requirement change 2026-10-18).
 
 ### D-02 Timestamps stamp on transition
 **Expected** `startedAtMs`, `readyAtMs`, `collectedAtMs`, `cancelledAtMs` are set, as numbers, at the moment of the corresponding transition and not before.
@@ -419,7 +423,7 @@ Cash vs card: cash A-001 1000 + A-003 1500 + A-005 2000 = £45.00 (75%); card A-
 ## 12. Screenshots
 
 Every screen, both projects, empty and with orders, written to
-`qa/screenshots/<project>-<screen>-<state>.png` where `<project>` ∈ {phone, tablet}, `<screen>` ∈ {landing, cash, kitchen, reports}, `<state>` ∈ {empty, orders}. 16 files minimum, plus failure screenshots from Playwright and `qa/screenshots/live-*.png` from the smoke run.
+`qa/screenshots/<project>-<screen>-<state>.png` where `<project>` ∈ {phone, tablet}, `<screen>` ∈ {login, landing, cash, kitchen, reports}, `<state>` ∈ {empty, orders} (login uses `empty`, `error` and `confirm`; the cash screen also has `tender`). The password field is **always masked** in a screenshot — the Show/Hide toggle is never left on. 22 files minimum, plus failure screenshots from Playwright and `qa/screenshots/live-*.png` from the smoke run.
 
 ---
 
@@ -457,3 +461,182 @@ Re-run after each Neo fix round and update statuses (max 5 rounds).
 3. The CSV may either include cancelled rows (it has a `status` column) or omit them; the brief supports both. Aggregates must always exclude them.
 4. Average wait counts only orders that reached `ready`.
 5. The Web Audio beep and the Screen Wake Lock are checked for the presence of their control only; headless Chromium cannot verify sound or a wake lock.
+
+---
+
+# Phase II
+
+Added 2026-10-18. Source: `CLAUDE.md` → "Login and sign out" (1–9), "Cash counter" 3 (rewritten), the user's 2026-10-18 requirement change (cash received is screen-only: no `tendered`, no `changeGiven`, CSV unchanged), and the mock-ups `design/Login.dc.html`, `design/LoginMobile.dc.html`, `design/CashCounter.dc.html`, `design/CashCounterMobile.dc.html`.
+
+## 16. Login, session and sign out — `#/login` (`G-*`)
+
+### 16.0 Credential handling (rule for this whole section)
+
+The shared username and password are read **at run time** from the gitignored `.secrets/app-login.env` (`APP_LOGIN_USER`, `APP_LOGIN_PASSWORD`) by `tests/e2e/creds.js`. They are **never** written into a test file, a fixture, a config file, a screenshot, a log, this plan or `qa/bugs.md` — all of those are committed to a public repo. A failed-login case always uses an obviously fake password (`"not-the-password-xxx"`). Screenshots are taken with the password field masked. `U-25` fails the build if either credential ever appears in a tracked file.
+
+If `.secrets/app-login.env` is absent, the cases that need the real password skip with a clear message; the structural cases (`G-01`…`G-04`, `G-10`, `G-11`) still run.
+
+### G-01 Login screen furniture (FR Login 1)
+**Steps** Load `#/login` signed out, both projects.
+**Expected** The NBA logo `public/img/nba-logo.png` with a non-empty `alt`, rendered about 168 px on tablet and 132 px on phone (±12 px, per the mock-ups); `h1` "Nottingham Bengali Association"; the subheading "Food Stall Application" in `#B5050F` (`rgb(181, 5, 15)`); a labelled Username field and a labelled Password field (`type="password"`); a Sign in button; the helper line "One shared login for stall volunteers. Ask the stall lead if you don't have it." exactly.
+
+### G-02 Field sizes (FR Login 1)
+**Expected** Username and Password inputs are 60 px tall on tablet (`design/Login.dc.html`), and at least 56 px on phone (`design/LoginMobile.dc.html`); tolerance −1 px. Sign in is at least 64 px tall, background `#B5050F` (`rgb(181, 5, 15)`), colour white.
+
+### G-03 Show/Hide sits inside the password field (FR Login 1)
+**Steps** Click the Show/Hide control.
+**Expected** It is a real `<button type="button">` whose box is inside the password input's box; label reads "Show" when masked and "Hide" when revealed; the input's `type` flips `password` → `text` → `password`; `aria-pressed` tracks the state. The control is at least 44 px tall.
+
+### G-04 "Login not configured" (FR Login 4)
+**Steps** (a) Route `**/js/login-config.js` to the committed placeholder body (`PASTE_USER` / `PASTE_SHA256`); (b) route it to a 404. Load `#/login`.
+**Expected** In both cases the text "Login not configured" is shown and **no** Username/Password form is rendered; no uncaught exception; no console error.
+
+### G-05 Correct credentials sign in (FR Login 2, 5)
+**Steps** Type the real username and password, submit.
+**Expected** Redirect to `#/`; `localStorage["nba.session"]` parses to an object with exactly the shape `{"user": "<username>", "at": <number ms>}` — `user` equals the typed/normalised username, `at` is within 60 s of now. The plain password appears nowhere in `localStorage` or `sessionStorage`.
+
+### G-06 Username is trimmed and case-insensitive (FR Login 2)
+**Steps** Sign in with `"  " + USER.toUpperCase() + "  "` and the correct password.
+**Expected** Signed in.
+
+### G-07 Password is exact (FR Login 2)
+**Steps** Correct username with (a) a leading space on the password, (b) the password's case flipped (skipped when the password has no letters).
+**Expected** Both rejected with the wrong-attempt behaviour of `G-08`.
+
+### G-08 Wrong attempt behaviour (FR Login 3)
+**Steps** Correct username, obviously fake password, submit.
+**Expected** All of:
+1. A box with `role="alert"` whose text is exactly "Username or password is wrong. Check and try again." (ignoring whitespace runs; the mock-up bolds the first sentence).
+2. Both the username and the password input are outlined red — computed `border-color` is a red (R ≥ 120, R ≥ G + 60, R ≥ B + 60), and different from the neutral border before the attempt.
+3. The password input's value is empty.
+4. `document.activeElement` is the password input.
+5. No session is written; the route is still `#/login`.
+
+### G-09 No lockout, no counter, no delay (FR Login 3, Definition of done)
+**Steps** Submit 12 consecutive wrong attempts, timing each; then submit the correct credentials.
+**Expected** The form stays usable throughout: Sign in is never `disabled`, the fields are never `disabled` or `readonly`, and the visible text never contains "attempt", "locked", "too many", "wait", "try again in" or a countdown. No attempt takes more than 1.5 s and attempt 12 is not slower than attempt 1 by more than 500 ms (no escalating delay). The 13th, correct, attempt signs in straight away.
+
+### G-10 Route guard, signed out (FR Login 6)
+**Steps** With no session, load `#/`, `#/cash`, `#/kitchen`, `#/reports`, and an unknown route, by deep link and by hash change.
+**Expected** Each ends on `#/login` with the login form visible; no screen content from the guarded route is left on the page; no console error.
+
+### G-11 Route guard, signed in (FR Login 6)
+**Steps** With a session, load `#/login`.
+**Expected** Redirected to `#/`.
+
+### G-12 Session has no expiry (FR Login 5)
+**Steps** After signing in: reload each of `#/`, `#/cash`, `#/kitchen`, `#/reports`; also go offline, reload, come back online.
+**Expected** Still signed in every time; never bounced to `#/login`.
+
+### G-13 Sign out is last in every dark header (FR Login 7)
+**Steps** On `#/`, `#/cash`, `#/kitchen`, `#/reports`, both projects.
+**Expected** Exactly one Sign out control inside `header`; it is the right-most interactive element in the header (its right edge is ≥ every other header control's right edge). Tablet (≥ 700 px): an icon plus the visible text "Sign out", at least 44 px tall. Phone (< 700 px): icon only, 44 × 44 px (±1), `aria-label="Sign out"`, no visible text, an inline `<svg>` child (no emoji).
+
+### G-14 Sign out clears the session and keeps till state (FR Login 7)
+**Steps** Set till B on `#/`, send one order from `#/cash` (so `seq:B:<day>` exists), then Sign out from `#/kitchen`.
+**Expected** `nba.session` is removed; the till-letter key and every `seq:<till>:<day>` key survive untouched; the route becomes `#/login`. Signing back in and returning to `#/cash` continues the sequence at `B-002`, and the landing page still shows till B.
+
+### G-15 Cash counter discard confirm (FR Login 8)
+**Steps** On `#/cash` add two items, then tap Sign out. `window.confirm` is replaced by a spy that records a call and returns `false`.
+**Expected** `window.confirm` is **never called**. An in-page element appears containing "Discard the unsent order and sign out?" with a Cancel button and a Sign out button. The session still exists at this point.
+
+### G-16 Confirm — Cancel (FR Login 8)
+**Expected** Cancel closes the confirm, leaves the session in place, stays on `#/cash`, and the order panel still holds the two items with the same total.
+
+### G-17 Confirm — Sign out (FR Login 8)
+**Expected** The Sign out button in the confirm clears `nba.session` and routes to `#/login`; nothing is written to `orders`.
+
+### G-18 No confirm with an empty panel (FR Login 8)
+**Steps** On `#/cash` with no items, tap Sign out.
+**Expected** Signs out immediately, no confirm, `#/login`.
+
+### G-19 Login screen quality
+**Expected** No console errors; `@axe-core/playwright` reports zero `serious`/`critical` violations on `#/login` (empty and error states); no horizontal scroll at 360 px; body text ≥ 17 px; the form submits on Enter in the password field.
+
+### G-20 Login screenshots
+**Expected** `qa/screenshots/<project>-login-empty.png` and `<project>-login-error.png` for both projects, password masked, plus `<project>-cash-confirm.png` for the discard confirm.
+
+---
+
+## 17. Cash received (optional) — `#/cash` (`T-*`)
+
+Spec: `CLAUDE.md` → Cash counter 3. "Cash received (optional)" replaces the Phase I fixed tender buttons.
+
+> **Requirement change, 2026-10-18 (from the user, overrides `CLAUDE.md`).** Cash received is purely an on-screen calculator for the cashier. **Nothing about it is persisted:** the order document contains neither `tendered` nor `changeGiven` — the keys are absent, not null — and the CSV keeps the thirteen Phase I columns. The short-amount storage question is retired; a short amount simply shows "Short by £x.xx" and the order sends normally.
+
+### T-01 Section visibility and label
+**Steps** `#/cash`, add 3 × Fuchka (£15.00), Cash selected.
+**Expected** A block labelled "Cash received" with "(optional)" is visible. Selecting Card hides the whole block (quick buttons, Other amount and the message). Selecting Cash again shows it.
+
+### T-02 Quick buttons and their sizes
+**Expected** Five quick buttons in order: Exact, £5, £10, £20, £50. Height ≥ 44 px on phone, ≥ 54 px on tablet (tolerance −1 px). Each exposes pressed state (`aria-pressed`).
+
+### T-03 Exact equals the order total
+**Steps** £15.00 order, tap Exact.
+**Expected** Received = 1500; the display reads "Change to give: £0.00" (tablet) / "Change £0.00" (phone). Sending writes an order document with **no** `tendered` and **no** `changeGiven` key.
+
+### T-04 Tapping a selected quick button deselects it
+**Steps** Tap £20, then tap £20 again.
+**Expected** After the second tap `aria-pressed="false"` and the message area is empty (the "nothing when empty" state) — not "Short by £15.00".
+
+### T-05 Other amount parsing
+**Steps** On a £15.00 order type each of `17.50`, `17.5`, `£17.50`, `17`, `1,000` into Other amount.
+**Expected** Parsed to 1750, 1750, 1750, 1700, 100000 pence; the change display reads £2.50, £2.50, £2.50, £2.00, £985.00. The input has `inputmode="decimal"`.
+
+### T-06 Other and the quick buttons are mutually exclusive
+**Steps** Tap £20, then type `17.50`; then tap £10.
+**Expected** Typing clears the quick selection (all `aria-pressed="false"`) and the change follows the typed amount; tapping a quick button empties the Other box and the change follows the button.
+
+### T-07 The four display states, exact wording
+**Expected** On tablet: received ≥ total → "Change to give: £x.xx" in teal (`#0F766E`/`#134E4A` family: G ≥ 80, G > R + 30, B ≥ 60); received < total → "Short by £x.xx" in amber `#B45309` (`rgb(180, 83, 9)`); unparseable (`abc`, `--`, `1.2.3`) → "Enter an amount like 17.50" in amber; empty → no message at all. On phone the short forms "Change £5.00", "Short £2.00", "Check amount" appear beside the "Cash received" label. The readout is exposed as `role="status"` (mock-ups).
+
+### T-08 Clear link (tablet)
+**Steps** Tablet, enter an amount, click Clear.
+**Expected** The quick selection and Other box are empty and no message is shown. (On phone the mock-up has no Clear link; its absence there is not a defect.)
+
+### T-09 Resets
+**Expected** The cash-received state resets to empty when: (a) Card is selected; (b) the order is sent; (c) the order is cleared / emptied with the − buttons. After (b) a new order starts with no amount and no message.
+
+### T-10 It never blocks sending (critical)
+**Steps** Three separate £15.00 orders: (a) no amount entered; (b) `10` (short); (c) `abc` (unparseable).
+**Expected** In all three, Send to food counter is enabled, the order is written, the toast shows the order number and the panel clears. (b) shows "Short by £5.00" and still sends. None of the three order documents contains a `tendered` or a `changeGiven` key.
+
+### T-11 Nothing about cash received is persisted
+**Requirement change, 2026-10-18 (overrides the `CLAUDE.md` data model):** Cash received is purely an on-screen calculator for the cashier.
+**Steps** Send a £15.00 cash order with £20 keyed in (so "Change to give: £5.00" is on screen); send a card order.
+**Expected** Neither order document contains a `tendered` key nor a `changeGiven` key — not even set to `null`. `Object.keys(order)` is asserted, so an explicit `null` fails.
+
+### T-12 Send is only ever disabled by an empty order
+**Expected** With items in the panel, Send is enabled for every cash-received state above, and is ≥ 72 px tall throughout.
+
+### T-13 Cash received screenshots
+**Expected** `qa/screenshots/<project>-cash-tender.png` with a change-to-give state on screen.
+
+---
+
+## 18. Phase II unit cases (`logic.js`)
+
+### U-25 Secret hygiene — login credentials
+**Expected** No tracked file (`git ls-files`) contains the `APP_LOGIN_USER` value or the `APP_LOGIN_PASSWORD` value from `.secrets/app-login.env`, nor a string matching `AIza[0-9A-Za-z_-]{35}`, nor `"private_key"`. `.secrets/` and `public/js/login-config.js` are untracked.
+
+### U-26 Cash input parsing is pure and unit-testable
+**Expected** `logic.js` exports a parser for the Other amount box (any of `parseAmountInput`, `parseMoneyInput`, `parseCashInput`, `parseTenderInput`, `parsePounds`, `parseAmount`). It returns pence for `17.50`→1750, `17.5`→1750, `£17.50`→1750, `17`→1700, `1,000`→100000, ` 17.50 `→1750, `£1,000.05`→100005; `null`/invalid for ``, `abc`, `--`, `1.2.3`, `-5`, `£`. `CLAUDE.md` → Technical constraints: "Put all pure logic (money …) in `public/js/logic.js` … so it is unit-testable".
+
+### U-27 On-screen change calculation
+**Expected** Where `logic.js` exposes the calculation as a pure function (`changeGiven` or similar), received ≥ total → received − total (0 when equal), received < total → `null`, nothing received → `null`. Nothing is stored; this pins the arithmetic behind the "Change to give" line only, and the case is skipped if the app keeps the calculation inside the view.
+
+### U-28 CSV header is unchanged from Phase I
+**Expected** The first line is exactly
+`day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds`
+— 13 columns, with **no** `tendered` and **no** `changeGiven` column (requirement change 2026-10-18). A stray `tendered`/`changeGiven` on a legacy order document must not leak into the export.
+
+---
+
+## 19. Phase II deliberate readings of the brief
+
+1. **Nothing about cash received is persisted** (requirement change from the user, 2026-10-18, overriding the `CLAUDE.md` data model and Reports 6). The order document omits `tendered` and `changeGiven` entirely, the CSV keeps its thirteen Phase I columns, and there is nothing to assert about a short amount beyond the on-screen "Short by £x.xx" and the order sending normally.
+2. **Field height on phone.** FR Login 1 says 60 px fields; `design/LoginMobile.dc.html` uses 56 px. The mock-up governs the phone, the brief governs the tablet.
+3. **Touch targets below 700 px.** Sign out is deliberately exactly 44 × 44 under the breakpoint (`CLAUDE.md` Login 7), and the quick cash buttons have their own 44 px minimum (Cash 3), so `X-02` exempts those from the general 48 px floor at phone width only.
+4. **"Teal"** for Change to give is accepted as the `#0F766E`/`#134E4A` family (the mock-up uses the darker `#134E4A` for text on white).
+5. **Exact wording of the error box.** The mock-up bolds "Username or password is wrong." inside the alert; the assertion is on the whitespace-normalised text content, so markup inside the box is free.
+6. **Login screen header.** Both login mock-ups are a plain centred card with no dark header bar, so `#/login` is not in the `X-04` route list.

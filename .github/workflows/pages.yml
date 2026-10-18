@@ -42,6 +42,18 @@ jobs:
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: node scripts/write-firebase-config.mjs --from-env
 
+      # Writes the gitignored public/js/login-config.js from repository
+      # secrets. Only the SHA-256 hash of the password is ever stored or
+      # passed here — never the plain password. Same contract as above: the
+      # script prints only "written" or "missing: <NAMES>", and writes the
+      # PASTE_ placeholder file if a secret is absent, so the app shows
+      # "Login not configured" instead of failing the deploy.
+      - name: Write login config from secrets
+        env:
+          APP_LOGIN_USER: ${{ secrets.APP_LOGIN_USER }}
+          APP_LOGIN_PASSWORD_SHA256: ${{ secrets.APP_LOGIN_PASSWORD_SHA256 }}
+        run: node scripts/write-login-config.mjs --from-env
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 

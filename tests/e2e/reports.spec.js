@@ -1,6 +1,6 @@
 // R-01..R-09 — reports. Spec: CLAUDE.md "Reports" FR 1..6.
 // Fixture and hand-calculated expectations: qa/test-plan.md section 8.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, expectNoConsoleErrors,
   seedReportDay, londonDay, parseCsv
@@ -180,6 +180,11 @@ test('R-07 Export CSV downloads a file with the exact header and one row per lin
   const a001 = body.find((r) => r[col('orderNo')] === 'A-001');
   expect(a001[col('name')]).toBe('Priya');
   expect(a001[col('waitSeconds')]).toBe('120');
+
+  // Cash received is screen-only (requirement change 2026-10-18): the CSV keeps
+  // the Phase I columns and gains no tendered/changeGiven column.
+  expect(rows[0], 'no cash-received columns in the CSV').not.toContain('tendered');
+  expect(rows[0], 'no cash-received columns in the CSV').not.toContain('changeGiven');
   expect(download.suggestedFilename()).toMatch(/\.csv$/i);
 });
 

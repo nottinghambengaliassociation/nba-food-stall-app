@@ -61,12 +61,23 @@ claude "Read CLAUDE.md and run the whole build end to end. Use the trinity subag
 claude --dangerously-skip-permissions "<same prompt as above>"
 ```
 
+## Login account
+
+The app has one shared login. The username and password are kept only in `.secrets/app-login.env` in this folder (gitignored, already created). They are never committed: GitHub gets the username and a SHA-256 of the password as Actions secrets, and the deploy writes them into the site.
+
+To change the password later: edit `.secrets/app-login.env`, then ask Claude Code: "Use the trinity subagent to rotate the login: rerun write-login-config, update the APP_LOGIN secrets and redeploy."
+
+**Already ran the build before login and the cash received change were added?** Start Claude Code with:
+```
+claude --permission-mode auto "Read CLAUDE.md. The app is already built; add Login and sign out, and the optional Cash received with Exact and Other amount, as described. Trinity: login config script, secrets, workflow step. Neo: build both. Morpheus: add tests for both and rerun everything. Then Trinity deploys, Morpheus smoke-tests login on the live URL, and you update HANDOVER.md. Do not ask me anything."
+```
+
 ## Keys and secrets
 
 | Where | What |
 |---|---|
 | GitHub repo | Nothing secret. `firebase-config.js` is gitignored; only `firebase-config.example.js` (placeholders) is committed |
-| GitHub Actions secrets | `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_APP_ID`, set by Trinity from a local gitignored file |
+| GitHub Actions secrets | `FIREBASE_*` (six) plus `APP_LOGIN_USER`, `APP_LOGIN_PASSWORD_SHA256`, set by Trinity from local gitignored files |
 | Deploy | The workflow writes `firebase-config.js` from those secrets just before publishing |
 | Guardrails | `.gitignore`, a pre-commit hook that blocks keys, GitHub secret scanning with push protection, deny rules on `git add -f` and `gh secret set --body` |
 
@@ -103,5 +114,9 @@ claude-setup/agents/morpheus.md        QA tester         → .claude/agents/
 claude-setup/agents/trinity.md         Platform / DevOps → .claude/agents/
 claude-setup/settings.json             permissions       → .claude/
 public/js/firebase-config.example.js   config shape, placeholders only
+public/js/login-config.example.js      login config shape, placeholders only
+public/img/nba-logo.png                NBA logo
+.gitignore                             keeps .secrets/ and generated config out of git
+.secrets/app-login.env                 shared login (on your Mac only, never in git or the zip)
 design/*.dc.html                       mock-ups from the design canvas
 ```

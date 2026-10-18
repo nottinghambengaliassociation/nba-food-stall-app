@@ -220,3 +220,57 @@ A plain-text run log is at `qa/live-smoke-record.txt`.
 | live smoke | 5 | 0 | 1 (by design) |
 
 **Open bugs: none.** blocker 0 · major 0 · minor 0. BUG-1, BUG-2 and BUG-3 all verified fixed.
+
+---
+
+## Round 3 — Phase II, 2026-10-18
+
+Phase II features under test: **A** login / session / sign out (`G-01`…`G-20`), **B** Cash received (optional) (`T-01`…`T-13`), plus the Phase I suite re-run with login gating every route.
+
+Clean full run, nothing else on the machine (`npm run test:unit`, then `npm run test:e2e`):
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| unit (Vitest, 7 files) | 116 | 0 | 0 |
+| e2e phone 390×844 | 88 | 0 | 4 (3 live-smoke + `T-08`, tablet-only by design) |
+| e2e tablet 1280×800 | 89 | 0 | 3 (live-smoke) |
+| **e2e total** | **177** | **0** | **7** |
+
+Zero flaky tests in the clean run. Live smoke is deliberately not run this round: Phase II is not deployed yet.
+
+**Open bugs: none.** blocker 0 · major 0 · minor 0.
+
+### BUG-4 | major | Cash counter (`#/cash`), cash received | status: **verified**
+
+**Steps**
+1. `#/cash`, add 1 × Momo (£5.00), Cash selected.
+2. Tap the **£20** quick button — "Change to give: £15.00" appears.
+3. Tap **−** on the Momo line so the panel is empty.
+4. Add 1 × Momo again, starting a fresh order.
+
+**Expected** — `CLAUDE.md` → Cash counter 3: *"Switching to Card, sending, or **clearing the order** resets it."* Emptying the panel clears the order, so the next order must start with no quick button selected and no message.
+
+**Actual** (first run of round 3) — the £20 selection survived, and the new £5.00 order opened showing **"Change to give: £15.00"**. A volunteer could hand back £15 against a £5 order that no one had tendered for.
+
+**Test** `tests/e2e/tender.spec.js` → `T-09 it resets on Card, on send and on clearing the order`, part (d)
+**Screenshot** `test-results/tender-T-09-…-tablet/test-failed-1.png` (transient; the fixed state is in `qa/screenshots/tablet-cash-tender.png`)
+**Fix** Neo reset the cash-received state whenever the panel empties. Re-verified on phone and tablet in the clean run.
+
+### BUG-5 | major | Cash counter (`#/cash`), stored order | status: **withdrawn (requirement change)**
+
+Raised when a short amount (`10` on a £15.00 order) was stored as `tendered: null`, losing the figure. The user's requirement change of 2026-10-18 retired the question entirely: **Cash received is purely an on-screen calculator and nothing about it is persisted.** There is no stored tender to be wrong about. The tests were rewritten to assert the opposite — that an order document contains neither `tendered` nor `changeGiven` — and they pass. No action for Neo.
+
+### Not bugs — confirmed against the brief
+
+- **Sign out is 44 × 44 below 700 px.** `CLAUDE.md` → Login 7 specifies "icon-only 44×44 button", which is under the general 48 px rule in Design. `X-02` now exempts Sign out at phone width only; at 700 px and wider the 48 px floor still applies, and it is met.
+- **No dark header on `#/login`.** Both login mock-ups are a plain centred card. `#/login` is not in the `X-04` dark-header route list.
+- **Quick cash buttons at 44 px on phone / 54 px on tablet.** Explicit minimums in Cash 3, so also exempted from the 48 px floor in `X-02`.
+- **Two `<h1>`s on the login screen** (the screen-title in the header plus the "Nottingham Bengali Association" card heading). Not a violation of anything in the brief, and axe reports no serious or critical issue on `#/login`.
+
+### Test-side changes this round (not Neo's code)
+
+1. `tests/e2e/session.js` (new) — a shared Playwright `test` that seeds `localStorage["nba.session"]` in the default context *and* in every `browser.newContext()`, so the Phase I suites run signed in. Every existing spec now imports `test`/`expect` from it. Login behaviour itself is exercised only by `tests/e2e/login.spec.js`, which uses the ungated base `test`.
+2. `tests/e2e/creds.js` (new) — reads `APP_LOGIN_USER` / `APP_LOGIN_PASSWORD` from the gitignored `.secrets/app-login.env` at run time. No credential is written into any test, fixture, screenshot or log; failed logins use an obviously fake password; the `G-08` failure screenshot was dropped because it captured the real username, and `G-20` captures the same state with a made-up one.
+3. `tests/unit/secrets.test.js` → `U-25` now also fails if either credential appears in a tracked file, and asserts `.secrets/` and `public/js/login-config.js` are untracked.
+4. CSV expectations (`U-20`, `U-28`, `R-07`) and the order-shape checks (`C-05`, `C-06`, `D-01`) were updated to the 2026-10-18 requirement change: thirteen CSV columns, no `tendered`/`changeGiven` on the document.
+5. `playwright.config.js` — `retries: 1` locally as well as in CI. The Firestore emulator is shared with whoever else is running the suite on this machine and can restart mid-run; the retry keeps a 12-minute suite from being written off by someone else's `emulators:exec`. The final numbers above come from a clean run with zero retries used.

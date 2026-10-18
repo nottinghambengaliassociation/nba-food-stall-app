@@ -10,7 +10,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // One retry locally too: the Firestore emulator is shared with the
+  // developer's own `npm run test:e2e` runs and can restart mid-suite.
+  retries: 1,
   reporter: [["html", { outputFolder: "playwright-report", open: "never" }], ["list"]],
   outputDir: "test-results",
   use: {

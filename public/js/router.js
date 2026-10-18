@@ -1,6 +1,6 @@
-// Hash router: #/ , #/cash , #/kitchen , #/reports
+// Hash router: #/login , #/ , #/cash , #/kitchen , #/reports
 
-export const ROUTES = ['/', '/cash', '/kitchen', '/reports'];
+export const ROUTES = ['/', '/login', '/cash', '/kitchen', '/reports'];
 
 /** Current route path, always one of ROUTES. */
 export function currentRoute() {

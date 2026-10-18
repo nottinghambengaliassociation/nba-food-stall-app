@@ -3,7 +3,8 @@
 import { el, clear, setText, svgNode } from './ui.js';
 import { itemIcon } from './icons.js';
 import {
-  MENU, QUICK_TENDERS, formatPence, orderTotal, changeDue,
+  MENU, QUICK_CASH, formatPence, orderTotal,
+  parseAmountToPence, cashReceivedState,
   dayString, nextOrderNo
 } from './logic.js';
 import { watchMenu, watchOrders, createOrder, cancelOrder, isReady } from './store.js';
@@ -23,10 +24,17 @@ export function mountCash(outlet, ctx) {
     menu: MENU.slice(),
     cart: {},
     payment: 'cash',
-    tendered: null,
+    // Cash received (optional): either a quick button ('exact' | pence) or
+    // free text in the "Other amount" box. Never both.
+    quick: null,
+    other: '',
     orders: [],
     toastTimer: null
   };
+
+  const phone = typeof window.matchMedia === 'function'
+    ? window.matchMedia('(max-width: 699px)')
+    : { matches: false, addEventListener: null };
 
   /* ---------------------------------------------------------- structure */
 
@@ -59,26 +67,75 @@ export function mountCash(outlet, ctx) {
   const payCard = el('button', {
     type: 'button', class: 'pay-btn', testid: 'pay-card', text: 'Card',
     'aria-pressed': 'false',
-    onclick: () => { state.payment = 'card'; state.tendered = null; update(); }
+    onclick: () => { state.payment = 'card'; resetTender(); update(); }
   });
 
-  const tenderButtons = QUICK_TENDERS.map((value) => el('button', {
+  const tenderButtons = QUICK_CASH.map((value) => el('button', {
     type: 'button',
     class: 'tender__btn',
-    testid: `tender-${value}`,
-    text: '£' + value / 100,
+    testid: value === 'exact' ? 'tender-exact' : `tender-${value}`,
+    text: value === 'exact' ? 'Exact' : '£' + value / 100,
+    'aria-label': value === 'exact' ? 'Cash received: the exact total' : `Cash received £${value / 100}`,
     'aria-pressed': 'false',
     onclick: () => {
-      state.tendered = state.tendered === value ? null : value;
+      // Tapping the selected button deselects it; a quick button clears the box.
+      state.quick = state.quick === value ? null : value;
+      state.other = '';
+      otherInput.value = '';
       update();
     }
   }));
 
-  const changeValue = el('span', { testid: 'change-due', text: '£0.00' });
+  const otherInput = el('input', {
+    type: 'text',
+    id: 'tender-other',
+    testid: 'tender-other',
+    inputmode: 'decimal',
+    autocomplete: 'off',
+    placeholder: 'e.g. 17.50',
+    'aria-describedby': 'change-due',
+    oninput: () => {
+      state.other = otherInput.value;
+      if (state.other.trim() !== '') state.quick = null;
+      update();
+    }
+  });
+
+  const clearTender = el('button', {
+    type: 'button',
+    class: 'link-btn tender__clear',
+    testid: 'tender-clear',
+    text: 'Clear',
+    'aria-label': 'Clear the cash received amount',
+    onclick: () => { resetTender(); update(); }
+  });
+
+  const changeValue = el('p', {
+    class: 'change',
+    id: 'change-due',
+    testid: 'change-due',
+    role: 'status',
+    'aria-live': 'polite',
+    dataset: { state: 'empty' }
+  });
+
   const tenderBlock = el('div', { class: 'tender' }, [
-    el('span', { class: 'field-label', text: 'Cash received' }),
-    el('div', { class: 'tender__grid' }, tenderButtons),
-    el('p', { class: 'change' }, [document.createTextNode('Change to give: '), changeValue])
+    el('div', { class: 'tender__head' }, [
+      el('span', { class: 'field-label' }, [
+        document.createTextNode('Cash received '),
+        el('span', { class: 'tender__optional', text: '(optional)' })
+      ]),
+      clearTender
+    ]),
+    el('div', { class: 'tender__grid', role: 'group', 'aria-label': 'Quick cash amounts' }, tenderButtons),
+    el('div', { class: 'tender__other' }, [
+      el('label', { class: 'field-label', for: 'tender-other', text: 'Other amount' }),
+      el('span', { class: 'tender__input' }, [
+        el('span', { class: 'tender__prefix', 'aria-hidden': 'true', text: '£' }),
+        otherInput
+      ])
+    ]),
+    changeValue
   ]);
 
   const sendButton = el('button', {
@@ -141,11 +198,26 @@ export function mountCash(outlet, ctx) {
       .map((m) => ({ id: m.id, name: m.name, qty: qtyOf(m.id), price: m.price }));
   }
 
+  /** Cash received resets on Clear, on switching to Card, on send and on clearing the order. */
+  function resetTender() {
+    state.quick = null;
+    state.other = '';
+    otherInput.value = '';
+  }
+
   function resetOrder() {
     state.cart = {};
     state.payment = 'cash';
-    state.tendered = null;
+    resetTender();
     nameInput.value = '';
+  }
+
+  /** Cash received in pence: a number, null (nothing entered) or NaN (unparseable). */
+  function receivedPence(total) {
+    if (state.other.trim() !== '') return parseAmountToPence(state.other);
+    if (state.quick === 'exact') return total;
+    if (typeof state.quick === 'number') return state.quick;
+    return null;
   }
 
   function showToast(message) {
@@ -166,13 +238,14 @@ export function mountCash(outlet, ctx) {
     const name = nameInput.value.trim() || 'Guest';
     const orderNo = nextOrderNo(till, day);
 
+    // Cash received is an on-screen calculator for the cashier only: nothing
+    // about it is written to the order, and it never blocks the send.
     const order = {
       orderNo,
       name,
       items,
       total,
       payment: state.payment,
-      tendered: state.payment === 'cash' ? state.tendered : null,
       status: 'new',
       day,
       till,
@@ -341,11 +414,22 @@ export function mountCash(outlet, ctx) {
     payCash.setAttribute('aria-pressed', state.payment === 'cash' ? 'true' : 'false');
     payCard.setAttribute('aria-pressed', state.payment === 'card' ? 'true' : 'false');
 
-    tenderBlock.hidden = state.payment !== 'cash';
+    // An empty panel is a cleared order: the next one starts with no cash received.
+    if (empty && (state.quick !== null || state.other !== '')) resetTender();
+
+    tenderBlock.hidden = state.payment !== 'cash' || empty;
     tenderButtons.forEach((btn, i) => {
-      btn.setAttribute('aria-pressed', state.tendered === QUICK_TENDERS[i] ? 'true' : 'false');
+      const chosen = state.other.trim() === '' && state.quick === QUICK_CASH[i];
+      btn.setAttribute('aria-pressed', chosen ? 'true' : 'false');
     });
-    setText(changeValue, formatPence(changeDue(total, state.tendered)));
+
+    const received = receivedPence(total);
+    const cash = cashReceivedState(total, received);
+    otherInput.dataset.state = state.other.trim() === '' ? 'empty' : cash.state;
+    clearTender.hidden = cash.state === 'empty';
+    changeValue.dataset.state = cash.state;
+    changeValue.hidden = cash.state === 'empty';
+    setText(changeValue, phone.matches ? cash.shortMessage : cash.message);
 
     renderRecent();
   }
@@ -365,11 +449,22 @@ export function mountCash(outlet, ctx) {
 
   const stopTill = ctx.onTillChange(() => renderRecent());
 
+  // Sign out asks first while the panel still holds an unsent order.
+  const stopGuard = typeof ctx.setUnsentGuard === 'function'
+    ? ctx.setUnsentGuard(() => currentItems().length > 0)
+    : null;
+
+  // The change line has a long form on tablet and a short one on phone.
+  const onBreakpoint = () => update();
+  if (typeof phone.addEventListener === 'function') phone.addEventListener('change', onBreakpoint);
+
   buildTiles();
   update();
 
   return () => {
     if (state.toastTimer) clearTimeout(state.toastTimer);
+    if (typeof phone.removeEventListener === 'function') phone.removeEventListener('change', onBreakpoint);
+    if (stopGuard) stopGuard();
     stopMenu();
     stopOrders();
     stopTill();

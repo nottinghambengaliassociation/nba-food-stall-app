@@ -1,6 +1,6 @@
 // L-01..L-05 — landing page and till letter. Spec: CLAUDE.md route table
 // ("#/ Landing page with three big buttons to the above, plus till letter setting").
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, expectNoConsoleErrors, setTill, placeOrder, waitForOrders
 } from './helpers.js';

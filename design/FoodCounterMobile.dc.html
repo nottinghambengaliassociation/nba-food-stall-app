@@ -19,7 +19,10 @@ button{font-family:inherit;cursor:pointer}
 
 <header style="display: flex; align-items: center; justify-content: space-between; height: 60px; flex: none; padding: 0 16px; background: #1C1917; color: #FFFFFF">
 <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Food counter</span>
+<span style="display: flex; align-items: center; gap: 10px">
 <button onClick="{{undo}}" disabled="{{noUndo}}" style="height: 44px; padding: 0 14px; border-radius: 10px; border: 2px solid #A8A29E; background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700">Undo</button>
+<a href="LoginMobile.dc.html" aria-label="Sign out" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; box-sizing: border-box; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</span>
 </header>
 
 <div role="tablist" aria-label="Order status" style="flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 16px; background: #FFFFFF; border-bottom: 1px solid #E7E5E4">

@@ -26,7 +26,7 @@ export function mountLanding(outlet, ctx) {
 
   const main = el('main', { class: 'landing' }, [
     el('div', {}, [
-      el('p', { class: 'landing__eyebrow', text: 'PHASE I · NO LOGIN · ONE SHARED APP' }),
+      el('p', { class: 'landing__eyebrow', text: 'ONE SHARED LOGIN · ONE SHARED APP' }),
       el('h2', { text: 'Pick a screen' }),
       el('p', {
         class: 'landing__lede',

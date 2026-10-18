@@ -1,6 +1,6 @@
 // O-01..O-03 and persistence. Spec: CLAUDE.md Cash 6 (connection pill) and
 // "Firestore with persistentLocalCache and persistentMultipleTabManager for offline writes".
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, placeOrder, waitForOrders, addItem, readCollection
 } from './helpers.js';

@@ -57,6 +57,87 @@ export function changeDue(total, tendered) {
   return Math.max(0, got - t);
 }
 
+/* ------------------------------------------------- cash received (optional) */
+
+/** Quick cash buttons on the cash counter: Exact (= the order total) plus the common notes. */
+export const QUICK_CASH = ['exact', 500, 1000, 2000, 5000];
+
+/**
+ * Parse a typed cash amount into integer pence.
+ * Accepts "17.50", "17.5", "£17.50", "17", "1,000", " £1,000.00 " and ".5".
+ *   ""        -> null  (nothing entered)
+ *   "abc"     -> NaN   (typed but unparseable; "0" and negatives count as unparseable)
+ *   "£1,000"  -> 100000
+ * null and NaN are both "no amount", and are told apart with Number.isFinite.
+ */
+export function parseAmountToPence(text) {
+  if (text === null || text === undefined) return null;
+  const raw = String(text).replace(/[£\s,]/g, '');
+  if (raw === '') return null;
+  if (!/^(\d+(\.\d+)?|\.\d+)$/.test(raw)) return NaN;
+  const pounds = Number(raw);
+  if (!Number.isFinite(pounds) || pounds <= 0) return NaN;
+  return Math.round(pounds * 100);
+}
+
+/** Aliases: the same parser under the names it is natural to reach for. */
+export const parseMoneyToPence = parseAmountToPence;
+export const parsePence = parseAmountToPence;
+
+/** Pence as a plain pounds figure ("2000" -> "20.00"); blank when there is none. */
+export function poundsField(pence) {
+  const n = Number(pence);
+  if (pence === null || pence === undefined || pence === '' || !Number.isFinite(n)) return '';
+  return (Math.round(n) / 100).toFixed(2);
+}
+
+/**
+ * Change owed: tendered − total when tendered ≥ total, else null.
+ * Pure helper only. Cash received is a cashier-side calculator and is never
+ * written to an order or to the CSV.
+ */
+export function changeGiven(total, tendered) {
+  const t = Math.round(Number(total) || 0);
+  if (tendered === null || tendered === undefined || tendered === '') return null;
+  const got = Number(tendered);
+  if (!Number.isFinite(got)) return null;
+  return Math.round(got) >= t ? Math.round(got) - t : null;
+}
+
+/**
+ * The four display states of "Cash received (optional)".
+ * `received` is pence, or null (box empty), or NaN (typed but unparseable); a string is parsed first.
+ * Returns { state: 'empty' | 'change' | 'short' | 'invalid', pence, change, short, message, shortMessage }.
+ * `message` is the tablet wording, `shortMessage` the phone wording.
+ */
+export function cashReceivedState(total, received) {
+  const t = Math.round(Number(total) || 0);
+  const pence = typeof received === 'string' ? parseAmountToPence(received) : received;
+
+  if (pence === null || pence === undefined || pence === '') {
+    return { state: 'empty', pence: null, change: null, short: null, message: '', shortMessage: '' };
+  }
+  if (!Number.isFinite(Number(pence))) {
+    return {
+      state: 'invalid', pence: NaN, change: null, short: null,
+      message: 'Enter an amount like 17.50', shortMessage: 'Check amount'
+    };
+  }
+  const got = Math.round(Number(pence));
+  if (got >= t) {
+    const change = got - t;
+    return {
+      state: 'change', pence: got, change, short: null,
+      message: `Change to give: ${formatPence(change)}`, shortMessage: `Change ${formatPence(change)}`
+    };
+  }
+  const short = t - got;
+  return {
+    state: 'short', pence: got, change: null, short,
+    message: `Short by ${formatPence(short)}`, shortMessage: `Short ${formatPence(short)}`
+  };
+}
+
 /* -------------------------------------------------------------- date/time */
 
 const LONDON = 'Europe/London';
@@ -322,6 +403,8 @@ export function buildReport(orders) {
 
 /* --------------------------------------------------------------------- CSV */
 
+// Money columns stay in integer pence. Cash received is an on-screen
+// calculator for the cashier only, so nothing about it reaches the export.
 export const CSV_HEADER = [
   'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
   'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'

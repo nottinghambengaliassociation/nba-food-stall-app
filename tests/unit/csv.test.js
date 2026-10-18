@@ -1,11 +1,14 @@
-// U-20..U-23 — CSV export. Spec: CLAUDE.md Reports FR 6:
+// U-20..U-23, U-28 — CSV export. Spec: CLAUDE.md Reports FR 6:
 // "Export CSV downloads one row per order line: day, orderNo, till, name, item,
 //  qty, price, lineTotal, payment, status, createdAt, readyAt, waitSeconds".
+// Requirement change 2026-10-18: Cash received is screen-only, so the two
+// Phase II columns are NOT added; the header stays exactly as in Phase I.
 import { describe, it, expect } from 'vitest';
 import { ordersToCsv, csvEscape } from '../../public/js/logic.js';
 import { REPORT_ORDERS, parseCsv, londonMs, DAY } from './fixtures.js';
 
 const HEADER = 'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds';
+const COLUMNS = HEADER.split(',').length; // 13
 
 describe('U-20 CSV header', () => {
   it('is exactly the column list from the brief, in order', () => {
@@ -34,7 +37,7 @@ describe('U-21 one row per order line', () => {
   });
 
   it('gives every row exactly 13 fields', () => {
-    for (const r of body) expect(r).toHaveLength(13);
+    for (const r of body) expect(r).toHaveLength(COLUMNS);
   });
 
   it('keeps money as integer pence and lineTotal = qty x price', () => {
@@ -137,7 +140,7 @@ describe('U-22 quoting and escaping', () => {
   });
 
   it('keeps the field count correct despite the embedded separators', () => {
-    for (const r of rows) expect(r).toHaveLength(13);
+    for (const r of rows) expect(r).toHaveLength(COLUMNS);
   });
 
   it('csvEscape leaves plain values untouched', () => {
@@ -157,5 +160,29 @@ describe('U-23 cancelled rows', () => {
     const fountain = rows.slice(1).filter((r) => r[rows[0].indexOf('item')].includes('Fountain'));
     // The only cancelled order is the Chocolate Fountain one.
     expect(fountain.length).toBe(cancelled.length);
+  });
+});
+
+describe('U-28 the CSV carries no cash-received columns', () => {
+  it('has exactly the thirteen Phase I columns and nothing about the tender', () => {
+    const rows = parseCsv(ordersToCsv(REPORT_ORDERS));
+    expect(rows[0]).toHaveLength(COLUMNS);
+    expect(rows[0], 'cash received is screen-only (requirement change 2026-10-18)').not.toContain('tendered');
+    expect(rows[0]).not.toContain('changeGiven');
+  });
+
+  it('ignores a stray tendered field on an order document', () => {
+    // Even if an old document carries one, it must not reach the export.
+    const csv = ordersToCsv([{
+      orderNo: 'Z-001', till: 'Z', day: DAY, name: 'Legacy',
+      items: [{ id: 'momo', name: 'Momo', qty: 1, price: 500 }],
+      total: 500, payment: 'cash', tendered: 2000, changeGiven: 1500,
+      status: 'collected', createdAtMs: londonMs(12, 0), readyAtMs: londonMs(12, 1)
+    }]);
+    const rows = parseCsv(csv);
+    expect(rows[0].join(',')).toBe(HEADER);
+    for (const r of rows) expect(r).toHaveLength(COLUMNS);
+    expect(csv).not.toContain('2000');
+    expect(csv).not.toContain('1500');
   });
 });

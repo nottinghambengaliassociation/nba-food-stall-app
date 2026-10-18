@@ -20,18 +20,21 @@ button{font-family:inherit;cursor:pointer}
 <header style="display: flex; align-items: center; justify-content: space-between; height: 60px; flex: none; padding: 0 16px; background: #1C1917; color: #FFFFFF">
 <span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Till A</span>
 <span style="display: flex; align-items: center; gap: 8px; font-size: 15px"><span style="width: 9px; height: 9px; border-radius: 50%; background: #5EEAD4"></span>Next {{nextNo}}</span>
+<span style="display: flex; align-items: center; gap: 12px">
 <a href="FoodCounterMobile.dc.html" style="font-size: 15px; font-weight: 700">Kitchen</a>
+<a href="LoginMobile.dc.html" aria-label="Sign out" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; box-sizing: border-box; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</span>
 </header>
 
 <div style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 12px 16px">
 <div style="display: flex; flex-direction: column; gap: 6px">
 <label for="mname" style="font-size: 14px; font-weight: 700; color: #44403C">Name to call out</label>
-<input id="mname" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Priya" autocomplete="off" style="height: 52px; box-sizing: border-box; padding: 0 14px; font-size: 22px; font-family: inherit; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
+<input id="mname" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Priya" autocomplete="off" style="height: 48px; box-sizing: border-box; padding: 0 14px; font-size: 21px; font-family: inherit; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
 </div>
 
 <section aria-label="Menu" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
 <sc-for list="{{tiles}}" as="item" hint-placeholder-count="6">
-<div style="position: relative; height: 124px">
+<div style="position: relative; height: 100px">
 <button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="width: 100%; height: 100%; padding: 10px 8px; border-radius: 18px; border: 3px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center">
 <dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 44 }}" hint-size="44px,44px"></dc-import>
 <span style="font-size: 15px; line-height: 18px; font-weight: 700">{{item.short}}</span>
@@ -57,6 +60,23 @@ button{font-family:inherit;cursor:pointer}
 <button onClick="{{payCash}}" aria-pressed="{{isCash}}" style="height: 50px; border-radius: 12px; font-size: 19px; font-weight: 700; border: 3px solid {{cashBorder}}; background: {{cashBg}}; color: #1C1917">Cash</button>
 <button onClick="{{payCard}}" aria-pressed="{{isCard}}" style="height: 50px; border-radius: 12px; font-size: 19px; font-weight: 700; border: 3px solid {{cardBorder}}; background: {{cardBg}}; color: #1C1917">Card</button>
 </div>
+<sc-if value="{{showTender}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+<span style="font-size: 14px; font-weight: 700; color: #44403C">Cash received <span style="font-weight: 400; color: #57534E">(optional)</span></span>
+<span role="status" style="font-size: 16px; font-weight: 700; color: {{tenderMsgColour}}">{{tenderMsg}}</span>
+</div>
+<div role="group" aria-label="Quick cash amounts" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{tenders}}" as="t" hint-placeholder-count="5">
+<button onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 44px; padding: 0; border-radius: 10px; font-size: 16px; font-weight: 700; border: 2px solid {{t.border}}; background: {{t.bg}}; color: #1C1917">{{t.label}}</button>
+</sc-for>
+</div>
+<div style="position: relative">
+<label for="mother" style="position: absolute; left: 12px; top: 12px; font-size: 15px; font-weight: 700; color: #44403C">Other £</label>
+<input id="mother" inputmode="decimal" autocomplete="off" placeholder="e.g. 17.50" value="{{other}}" onChange="{{onOther}}" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 74px; font-size: 18px; font-family: inherit; border: 2px solid {{otherBorder}}; border-radius: 10px; color: #1C1917; background: #FFFFFF">
+</div>
+</div>
+</sc-if>
 <button onClick="{{place}}" disabled="{{empty}}" style="height: 64px; border: none; border-radius: 16px; background: {{placeBg}}; color: #FFFFFF; font-size: 22px; font-weight: 700">Send to food counter</button>
 </div>
 </div>
@@ -65,7 +85,7 @@ button{font-family:inherit;cursor:pointer}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { cart: { chat: 1, straw: 2 }, name: 'Josh', pay: 'card', seq: 44, toast: '' };
+    this.state = { cart: { chat: 1, straw: 2 }, name: 'Josh', pay: 'cash', tendered: 2000, other: '', seq: 44, toast: '' };
   }
   renderVals() {
     const MENU = [
@@ -95,6 +115,24 @@ class Component extends DCLogic {
     const total = MENU.reduce((t, m) => t + m.price * (s.cart[m.id] || 0), 0);
     const empty = total === 0;
     const isCash = s.pay === 'cash';
+    const tenders = ['exact', 500, 1000, 2000, 5000].map((v) => {
+      const on = s.other === '' && s.tendered === v;
+      return {
+        label: v === 'exact' ? 'Exact' : '£' + v / 100, on: on,
+        bg: on ? '#FDE68A' : '#FFFFFF', border: on ? '#1C1917' : '#A8A29E',
+        pick: () => this.setState({ tendered: on ? null : v, other: '' })
+      };
+    });
+    const raw = s.other.replace(/[£,\s]/g, '');
+    const otherPence = raw === '' ? null : Math.round(parseFloat(raw) * 100);
+    const otherInvalid = raw !== '' && !(otherPence > 0);
+    const received = raw !== '' ? (otherInvalid ? null : otherPence)
+      : s.tendered === 'exact' ? total : s.tendered;
+    const change = received == null ? 0 : received - total;
+    let tenderMsg = '', tenderMsgColour = '#134E4A';
+    if (otherInvalid) { tenderMsg = 'Check amount'; tenderMsgColour = '#B45309'; }
+    else if (received != null && change >= 0) { tenderMsg = 'Change ' + gbp(change); }
+    else if (received != null) { tenderMsg = 'Short ' + gbp(-change); tenderMsgColour = '#B45309'; }
     const summary = empty ? 'Tap an item to start' :
       MENU.filter((m) => s.cart[m.id]).map((m) => s.cart[m.id] + '× ' + m.short).join(' · ');
     return {
@@ -105,14 +143,19 @@ class Component extends DCLogic {
       cashBg: isCash ? '#FDE68A' : '#FFFFFF', cashBorder: isCash ? '#1C1917' : '#A8A29E',
       cardBg: !isCash ? '#FDE68A' : '#FFFFFF', cardBorder: !isCash ? '#1C1917' : '#A8A29E',
       payCash: () => this.setState({ pay: 'cash' }),
-      payCard: () => this.setState({ pay: 'card' }),
+      payCard: () => this.setState({ pay: 'card', tendered: null, other: '' }),
+      showTender: isCash && !empty,
+      tenders: tenders, other: s.other,
+      onOther: (e) => this.setState({ other: e.target.value, tendered: null }),
+      otherBorder: otherInvalid ? '#B45309' : (raw !== '' ? '#1C1917' : '#A8A29E'),
+      tenderMsg: tenderMsg, tenderMsgColour: tenderMsgColour,
       placeBg: empty ? '#A8A29E' : '#0F766E',
       hasToast: !!s.toast, toast: s.toast,
       place: () => {
         if (empty) return;
         const no = 'A-' + String(this.state.seq).padStart(3, '0');
         const who = this.state.name.trim() || 'Guest';
-        this.setState({ cart: {}, name: '', seq: this.state.seq + 1, toast: no + ' sent for ' + who });
+        this.setState({ cart: {}, name: '', tendered: null, other: '', seq: this.state.seq + 1, toast: no + ' sent for ' + who });
       }
     };
   }

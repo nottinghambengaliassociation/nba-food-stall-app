@@ -1,4 +1,7 @@
 // Shared fixtures for the unit suite. Derived from qa/test-plan.md section 8.
+// Phase II (requirement change 2026-10-18): Cash received is an on-screen
+// calculator only. Order documents carry neither `tendered` nor `changeGiven`,
+// so the fixtures do not either.
 // 2026-10-17 is inside BST, so Europe/London is UTC+1.
 
 export const DAY = '2026-10-17';
@@ -20,37 +23,37 @@ export const REPORT_ORDERS = [
   {
     orderNo: 'A-001', name: 'Priya', till: 'A', day: DAY,
     items: [line('fuchka', 'Fuchka / Gol Gappa', 2)],
-    total: 1000, payment: 'cash', tendered: 2000, status: 'collected',
+    total: 1000, payment: 'cash', status: 'collected',
     createdAtMs: londonMs(12, 5), readyAtMs: londonMs(12, 7), collectedAtMs: londonMs(12, 8)
   },
   {
     orderNo: 'A-002', name: 'Sam', till: 'A', day: DAY,
     items: [line('momo', 'Momo', 1), line('chat', 'Papri Chat', 1)],
-    total: 1000, payment: 'card', tendered: null, status: 'collected',
+    total: 1000, payment: 'card', status: 'collected',
     createdAtMs: londonMs(12, 20), readyAtMs: londonMs(12, 25), collectedAtMs: londonMs(12, 26)
   },
   {
     orderNo: 'A-003', name: 'Ahmed', till: 'A', day: DAY,
     items: [line('fuchka', 'Fuchka / Gol Gappa', 3)],
-    total: 1500, payment: 'cash', tendered: 2000, status: 'ready',
+    total: 1500, payment: 'cash', status: 'ready',
     createdAtMs: londonMs(12, 40), readyAtMs: londonMs(12, 44)
   },
   {
     orderNo: 'A-004', name: 'Lucy', till: 'A', day: DAY,
     items: [line('samosa', 'Sweets Box Samosa / Shingara', 1)],
-    total: 500, payment: 'card', tendered: null, status: 'collected',
+    total: 500, payment: 'card', status: 'collected',
     createdAtMs: londonMs(13, 10), readyAtMs: londonMs(13, 13)
   },
   {
     orderNo: 'A-005', name: 'Josh', till: 'A', day: DAY,
     items: [line('momo', 'Momo', 4)],
-    total: 2000, payment: 'cash', tendered: 2000, status: 'new',
+    total: 2000, payment: 'cash', status: 'new',
     createdAtMs: londonMs(13, 40)
   },
   {
     orderNo: 'A-006', name: 'Meera', till: 'A', day: DAY,
     items: [line('fountain', 'Chocolate Fountain', 10)],
-    total: 5000, payment: 'card', tendered: null, status: 'cancelled',
+    total: 5000, payment: 'card', status: 'cancelled',
     createdAtMs: londonMs(13, 20), cancelledAtMs: londonMs(13, 21)
   }
 ];

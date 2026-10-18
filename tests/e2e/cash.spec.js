@@ -1,6 +1,6 @@
 // C-01..C-14 and D-01..D-03 — cash counter. Spec: CLAUDE.md "Cash counter" FR 1..6
 // and the Data model block.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, boxOf, expectNoConsoleErrors,
   addItem, placeOrder, readCollection, waitForOrders, londonDay
@@ -168,7 +168,10 @@ test('C-09 / D-01 / D-03 send writes the order, toasts the number and clears the
   expect(order.total).toBe(1500);
   expect(Number.isInteger(order.total)).toBe(true);
   expect(order.payment).toBe('cash');
-  expect(order.tendered).toBe(2000);
+  // Cash received is an on-screen calculator only: the document stores neither
+  // `tendered` nor `changeGiven` (requirement change 2026-10-18).
+  expect(Object.keys(order), 'no tendered field on the order document').not.toContain('tendered');
+  expect(Object.keys(order), 'no changeGiven field on the order document').not.toContain('changeGiven');
   expect(order.status).toBe('new');
   expect(order.day, 'day must be the Europe/London date').toBe(londonDay());
   expect(order.till).toBe('A');
@@ -183,7 +186,7 @@ test('C-09 / D-01 / D-03 send writes the order, toasts the number and clears the
   await expectNoConsoleErrors(errors, '#/cash after sending');
 });
 
-test('C-06 a blank name is stored as Guest, and card orders store a null tender', async ({ page }) => {
+test('C-06 a blank name is stored as Guest, and no tender is stored', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
 
@@ -191,7 +194,7 @@ test('C-06 a blank name is stored as Guest, and card orders store a null tender'
   const [order] = await waitForOrders((o) => o.length === 1, { label: 'the guest order' });
   expect(order.name, 'CLAUDE.md Data model: name is "Guest" if blank').toBe('Guest');
   expect(order.payment).toBe('card');
-  expect(order.tendered == null, 'card orders carry a null tender').toBe(true);
+  expect(Object.keys(order), 'card orders store no tender either').not.toContain('tendered');
 });
 
 test('C-10 recent orders strip keeps the last five from this till', async ({ page }) => {

@@ -16,8 +16,26 @@ mkdirSync(SHOTS, { recursive: true });
 
 /* ------------------------------------------------------------- emulator */
 
+/**
+ * fetch with a retry window: the emulator is shared with whoever else is
+ * running `npm run test:e2e` on this machine and can restart under us.
+ */
+async function emuFetch(url, init, { timeout = 30000 } = {}) {
+  const deadline = Date.now() + timeout;
+  let lastErr;
+  for (;;) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err;
+      if (Date.now() > deadline) throw lastErr;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
+}
+
 export async function clearFirestore() {
-  const res = await fetch(
+  const res = await emuFetch(
     `${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`,
     { method: 'DELETE' }
   );
@@ -26,7 +44,7 @@ export async function clearFirestore() {
   await new Promise((r) => setTimeout(r, 250));
   const left = await readCollection('orders');
   if (left.length) {
-    await fetch(`${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: 'DELETE' });
+    await emuFetch(`${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: 'DELETE' });
     await new Promise((r) => setTimeout(r, 250));
   }
 }
@@ -70,7 +88,7 @@ function fromFields(fields) {
 /** Write a document straight into the emulator, bypassing the UI. */
 export async function seedDoc(collection, data, id) {
   const url = `${DOCS}/${collection}` + (id ? `?documentId=${encodeURIComponent(id)}` : '');
-  const res = await fetch(url, {
+  const res = await emuFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: toFields(data) })
@@ -81,8 +99,8 @@ export async function seedDoc(collection, data, id) {
 
 /** Read a whole collection back out of the emulator. */
 export async function readCollection(collection) {
-  const res = await fetch(`${DOCS}/${collection}?pageSize=300`);
-  if (!res.ok) return [];
+  const res = await emuFetch(`${DOCS}/${collection}?pageSize=300`).catch(() => null);
+  if (!res || !res.ok) return [];
   const body = await res.json();
   return (body.documents || []).map((d) => ({
     _id: d.name.split('/').pop(),
@@ -133,10 +151,15 @@ export async function openApp(page, route = '#/') {
   const errors = attachConsole(page);
   // Clear once per tab, not on every reload: C-14 and L-04 depend on
   // localStorage surviving a reload the way it does on a real till.
+  // The signed-in session seeded by tests/e2e/session.js survives the clear:
+  // login gates every route (CLAUDE.md -> Login and sign out 6), so wiping it
+  // here would bounce every Phase I test to #/login.
   await page.addInitScript(() => {
     try {
       if (!window.sessionStorage.getItem('__qa_cleared')) {
+        const session = window.localStorage.getItem('nba.session');
         window.localStorage.clear();
+        if (session !== null) window.localStorage.setItem('nba.session', session);
         window.sessionStorage.setItem('__qa_cleared', '1');
       }
     } catch { /* ignore */ }
@@ -226,7 +249,16 @@ export async function placeOrder(page, { items = {}, name = '', payment = 'cash'
   else {
     const cash = tid(page, 'pay-cash');
     if (await cash.count()) await cash.click();
-    if (tender) await tid(page, `tender-${tender}`).click();
+    // Phase II: `tender` is a pence amount or 'exact' for a quick button, or
+    // a string like '17.50' typed into the Other amount box.
+    if (tender !== null && tender !== undefined && tender !== '') {
+      if (typeof tender === 'number' || tender === 'exact') {
+        await (await quickTender(page, tender)).click();
+      } else {
+        await (await otherAmount(page)).fill(String(tender));
+      }
+      await page.waitForTimeout(120);
+    }
   }
   await tid(page, 'send-order').click();
   const toast = tid(page, 'order-toast');
@@ -296,37 +328,37 @@ export function reportFixture(day = londonDay()) {
     {
       orderNo: 'A-001', name: 'Priya', till: 'A', day,
       items: [line('fuchka', 'Fuchka / Gol Gappa', 2)],
-      total: 1000, payment: 'cash', tendered: 2000, status: 'collected',
+      total: 1000, payment: 'cash', status: 'collected',
       createdAtMs: t(12, 5), startedAtMs: t(12, 6), readyAtMs: t(12, 7), collectedAtMs: t(12, 8)
     },
     {
       orderNo: 'A-002', name: 'Sam', till: 'A', day,
       items: [line('momo', 'Momo', 1), line('chat', 'Papri Chat', 1)],
-      total: 1000, payment: 'card', tendered: null, status: 'collected',
+      total: 1000, payment: 'card', status: 'collected',
       createdAtMs: t(12, 20), startedAtMs: t(12, 21), readyAtMs: t(12, 25), collectedAtMs: t(12, 26)
     },
     {
       orderNo: 'A-003', name: 'Ahmed', till: 'A', day,
       items: [line('fuchka', 'Fuchka / Gol Gappa', 3)],
-      total: 1500, payment: 'cash', tendered: 2000, status: 'ready',
+      total: 1500, payment: 'cash', status: 'ready',
       createdAtMs: t(12, 40), startedAtMs: t(12, 41), readyAtMs: t(12, 44)
     },
     {
       orderNo: 'A-004', name: 'Lucy', till: 'A', day,
       items: [line('samosa', 'Sweets Box Samosa / Shingara', 1)],
-      total: 500, payment: 'card', tendered: null, status: 'collected',
+      total: 500, payment: 'card', status: 'collected',
       createdAtMs: t(13, 10), startedAtMs: t(13, 11), readyAtMs: t(13, 13), collectedAtMs: t(13, 14)
     },
     {
       orderNo: 'A-005', name: 'Josh', till: 'A', day,
       items: [line('momo', 'Momo', 4)],
-      total: 2000, payment: 'cash', tendered: 2000, status: 'new',
+      total: 2000, payment: 'cash', status: 'new',
       createdAtMs: t(13, 40)
     },
     {
       orderNo: 'A-006', name: 'Meera', till: 'A', day,
       items: [line('fountain', 'Chocolate Fountain', 10)],
-      total: 5000, payment: 'card', tendered: null, status: 'cancelled',
+      total: 5000, payment: 'card', status: 'cancelled',
       createdAtMs: t(13, 20), cancelledAtMs: t(13, 21)
     }
   ];
@@ -362,4 +394,153 @@ export function parseCsv(text) {
   }
   if (field.length || row.length) { row.push(field); rows.push(row); }
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
+}
+
+/* ------------------------------------------------- Phase II: locators ----
+ * The brief fixes the wording, roles and ARIA of the new controls but
+ * .claude/agents/neo.md does not list data-testids for them. These helpers
+ * therefore try the testid that follows the existing naming convention first
+ * and fall back to the semantics the brief and the mock-ups mandate, so the
+ * tests assert the spec rather than one particular markup choice.
+ */
+
+/** First of several CSS selectors that matches something, as a locator. */
+export async function firstOf(page, selectors, { timeout = 8000 } = {}) {
+  const deadline = Date.now() + timeout;
+  for (;;) {
+    for (const sel of selectors) {
+      const loc = page.locator(sel).first();
+      if (await loc.count()) return loc;
+    }
+    if (Date.now() > deadline) return page.locator(selectors[0]).first();
+    await page.waitForTimeout(100);
+  }
+}
+
+/** Same, but resolves immediately to null when nothing matches. */
+export async function anyOf(page, selectors) {
+  for (const sel of selectors) {
+    const loc = page.locator(sel).first();
+    if (await loc.count()) return loc;
+  }
+  return null;
+}
+
+/* --- login screen (CLAUDE.md -> Login and sign out 1) --- */
+
+export const LOGIN_USER_SEL = [
+  '[data-testid="login-user"]',
+  'input[autocomplete="username"]',
+  'input[name="username"]',
+  '#user', '#muser'
+];
+export const LOGIN_PASS_SEL = [
+  '[data-testid="login-password"]',
+  '[data-testid="login-pass"]',
+  'input[autocomplete="current-password"]',
+  'input[type="password"]',
+  '#pass', '#mpass'
+];
+export const LOGIN_SUBMIT_SEL = [
+  '[data-testid="sign-in"]',
+  '[data-testid="login-submit"]',
+  'form button[type="submit"]',
+  'button[type="submit"]'
+];
+export const LOGIN_TOGGLE_SEL = [
+  '[data-testid="toggle-password"]',
+  '[data-testid="login-show"]',
+  'button[aria-pressed][type="button"]'
+];
+export const SIGN_OUT_SEL = [
+  'header [data-testid="sign-out"]',
+  'header [aria-label="Sign out"]',
+  'header button:has-text("Sign out")',
+  'header a:has-text("Sign out")',
+  '[data-testid="sign-out"]'
+];
+
+export const loginUserField = (page) => firstOf(page, LOGIN_USER_SEL);
+export const loginPassField = (page) => firstOf(page, LOGIN_PASS_SEL);
+export const loginSubmit = (page) => firstOf(page, LOGIN_SUBMIT_SEL);
+export const signOutButton = (page) => firstOf(page, SIGN_OUT_SEL);
+
+/**
+ * Sign in through the form. `password` is passed in by the caller, which reads
+ * it from .secrets at run time; it is never logged by this helper.
+ */
+export async function signIn(page, user, password) {
+  const u = await loginUserField(page);
+  const p = await loginPassField(page);
+  await u.fill(user);
+  await p.fill(password);
+  const submit = await loginSubmit(page);
+  await submit.click();
+}
+
+/* --- cash received (CLAUDE.md -> Cash counter 3) --- */
+
+const QUICK_GROUP = '[role="group"][aria-label="Quick cash amounts"]';
+
+export const TENDER_OTHER_SEL = [
+  '[data-testid="tender-other"]',
+  '[data-testid="other-amount"]',
+  'input[inputmode="decimal"]',
+  '#tother', '#mother'
+];
+export const TENDER_CLEAR_SEL = [
+  '[data-testid="tender-clear"]',
+  '[data-testid="clear-tender"]',
+  'button:has-text("Clear"):not(:has-text("Clear order"))'
+];
+export const TENDER_MSG_SEL = [
+  '[data-testid="change-due"]',
+  '[data-testid="tender-message"]',
+  '[role="status"]'
+];
+
+export const otherAmount = (page) => firstOf(page, TENDER_OTHER_SEL);
+export const tenderMessage = (page) => firstOf(page, TENDER_MSG_SEL);
+
+/** A quick cash button: 'exact' or a pence amount. */
+export async function quickTender(page, value) {
+  const key = value === 'exact' ? 'exact' : String(value);
+  const label = value === 'exact' ? 'Exact' : '£' + Number(value) / 100;
+  return firstOf(page, [
+    `[data-testid="tender-${key}"]`,
+    `${QUICK_GROUP} button:text-is("${label}")`,
+    `button:text-is("${label}")`
+  ]);
+}
+
+/** All five quick buttons, in document order. */
+export async function quickTenderButtons(page) {
+  const byTestid = page.locator(
+    '[data-testid="tender-exact"], [data-testid="tender-500"], [data-testid="tender-1000"], [data-testid="tender-2000"], [data-testid="tender-5000"]'
+  );
+  if (await byTestid.count()) return byTestid;
+  const group = page.locator(`${QUICK_GROUP} button`);
+  if (await group.count()) return group;
+  return byTestid;
+}
+
+/** Whitespace-normalised visible text of the cash-received block, or ''. */
+export async function tenderText(page) {
+  const block = await anyOf(page, [
+    '[data-testid="cash-received"]',
+    `${QUICK_GROUP}`,
+    '[data-testid="change-due"]'
+  ]);
+  if (!block) return '';
+  const scope = await block.evaluateHandle((el) => {
+    // Walk up to the block that holds the label, the buttons and the message.
+    let n = el;
+    for (let i = 0; i < 4 && n.parentElement; i++) {
+      if (/Cash received/i.test(n.textContent || '')) break;
+      n = n.parentElement;
+    }
+    return n;
+  });
+  const text = await scope.evaluate((el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim());
+  return text;
 }

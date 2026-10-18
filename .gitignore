@@ -36,3 +36,12 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Login config (generated, never commit)
+public/js/login-config.js
+
+# Cowork drop folder
+Claude outputs/
+
+# Re-dropped copy of the setup kit; contents already installed in .claude/
+claude-setup/

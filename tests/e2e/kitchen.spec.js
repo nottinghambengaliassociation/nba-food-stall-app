@@ -1,5 +1,5 @@
 // K-01..K-12 and D-02/D-04 — food counter. Spec: CLAUDE.md "Food counter" FR 1..6.
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, expectNoConsoleErrors,
   placeOrder, readCollection, waitForOrders, seedDoc, londonDay, setTill
@@ -23,7 +23,7 @@ async function seedOrder(over = {}) {
   return seedDoc('orders', {
     orderNo: 'A-001', name: 'Priya', till: 'A', day: londonDay(),
     items: [{ id: 'momo', name: 'Momo', qty: 2, price: 500 }],
-    total: 1000, payment: 'cash', tendered: 2000, status: 'new',
+    total: 1000, payment: 'cash', status: 'new',
     createdAtMs: now, ...over
   });
 }

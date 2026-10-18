@@ -1,6 +1,6 @@
 // Screenshots of every screen, both projects, empty and with orders.
 // Definition of done: "Screenshots of every screen at both sizes in qa/screenshots/".
-import { test, expect } from '@playwright/test';
+import { test, expect } from './session.js';
 import { clearFirestore, seedReportDay, shot, tid, placeOrder } from './helpers.js';
 
 const SCREENS = [
