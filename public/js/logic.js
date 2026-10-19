@@ -471,3 +471,314 @@ export function ordersToCsv(orders) {
   }
   return rows.join('\n');
 }
+
+/* ------------------------------------------------- Phase III: day ranges */
+//
+// Calendar maths on "YYYY-MM-DD" strings. The arithmetic runs at UTC midnight
+// so adding a day never slips an hour over a British Summer Time change: the
+// day strings themselves are already Europe/London dates (see dayString).
+
+const DAY_MS = 86400000;
+export const RANGE_MAX_DAYS = 31;
+export const RANGE_TOO_LONG_MESSAGE = 'Pick 31 days or fewer';
+export const RANGE_EMPTY_MESSAGE = 'No sales in this range';
+
+const utcDow = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short' });
+const utcDayMonth = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' });
+const utcDayMonthYear = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Is this a usable "YYYY-MM-DD" day string? */
+export function isDayString(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const ms = Date.parse(value + 'T00:00:00Z');
+  return Number.isFinite(ms) && dayFromMs(ms) === value;
+}
+
+function dayToMs(day) {
+  return Date.parse(String(day) + 'T00:00:00Z');
+}
+
+function dayFromMs(ms) {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** "2026-10-18" + 3 -> "2026-10-21"; negative n goes back. */
+export function addDays(day, n) {
+  if (!isDayString(day)) return '';
+  return dayFromMs(dayToMs(day) + Math.round(Number(n) || 0) * DAY_MS);
+}
+
+/** Whole days from `from` to `to` (to − from); negative when `to` is earlier. */
+export function dayDiff(from, to) {
+  if (!isDayString(from) || !isDayString(to)) return 0;
+  return Math.round((dayToMs(to) - dayToMs(from)) / DAY_MS);
+}
+
+/** Number of days in an inclusive range; 0 when either end is unusable. */
+export function rangeLength(from, to) {
+  if (!isDayString(from) || !isDayString(to)) return 0;
+  return Math.abs(dayDiff(from, to)) + 1;
+}
+
+/** Every day from `from` to `to` inclusive, ascending. */
+export function listDays(from, to) {
+  if (!isDayString(from) || !isDayString(to)) return [];
+  const a = dayToMs(from) <= dayToMs(to) ? from : to;
+  const b = dayToMs(from) <= dayToMs(to) ? to : from;
+  const out = [];
+  for (let ms = dayToMs(a); ms <= dayToMs(b); ms += DAY_MS) out.push(dayFromMs(ms));
+  return out;
+}
+
+/** "Sun" for a day string. */
+export function weekdayShort(day) {
+  return isDayString(day) ? utcDow.format(new Date(dayToMs(day))) : '';
+}
+
+/** "18 Oct". */
+export function formatDayShort(day) {
+  return isDayString(day) ? utcDayMonth.format(new Date(dayToMs(day))) : '';
+}
+
+/** "Sun 18 Oct", the label used on the chart and in the day table. */
+export function formatDayLabel(day) {
+  return isDayString(day) ? `${weekdayShort(day)} ${formatDayShort(day)}` : '';
+}
+
+/** "19 Oct 2026", used by the version line. */
+export function formatDayLong(day) {
+  return isDayString(day) ? utcDayMonthYear.format(new Date(dayToMs(day))) : '';
+}
+
+/**
+ * Tidy a From/To pair: swap when To is before From, then enforce the 31-day
+ * maximum (CLAUDE.md Phase III 2). A too-long range is reported, never queried.
+ * Returns { from, to, days, dayCount, swapped, tooLong, valid, ok, error }.
+ */
+export function clampRange(from, to) {
+  let a = isDayString(from) ? from : null;
+  let b = isDayString(to) ? to : null;
+  if (!a && !b) {
+    return {
+      from: '', to: '', days: [], dayCount: 0, swapped: false,
+      tooLong: false, valid: false, ok: false, error: 'Pick a From and To date'
+    };
+  }
+  if (!a) a = b;
+  if (!b) b = a;
+  let swapped = false;
+  if (dayToMs(b) < dayToMs(a)) { const t = a; a = b; b = t; swapped = true; }
+  const dayCount = rangeLength(a, b);
+  const tooLong = dayCount > RANGE_MAX_DAYS;
+  return {
+    from: a,
+    to: b,
+    days: tooLong ? [] : listDays(a, b),
+    dayCount,
+    swapped,
+    tooLong,
+    valid: !tooLong,
+    ok: !tooLong,
+    error: tooLong ? RANGE_TOO_LONG_MESSAGE : null
+  };
+}
+
+/** Default range: the last 7 days ending today. */
+export function defaultRange(today = dayString()) {
+  const end = isDayString(today) ? today : dayString();
+  return { from: addDays(end, -6), to: end };
+}
+
+/** Quick range "Today". */
+export function todayRange(today = dayString()) {
+  const end = isDayString(today) ? today : dayString();
+  return { from: end, to: end };
+}
+
+/** Orders whose day falls inside an inclusive range (cancelled ones included; filter later). */
+export function ordersInRange(orders, from, to) {
+  if (!isDayString(from) || !isDayString(to)) return [];
+  return (Array.isArray(orders) ? orders : []).filter((o) => o && isDayString(o.day) && o.day >= from && o.day <= to);
+}
+
+/* -------------------------------------------- Phase III: range aggregation */
+
+function menuIndex(id) {
+  const i = MENU.findIndex((m) => m.id === id);
+  return i === -1 ? 999 : (MENU[i].sort || 999);
+}
+
+/**
+ * Roll a range of orders up per trading day (CLAUDE.md Phase III 4–8).
+ * Only days with at least one order appear. Cancelled orders are excluded
+ * everywhere, exactly as in buildReport. The legacy `tendered` field is ignored.
+ */
+export function buildRangeReport(orders) {
+  const live = activeOrders(orders);
+
+  const byDay = new Map();
+  for (const o of live) {
+    const day = typeof o.day === 'string' ? o.day : '';
+    if (!day) continue;
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(o);
+  }
+
+  const dayKeys = Array.from(byDay.keys()).sort();
+  const itemMap = new Map();
+
+  const days = dayKeys.map((day) => {
+    const report = buildReport(byDay.get(day));
+    for (const row of report.byItem) {
+      const entry = itemMap.get(row.id) || { id: row.id, name: row.name, byDay: new Map(), total: 0, sales: 0 };
+      entry.name = entry.name || row.name;
+      entry.byDay.set(day, (entry.byDay.get(day) || 0) + row.units);
+      entry.total += row.units;
+      entry.sales += row.revenue;
+      itemMap.set(row.id, entry);
+    }
+    return {
+      day,
+      weekday: weekdayShort(day),
+      date: formatDayShort(day),
+      label: formatDayLabel(day),
+      orders: report.orderCount,
+      orderCount: report.orderCount,
+      items: report.itemsSold,
+      itemsSold: report.itemsSold,
+      sales: report.totalSales,
+      cash: report.cash.amount,
+      card: report.card.amount,
+      avgOrder: report.averageOrder,
+      averageOrder: report.averageOrder,
+      peak: report.peak ? report.peak.label : '',
+      peakCount: report.peak ? report.peak.count : 0,
+      report
+    };
+  });
+
+  const sum = (key) => days.reduce((a, d) => a + d[key], 0);
+  const totalSales = sum('sales');
+  const orderCount = sum('orders');
+  const itemsSold = sum('items');
+  const cash = sum('cash');
+  const card = sum('card');
+  const tradingDays = days.length;
+
+  let best = null;
+  for (const d of days) {
+    if (!best || d.sales > best.sales) best = d;
+  }
+
+  const items = Array.from(itemMap.values()).map((entry) => {
+    let bestDay = null;
+    let bestUnits = 0;
+    for (const day of dayKeys) {
+      const units = entry.byDay.get(day) || 0;
+      if (units > bestUnits) { bestUnits = units; bestDay = day; }
+    }
+    const cells = dayKeys.map((day) => ({
+      day,
+      units: entry.byDay.get(day) || 0,
+      best: bestDay !== null && day === bestDay
+    }));
+    const seed = MENU.find((m) => m.id === entry.id);
+    return {
+      id: entry.id,
+      name: entry.name || (seed && seed.name) || entry.id,
+      cells,
+      units: entry.total,
+      total: entry.total,
+      sales: entry.sales,
+      revenue: entry.sales,
+      bestDay,
+      bestUnits
+    };
+  }).sort((a, b) => menuIndex(a.id) - menuIndex(b.id) || a.name.localeCompare(b.name));
+
+  return {
+    days,
+    dayKeys,
+    tradingDays,
+    items,
+    matrix: items,
+    best,
+    bestDay: best,
+    empty: tradingDays === 0,
+    maxSales: days.reduce((m, d) => Math.max(m, d.sales), 0),
+    totalSales,
+    orderCount,
+    orders: orderCount,
+    itemsSold,
+    itemsPerOrder: orderCount ? itemsSold / orderCount : 0,
+    averageOrder: orderCount ? Math.round(totalSales / orderCount) : 0,
+    averagePerDay: tradingDays ? Math.round(totalSales / tradingDays) : 0,
+    averageOrdersPerDay: tradingDays ? Math.round(orderCount / tradingDays) : 0,
+    totals: {
+      orders: orderCount,
+      items: itemsSold,
+      sales: totalSales,
+      cash,
+      card,
+      avgOrder: orderCount ? Math.round(totalSales / orderCount) : 0
+    },
+    cash: { amount: cash },
+    card: { amount: card }
+  };
+}
+
+/* ------------------------------------------------- Phase III: range CSV */
+
+/** The range export has exactly the same columns as the one-day export. */
+export const rangeToCsv = ordersToCsv;
+
+/** "nba-food-stall_2026-10-13_2026-10-19.csv" */
+export function rangeCsvFilename(from, to) {
+  return `nba-food-stall_${from}_${to}.csv`;
+}
+
+/* ------------------------------------------------------ display helpers */
+
+/** "£2,005.00": thousands grouped, for the by-day report (design/ReportsByDay.dc.html). */
+export function formatPenceGrouped(pence) {
+  const n = Number(pence);
+  const safe = Number.isFinite(n) ? Math.round(n) : 0;
+  const sign = safe < 0 ? '-' : '';
+  const abs = Math.abs(safe);
+  return sign + '£' + (abs / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** "£2,005": whole pounds, for chart gridlines. */
+export function formatPoundsRounded(pence) {
+  const n = Number(pence);
+  const safe = Number.isFinite(n) ? Math.round(n) : 0;
+  const sign = safe < 0 ? '-' : '';
+  return sign + '£' + Math.round(Math.abs(safe) / 100).toLocaleString('en-GB');
+}
+
+/**
+ * Bar value labels: the exact amount while the figures are small, whole pounds
+ * once they run into the thousands and the label would not fit over a bar.
+ */
+export function formatPenceCompact(pence) {
+  const n = Math.abs(Math.round(Number(pence) || 0));
+  return n >= 100000 ? formatPoundsRounded(pence) : formatPenceGrouped(pence);
+}
+
+/** Username matching: trimmed and case-insensitive (CLAUDE.md "Login and sign out" 2). */
+export function normaliseUser(text) {
+  return String(text === null || text === undefined ? '' : text).trim().toLowerCase();
+}
+
+/** Lowercase hex SHA-256 via Web Crypto. */
+export async function sha256Hex(text) {
+  const subtle = (globalThis.crypto && globalThis.crypto.subtle) || null;
+  if (!subtle) throw new Error('Web Crypto unavailable');
+  const bytes = new TextEncoder().encode(String(text));
+  const digest = await subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Alias kept because the brief names the parser `parseAmount`. */
+export const parseAmount = parseAmountToPence;

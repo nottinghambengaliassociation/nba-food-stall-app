@@ -10,6 +10,7 @@ import {
   connectFirestoreEmulator,
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -286,4 +287,42 @@ export async function fetchOrders(day) {
   const q = query(collection(db, 'orders'), where('day', '==', day));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * One-off read of every order in an inclusive day range (Sales by day report).
+ * Both filters are on `day`, a single field, so no composite index is needed.
+ */
+export async function fetchOrdersInRange(from, to) {
+  if (!isReady()) return [];
+  const q = query(
+    collection(db, 'orders'),
+    where('day', '>=', from),
+    where('day', '<=', to)
+  );
+  const snap = await getDocs(q);
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(a.day).localeCompare(String(b.day)) || (a.createdAtMs || 0) - (b.createdAtMs || 0));
+}
+
+/**
+ * settings/event = { name, from, to }, edited in the Firebase console.
+ * Returns null when the document is missing or unusable: the "This event"
+ * quick button is then hidden (CLAUDE.md Phase III 2).
+ */
+export async function fetchEvent() {
+  if (!isReady()) return null;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'event'));
+    if (!snap.exists()) return null;
+    const data = snap.data() || {};
+    const from = typeof data.from === 'string' ? data.from : '';
+    const to = typeof data.to === 'string' ? data.to : '';
+    if (!from || !to) return null;
+    return { name: typeof data.name === 'string' && data.name ? data.name : 'This event', from, to };
+  } catch (err) {
+    console.error('event settings read failed', err);
+    return null;
+  }
 }

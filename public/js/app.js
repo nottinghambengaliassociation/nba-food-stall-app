@@ -9,6 +9,8 @@ import { mountLogin, createSignOutButton, hasSession } from './login.js';
 import { mountCash } from './cash.js';
 import { mountKitchen } from './kitchen.js';
 import { mountReports } from './reports.js';
+import { mountReportsDays } from './reports-days.js';
+import { createVersionPill } from './app-version.js';
 
 const TILL_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -17,7 +19,8 @@ const TITLES = {
   '/login': 'Sign in',
   '/cash': 'Cash counter',
   '/kitchen': 'Food counter',
-  '/reports': 'Reports'
+  '/reports': 'Reports',
+  '/reports/days': 'Reports'
 };
 
 const settings = {
@@ -78,6 +81,8 @@ function buildShell() {
   root.className = 'app';
 
   const title = el('h1', { class: 'header__title', testid: 'screen-title' });
+  // App version pill, right after the screen title (CLAUDE.md Phase III part 2).
+  const version = createVersionPill();
   const sub = el('span', { class: 'header__sub', testid: 'till-badge' });
   const slotLeft = el('div', { class: 'header__left header__slot' });
   const pill = el('span', {
@@ -95,7 +100,7 @@ function buildShell() {
   });
 
   const header = el('header', { class: 'header' }, [
-    el('div', { class: 'header__left' }, [title, sub, slotLeft]),
+    el('div', { class: 'header__left' }, [title, version, sub, slotLeft]),
     el('div', { class: 'header__right' }, [pill, slotRight, tillWrap, nav, signOut])
   ]);
 
@@ -103,7 +108,7 @@ function buildShell() {
   const outlet = el('div', { class: 'outlet', id: 'outlet' });
 
   root.append(header, banner, outlet);
-  nodes = { root, header, title, sub, pill, slotLeft, slotRight, tillWrap, nav, signOut, banner, outlet };
+  nodes = { root, header, title, version, sub, pill, slotLeft, slotRight, tillWrap, nav, signOut, banner, outlet };
 }
 
 function renderBanner() {
@@ -175,7 +180,8 @@ function renderNav(route) {
       href: href(path),
       testid,
       text: label,
-      'aria-current': path === route ? 'page' : null
+      // The Reports link stays current on the Sales by day screen too.
+      'aria-current': (path === route || (path === '/reports' && route === '/reports/days')) ? 'page' : null
     }));
   }
 }
@@ -220,6 +226,7 @@ function mountRoute(route) {
   else if (route === '/cash') unmount = mountCash(nodes.outlet, screenCtx);
   else if (route === '/kitchen') unmount = mountKitchen(nodes.outlet, screenCtx);
   else if (route === '/reports') unmount = mountReports(nodes.outlet, screenCtx);
+  else if (route === '/reports/days') unmount = mountReportsDays(nodes.outlet, screenCtx);
   else unmount = mountLanding(nodes.outlet, screenCtx);
 
   document.body.setAttribute('data-route', route);

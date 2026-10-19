@@ -7,7 +7,8 @@ import {
   placeOrder, seedReportDay, realErrors
 } from './helpers.js';
 
-const ROUTES = ['#/', '#/cash', '#/kitchen', '#/reports'];
+// Phase III adds #/reports/days to every cross-cutting check.
+const ROUTES = ['#/', '#/cash', '#/kitchen', '#/reports', '#/reports/days'];
 
 test.beforeEach(async () => { await clearFirestore(); });
 

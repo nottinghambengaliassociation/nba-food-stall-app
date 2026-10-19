@@ -27,14 +27,21 @@ Never create the repo under any other owner.
 ## 2. Repo and guardrails (before any commit)
 
 1. `git init -b main` if needed.
-2. `.gitignore`: `node_modules/`, `public/js/firebase-config.js`, `.env*`, `.secrets/`, `*service-account*.json`, `*-sdkconfig.json`, `test-results/`, `playwright-report/`, `.firebase/`, `*.log`.
-3. `public/js/firebase-config.example.js` with `PASTE_` placeholders.
+2. `.gitignore`: `node_modules/`, `public/js/firebase-config.js`, `public/js/login-config.js`, `.env*`, `.secrets/`, `*service-account*.json`, `*-sdkconfig.json`, `test-results/`, `playwright-report/`, `.firebase/`, `*.log`.
+3. `public/js/firebase-config.example.js` with `PASTE_` placeholders, and `public/js/login-config.example.js` exporting `loginUser: "PASTE_USER"`, `loginPasswordSha256: "PASTE_SHA256"`.
 4. `scripts/check-secrets.sh`: scans given files (default: `git diff --cached --name-only`) for `AIza[0-9A-Za-z_-]{35}`, `"private_key"`, `ghp_`, `github_pat_`; exits 1 with the file name (never the match) if found. `--all` scans every tracked file.
+   It also reads `APP_LOGIN_PASSWORD` from `.secrets/app-login.env` when that file exists and blocks any staged file containing that value.
 5. `scripts/hooks/pre-commit` calls it; `chmod +x`; `git config core.hooksPath scripts/hooks`.
 6. `scripts/write-firebase-config.mjs`:
    - `--from-sdkconfig <file>`: reads the JSON from `firebase apps:sdkconfig`, writes `public/js/firebase-config.js` and `.secrets/firebase.env` (six `FIREBASE_*` lines).
    - `--from-env`: writes `public/js/firebase-config.js` from the six env vars; if any is missing, writes the placeholder version so the app shows "Storage not configured".
    - Prints only "written" or "missing: <NAMES>".
+
+7. `scripts/write-login-config.mjs`:
+   - default: reads `.secrets/app-login.env` (`APP_LOGIN_USER`, `APP_LOGIN_PASSWORD`, created by the user), writes `public/js/login-config.js` (`loginUser` lower-cased, `loginPasswordSha256` hex) and `.secrets/app-login.gh.env` (`APP_LOGIN_USER`, `APP_LOGIN_PASSWORD_SHA256`).
+   - `--from-env`: writes `public/js/login-config.js` from `APP_LOGIN_USER` and `APP_LOGIN_PASSWORD_SHA256`; placeholders if either is missing.
+   - Prints only "written" or "missing: <NAMES>". Never prints the values.
+   - If `.secrets/app-login.env` is missing: "Needs you" (create it with the two lines) and carry on.
 
 ## 3. Firebase (real project)
 
@@ -48,18 +55,29 @@ Never create the repo under any other owner.
 ## 4. GitHub
 
 1. `gh repo view nottinghambengaliassociation/nba-food-stall-app`. If missing: `gh repo create nottinghambengaliassociation/nba-food-stall-app --public --source . --remote origin`. If the org blocks it, "Needs you": ask an org owner to create the repo or grant repo-create rights, and keep everything committed locally.
-2. `gh secret set -f .secrets/firebase.env --repo nottinghambengaliassociation/nba-food-stall-app`. Confirm with `gh secret list` (names only).
+2. `gh secret set -f .secrets/firebase.env --repo nottinghambengaliassociation/nba-food-stall-app` and `gh secret set -f .secrets/app-login.gh.env --repo nottinghambengaliassociation/nba-food-stall-app`. Never set `APP_LOGIN_PASSWORD` (plain) as a GitHub secret; only the SHA-256. Confirm with `gh secret list` (names only).
 3. Secret scanning and push protection: `gh api -X PATCH repos/nottinghambengaliassociation/nba-food-stall-app -f "security_and_analysis[secret_scanning][status]=enabled" -f "security_and_analysis[secret_scanning_push_protection][status]=enabled"`.
 4. Pages from Actions: `gh api -X POST repos/nottinghambengaliassociation/nba-food-stall-app/pages -f build_type=workflow` (ignore "already exists").
 5. `.github/workflows/pages.yml`, using the current major versions of each action:
    - trigger: push to `main`, `workflow_dispatch`
    - permissions: `contents: read`, `pages: write`, `id-token: write`; concurrency group `pages`
-   - steps: checkout → setup-node → `node scripts/write-firebase-config.mjs --from-env` with the six `FIREBASE_*` secrets passed as `env:` → configure-pages → upload-pages-artifact (`path: public`) → deploy-pages (environment `github-pages`)
+   - steps: checkout → setup-node → `node scripts/write-firebase-config.mjs --from-env` with the six `FIREBASE_*` secrets passed as `env:` → `node scripts/write-login-config.mjs --from-env` with `APP_LOGIN_USER` and `APP_LOGIN_PASSWORD_SHA256` → configure-pages → upload-pages-artifact (`path: public`) → deploy-pages (environment `github-pages`)
    - no secret is echoed; no `set -x`
+
+## Hotfix H1: menu sync
+
+Write `scripts/menu-sync.mjs` per CLAUDE.md "Hotfix H1". Run it against the emulator for Morpheus first. After the hotfix deploy is green, run it once against the live project (config from the gitignored `public/js/firebase-config.js`) and record what it created, retired or reported in HANDOVER.md. It never deletes and never overwrites a value that differs.
+
+## Phase III: app version
+
+1. Set `package.json` `version` to `1.2.0`.
+2. Write `scripts/write-version.mjs` per CLAUDE.md "App version" (local: `git rev-parse --short HEAD`, `-dirty` if the tree is dirty; CI: `GITHUB_SHA`). Add `public/js/version.js` to `.gitignore`. Run it locally before Morpheus's e2e run.
+3. Add a step to `.github/workflows/pages.yml` that runs it before the upload.
+4. After the deploy, record the live version and build in HANDOVER.md.
 
 ## 5. Deploy (after Morpheus is green)
 
-1. `scripts/check-secrets.sh --all`; `git status --ignored` shows `public/js/firebase-config.js` as ignored.
+1. `scripts/check-secrets.sh --all`; `git status --ignored` shows `public/js/firebase-config.js`, `public/js/login-config.js` and `.secrets/` as ignored.
 2. Commit with a clear message, `git push -u origin main`, `gh run watch` until success.
 3. Confirm `LIVE_URL` returns 200 (`curl -sI`). Hand the URL to Morpheus for the live smoke.
 4. After Morpheus, commit and push the QA artefacts and HANDOVER.md the same way.

@@ -3,13 +3,19 @@
 import { el, clear, setText, svgNode } from './ui.js';
 import { itemIcon } from './icons.js';
 import {
-  buildReport, ordersToCsv, formatPence, formatWait, dayString, hhmm, MENU
+  buildReport, ordersToCsv, formatPence, formatWait, dayString, hhmm, isDayString, MENU
 } from './logic.js';
 import { watchOrders } from './store.js';
+import { reportToggle } from './report-nav.js';
+import { routeParam } from './router.js';
 
 export function mountReports(outlet, ctx) {
+  // #/reports?day=YYYY-MM-DD opens on that day ("Open day" on the Sales by
+  // day report links here); anything else opens on today.
+  const requestedDay = routeParam('day');
+
   const state = {
-    day: dayString(),
+    day: isDayString(requestedDay) ? requestedDay : dayString(),
     orders: [],
     showTable: false,
     report: buildReport([])
@@ -118,6 +124,7 @@ export function mountReports(outlet, ctx) {
   ]);
 
   const main = el('main', { class: 'reports' }, [
+    reportToggle('day'),
     kpis,
     el('div', { class: 'report-cols' }, [
       peakSection,

@@ -22,7 +22,7 @@ const C = creds();
 const HAVE_CREDS = C.available && loginConfigured();
 const SKIP_MSG = 'no usable .secrets/app-login.env + public/js/login-config.js on this machine';
 
-const GUARDED = ['#/', '#/cash', '#/kitchen', '#/reports'];
+const GUARDED = ['#/', '#/cash', '#/kitchen', '#/reports', '#/reports/days'];
 
 /** Open the app signed out. localStorage is cleared once per tab, not per load. */
 async function freshPage(page, route = '#/login') {

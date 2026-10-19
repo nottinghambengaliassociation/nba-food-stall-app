@@ -8,6 +8,10 @@
 // into an attribute.
 
 import { el, clear, svgNode } from './ui.js';
+import { normaliseUser, sha256Hex } from './logic.js';
+import { createVersionLine } from './app-version.js';
+
+export { sha256Hex };
 
 export const SESSION_KEY = 'nba.session';
 
@@ -83,22 +87,11 @@ export function loadLoginConfig() {
   return configPromise;
 }
 
-/** Lowercase hex SHA-256 of a string. */
-export async function sha256Hex(text) {
-  const subtle = (globalThis.crypto && globalThis.crypto.subtle) || null;
-  if (!subtle) throw new Error('Web Crypto unavailable');
-  const bytes = new TextEncoder().encode(String(text));
-  const digest = await subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
 /** Username trimmed and case-insensitive; password exact (compared as a hash). */
 export async function checkCredentials(username, password, config) {
   if (!config) return false;
-  const typed = String(username || '').trim().toLowerCase();
-  const expected = String(config.user || '').trim().toLowerCase();
+  const typed = normaliseUser(username);
+  const expected = normaliseUser(config.user);
   if (!typed || typed !== expected) return false;
   const hash = await sha256Hex(password);
   return hash === config.hash;
@@ -121,7 +114,9 @@ export function mountLogin(outlet, ctx) {
       el('h1', { class: 'login__title', text: 'Nottingham Bengali Association' }),
       el('p', { class: 'login__sub', text: 'Food Stall Application' })
     ]),
-    slot
+    slot,
+    // Version line, always on the card (CLAUDE.md Phase III part 2, 4).
+    createVersionLine()
   ]);
 
   outlet.appendChild(el('main', { class: 'login' }, [card]));

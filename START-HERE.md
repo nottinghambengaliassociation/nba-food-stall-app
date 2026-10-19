@@ -79,10 +79,10 @@ caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Ship Hotfix H2 o
 caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Phases I and II are built and live. Ship Hotfix H1 only. Neo: menu seed, icons, station, phone layout for 8 tiles. Trinity: scripts/menu-sync.mjs. Morpheus: H1 tests and rerun everything. Then Trinity commits and pushes to main, watches the deploy, runs menu-sync against live once, and Morpheus does a read-only live check. Update HANDOVER.md. Do not ask me anything."
 ```
 
-**Phase III (Sales by day report), shipping Hotfix H2 first if it's still uncommitted.** Phases I, II and Hotfix H1 are live.
+**Phase III (Sales by day report + app version 1.2.0).** Phases I, II and Hotfixes H1 and H2 are live.
 
 ```
-caffeinate -dims claude --permission-mode auto "Read CLAUDE.md and HANDOVER.md. Phases I, II and Hotfix H1 are live. Step 1, Hotfix H2: if public/css/app.css is still uncommitted, Morpheus adds the H2 alignment test and reruns everything, Trinity commits and pushes to main and watches the deploy. Step 2, Phase III (Sales by day report) exactly as specified in CLAUDE.md, matching design/ReportsByDay.dc.html and the toggle in design/Reports.dc.html: Neo builds it; Morpheus adds the Phase III unit and e2e tests and reruns everything until green; Trinity commits and pushes to main and watches the deploy; Morpheus runs a read-only live check with no writes to live Firestore. Update HANDOVER.md with a What changed section for H2 and Phase III. Do not ask me anything; log decisions in DECISIONS.md."
+caffeinate -dims claude --permission-mode auto "Read CLAUDE.md and HANDOVER.md. Phases I, II and Hotfixes H1 and H2 are built and live; do not change them. Build Phase III only, both parts, exactly as specified in CLAUDE.md: (1) the Sales by day report, matching design/ReportsByDay.dc.html and the One day / Sales by day toggle in design/Reports.dc.html; (2) the app version on the login screen and every header, matching the design mock-ups, with package.json bumped to 1.2.0. Trinity: version script, .gitignore, workflow step, then commit and push to main and watch the deploy. Neo: build both parts. Morpheus: add the Phase III and version tests, rerun the full suite until green, then a read-only live check (no writes to live Firestore) that confirms the live build matches the pushed commit; save live-p3 screenshots. Update HANDOVER.md with a What changed section for v1.2.0. Do not ask me anything; log decisions in DECISIONS.md."
 ```
 
 ## Keys and secrets

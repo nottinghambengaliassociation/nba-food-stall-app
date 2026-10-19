@@ -882,6 +882,212 @@ table.data td.num, table.data th.num { text-align: right; }
 }
 .login__blocked-note { font-size: 16px; font-weight: 400; }
 
+
+/* ------------------------------------------------- app version (Phase III) */
+
+/* Outlined pill right after the screen title in every dark header. */
+.version-pill {
+  align-self: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--muted);
+  color: var(--stone-300);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* One line at the bottom of the login card. */
+.login__version {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--stone-500);
+}
+
+/* --------------------------------------------- sales by day (Phase III) */
+
+.report-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-nav__item { display: inline-flex; }
+.report-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 2px solid var(--stone-300);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.report-pill:hover { background: var(--page); color: var(--ink); }
+.report-pill--on,
+.report-pill--on:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #FFFFFF;
+}
+
+.btn-wrap { display: inline-flex; }
+.btn-wrap[hidden] { display: none; }
+
+.range-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 20px;
+}
+.range-field { display: flex; flex-direction: column; gap: 6px; }
+.range-label { font-size: 15px; font-weight: 700; color: var(--ink-2); }
+.range-input {
+  height: 48px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 2px solid var(--stone-400);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+}
+.range-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick-btn {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 2px solid var(--stone-300);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.quick-btn[hidden] { display: none; }
+.quick-btn[aria-pressed='true'] { background: var(--marigold); border-color: var(--ink); }
+
+.range-error {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--amber-pale);
+  border: 2px solid #D97706;
+  color: #78350F;
+  font-size: 18px;
+  font-weight: 700;
+}
+.range-error[hidden] { display: none; }
+
+.kpi__inner { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.kpis[hidden], .card-section[hidden], .empty-card[hidden] { display: none; }
+.empty-card { gap: 6px; }
+.empty-card__text { margin: 0; font-size: 20px; font-weight: 700; }
+
+.days-readout { font-size: 16px; color: var(--ink-2); min-height: 22px; }
+
+.days-chart { position: relative; height: 260px; margin-top: 26px; }
+.days-chart__line {
+  position: absolute;
+  left: 68px;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--line);
+}
+.days-chart__tick {
+  position: absolute;
+  left: 0;
+  width: 60px;
+  text-align: right;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--muted);
+  transform: translateY(50%);
+}
+.days-chart__bars {
+  position: absolute;
+  left: 68px;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+}
+.day-bar {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 160px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.day-bar__value {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-bottom: 5px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.day-bar__fill {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  background: var(--amber-bar);
+  border-radius: 4px 4px 0 0;
+}
+.day-bar:hover .day-bar__fill,
+.day-bar:focus-visible .day-bar__fill,
+.day-bar[data-hover='true'] .day-bar__fill { background: #F59E0B; }
+/* The best day keeps its own colour, hovered or not (design/ReportsByDay.dc.html). */
+.day-bar[data-best='true'] .day-bar__fill { background: var(--amber); }
+
+.days-chart__labels { display: flex; gap: 24px; padding-left: 68px; margin-top: 6px; }
+.days-chart__label {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 160px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+
+table.data--wide { min-width: 860px; }
+table.data td.day-cell { font-weight: 700; white-space: nowrap; }
+table.data td.num--strong { font-weight: 700; }
+table.data td.cell--best { background: var(--amber-pale); }
+.totals-row td { background: #FAFAF9; font-weight: 700; border-bottom: none; }
+.matrix-item { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.open-day {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 2px solid var(--stone-300);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.open-day:hover { background: var(--page); color: var(--ink); }
+
 /* ------------------------------------------------------------- phone */
 
 @media (max-width: 699px) {
@@ -1036,4 +1242,38 @@ table.data td.num, table.data th.num { text-align: right; }
   .kpi__value { font-size: 32px; }
   .card-section { padding: 18px; }
   .chart { height: 180px; }
+
+  /* Version: its own line under the screen title, so the header buttons keep
+     their size (CLAUDE.md Phase III part 2, 5). */
+  .version-pill {
+    flex: 0 0 100%;
+    width: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    color: var(--stone-400);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  /* Login: the version line sits at the bottom of the screen. */
+  .login { align-items: stretch; }
+  .login__version { margin-top: auto; padding-top: 20px; }
+
+  .report-pill { padding: 0 16px; font-size: 16px; }
+  .range-card { padding: 16px; gap: 12px; }
+  .range-field { flex: 1 1 140px; }
+  .range-input { width: 100%; }
+  .range-quick { width: 100%; }
+  .quick-btn { flex: 1 1 auto; padding: 0 12px; font-size: 15px; }
+  .range-error { font-size: 17px; }
+
+  .days-chart { height: 200px; margin-top: 24px; }
+  .days-chart__line, .days-chart__bars { left: 52px; }
+  .days-chart__tick { width: 46px; font-size: 12px; }
+  .days-chart__bars { gap: 8px; }
+  .days-chart__labels { gap: 8px; padding-left: 52px; }
+  .days-chart__label { font-size: 12px; line-height: 16px; }
+  .day-bar__value { font-size: 12px; margin-bottom: 4px; }
+  .days-readout { font-size: 15px; }
 }

@@ -49,6 +49,28 @@ fi
 
 in_git_repo() { git rev-parse --is-inside-work-tree >/dev/null 2>&1; }
 
+# The literal app login password, read from the gitignored .secrets/app-login.env
+# when it exists, so that a file containing it is blocked even though it matches
+# none of the patterns above. The value is held in this variable only: it is
+# never printed, never passed as a command argument and never written anywhere.
+LOGIN_PW=""
+LOGIN_ENV="$(cd "$(dirname "$0")/.." && pwd)/.secrets/app-login.env"
+if [ -r "$LOGIN_ENV" ]; then
+  # grep + cut, not `sed -n 's/\(x\)\?y//p'`: BSD sed has no \? in a basic
+  # regex, so that form matched nothing on macOS and the check silently passed.
+  LOGIN_PW="$(grep -E '^[[:space:]]*(export[[:space:]]+)?APP_LOGIN_PASSWORD[[:space:]]*=' "$LOGIN_ENV" 2>/dev/null | tail -n 1 | cut -d= -f2-)"
+  # Trim surrounding whitespace.
+  LOGIN_PW="${LOGIN_PW#"${LOGIN_PW%%[![:space:]]*}"}"
+  LOGIN_PW="${LOGIN_PW%"${LOGIN_PW##*[![:space:]]}"}"
+  # Strip one layer of surrounding quotes.
+  case "$LOGIN_PW" in
+    \"*\") LOGIN_PW="${LOGIN_PW#\"}"; LOGIN_PW="${LOGIN_PW%\"}" ;;
+    "'"*"'") LOGIN_PW="${LOGIN_PW#\'}"; LOGIN_PW="${LOGIN_PW%\'}" ;;
+  esac
+  # Too short to search for without flagging ordinary prose.
+  [ "${#LOGIN_PW}" -lt 4 ] && LOGIN_PW=""
+fi
+
 case "$MODE" in
   staged)
     if ! in_git_repo; then echo "check-secrets: not a git repository"; exit 1; fi
@@ -111,6 +133,14 @@ for f in "${FILES[@]}"; do
     fi
     i=$((i + 1))
   done
+  # Literal match on the real password, if we have it. -f with a process
+  # substitution keeps the value out of the argument list.
+  if [ -n "$LOGIN_PW" ]; then
+    if printf '%s' "$content" | grep -Fq -f <(printf '%s\n' "$LOGIN_PW"); then
+      echo "${RED}${BOLD}check-secrets: app login password in:${RESET} $f"
+      found=1
+    fi
+  fi
 done
 
 if [ "$found" -ne 0 ]; then

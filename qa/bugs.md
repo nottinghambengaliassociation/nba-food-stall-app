@@ -528,3 +528,111 @@ Before: 1 document, `A-001 / collected / 2026-10-19`. After: identical length an
 - `qa/screenshots/live-h2-cart-tablet.png` — all eight rows, steppers in one column, long names wrapping.
 
 Credentials were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle was never pressed and no capture includes the login form, so no password appears in any screenshot. `qa/live-smoke-record.txt` holds no credential and no API key.
+
+---
+
+## Round P3 — Phase III (Sales by day + app version), 2026-10-19
+
+Suites on the first Phase III round (`npm test`, both viewport projects):
+
+| Suite | Pass | Fail | Skipped |
+|---|---|---|---|
+| unit (`vitest`, 10 files) | **228** | 0 | 0 |
+| e2e (`playwright`, phone + tablet) | **243** | **4** | 39 (live specs, gated off) |
+
+Unit: 166 pre-existing, plus 56 new Phase III cases in `tests/unit/range.test.js` and 6 in `tests/unit/login-logic.test.js`.
+E2E: 42 new Phase III tests (21 per project — 16 in `tests/e2e/reports-days.spec.js`, 5 in `tests/e2e/version.spec.js`); `#/reports/days` was also added to the cross-cutting route list in `crosscutting.spec.js` and to the route-guard list in `login.spec.js`.
+**Phases I, II, H1 and H2 did not regress: every pre-existing case still passes, including `G-09` (ten wrong attempts then a correct sign-in) after Neo's `login.js` refactor onto `normaliseUser`/`sha256Hex`.**
+
+All four failures are the same single defect, below:
+`P3-16` (phone + tablet) and `X-07b` (phone + tablet, which now covers `#/reports/days`).
+
+### BUG-6 | major | Sales by day (`#/reports/days`), Day by day table | status: **verified** (round P3b)
+
+**Steps**
+1. Seed a range of orders into the emulator and load `#/reports/days` (phone 390×844 and tablet 1280×800).
+2. Run `@axe-core/playwright` `AxeBuilder({ page }).analyze()`.
+3. Alternatively, read any "Open day" link's accessible name against its visible text.
+
+**Expected** — `.claude/agents/morpheus.md` test plan item 11 and `qa/test-plan.md` X-07: *"`@axe-core/playwright` on every screen, zero serious or critical violations."* `CLAUDE.md` → Phase III 7 specifies the control's visible text (*"an 'Open day' button linking to `#/reports?day=YYYY-MM-DD`"*), and WCAG 2.1 SC 2.5.3 *Label in Name* (Level A) requires the visible label to be contained in the accessible name, so a speech-input user can say "Open day". An `aria-label` is allowed, but it must start from the visible words, e.g. `aria-label="Open day Tue 13 Oct"`.
+
+**Actual** — every `open-day-<day>` link overrides its visible text with an unrelated accessible name:
+
+```html
+<a class="open-day" data-testid="open-day-2026-10-13" href="#/reports?day=2026-10-13"
+   aria-label="Open the one day report for Tue 13 Oct">Open day</a>
+```
+
+axe reports one `label-content-name-mismatch` violation, impact **serious**, `wcag21a` / `wcag253`, with one node per trading day (5 nodes on the scripted fixture), on both viewports. A speech-input user saying "Open day" cannot activate the control.
+
+Because `#/reports/days` is now in the cross-cutting route list, this also fails `X-07`/`X-07b` in `tests/e2e/crosscutting.spec.js` whenever that screen has trading days.
+
+**Fix for Neo** — in `public/js/reports-days.js`, make the accessible name contain the visible text, e.g. `aria-label` = `Open day ${d.label}` (or drop the `aria-label` and append a visually-hidden span after "Open day"). No other change.
+
+**Test** `tests/e2e/reports-days.spec.js` → `P3-16 axe finds no serious or critical violations on #/reports/days`, and `tests/e2e/crosscutting.spec.js` → `X-07b axe finds no serious or critical violations with orders present`
+**Screenshot** `qa/screenshots/bug-6-open-day-label-in-name-phone.png`, `qa/screenshots/bug-6-open-day-label-in-name-tablet.png`
+
+---
+
+### Test-side corrections this round (no product defect)
+
+1. `P3-09` expected 13 CSV rows for the scripted range; the fixture really holds **14** order lines (1+1 / 1+2 / 1+1 / 1+1+1 / 3+1). Arithmetic slip in the test, corrected. The unit case counts the lines from the fixture rather than from a literal, so it never had the error.
+2. `P3-05` originally hovered one bar then tapped another while the mouse was still parked on the first. Playwright scrolls before tapping, which can re-fire `mouseenter` on the bar under the stationary pointer. The test now parks the pointer away from the chart between the hover, focus and tap steps. The product behaved correctly.
+3. `V-02`/`V-05` seeded the session with `context.addInitScript` and then navigated by hash only. A `page.goto` that changes nothing but the fragment does **not** re-run init scripts, so the session never landed and the route guard bounced the test to `#/login` — correct app behaviour, wrong harness. The session is now written straight into `localStorage` before the hash change.
+
+---
+
+### BUG-7 | major | Sales by day (`#/reports/days`), the two wide table cards | status: **verified** (round P3b)
+
+Raised retrospectively: this violation was **already in the round-P3 failure output** of `X-07b`, listed beneath `BUG-6` on the same screen, but was not written up separately. Neo found and fixed it in the same round while verifying `BUG-6`. It is recorded here so the fix has its own entry and its own regression guard.
+
+**Steps**
+1. Seed orders and load `#/reports/days` so the "Day by day" and "Items sold by day" cards hold more columns than fit.
+2. Run `@axe-core/playwright`, or try to reach the off-screen columns with the keyboard alone.
+
+**Expected** — `CLAUDE.md` → Phase III 7: *"Horizontal scroll inside the card on narrow screens."* A card that only a mouse or a finger can scroll hides the right-hand columns (Cash, Card, Avg order, Peak 30 min; the later trading days and the Total/Sales columns) from a keyboard user entirely, and from the stall lead using a tablet with a keyboard. `.claude/agents/morpheus.md` item 11 requires zero serious or critical axe violations.
+
+**Actual (round P3)** — axe `scrollable-region-focusable`, impact **serious**:
+`scrollable-region-focusable (serious): section[aria-label="Items by day"] > .table-wrap` — *"Scrollable region must have keyboard access"*. Both `.table-wrap` divs scrolled sideways with no `tabindex`, so neither could take focus.
+
+**Fix (Neo, `public/js/reports-days.js` only)** — both `.table-wrap` divs now carry `tabindex="0" role="region"` with the distinct names "Day by day table" and "Items sold by day table"; the day `<section>`'s own `aria-label` changed from "Day by day table" to "Day by day" so the two landmark names stay unique.
+
+**Checked against the brief** — the change is additive and contradicts nothing. `CLAUDE.md` Phase III 7 names the visible heading ("Day by day"), not the section's `aria-label`, and the mock-up `design/ReportsByDay.dc.html` wraps the table in a plain `overflow-x: auto` div with no name of its own — so renaming the section and naming the region takes nothing away from the brief or the mock-up. No assertion of mine depended on either `aria-label`: the tests address the tables through `days-table` and `items-by-day-table`, the rows through `day-row-<day>`, and the note through its visible text.
+
+**How it was verified**
+1. `P3-16` and `X-07`/`X-07b` (axe, both viewports, empty and with orders): zero serious or critical violations.
+2. New regression guard `P3-17`, which does not rely on axe: every element in `main` that actually scrolls sideways (`scrollWidth > clientWidth`) must have `tabIndex >= 0` and a non-empty accessible name, the names must be distinct, and the card must take focus and actually scroll. Passes on phone and tablet.
+
+**Test** `tests/e2e/reports-days.spec.js` → `P3-17`, plus `P3-16` and `tests/e2e/crosscutting.spec.js` → `X-07`/`X-07b`
+**Screenshot** `qa/screenshots/phone-reports-days-orders.png`, `qa/screenshots/tablet-reports-days-orders.png` (recaptured after the fix)
+
+---
+
+## Round P3b — after Neo's accessibility fixes, 2026-10-19
+
+Only `public/js/reports-days.js` changed. Full `npm test` rerun, unit and e2e, phone 390×844 and tablet 1280×800:
+
+| Suite | Pass | Fail | Skipped |
+|---|---|---|---|
+| unit (`vitest`, 10 files) | **228** | **0** | 0 |
+| e2e (`playwright`, phone + tablet) | **249** | **0** | 39 (live specs, gated off) |
+
+`npm test` exits 0. The two tests that failed in round P3 (`P3-16` and `X-07b`, each on both viewports) now pass, and `P3-17` was added afterwards as a behavioural guard for both fixes — hence 249 rather than 247.
+
+**No regression.** Every Phase I, Phase II, H1 and H2 case still passes, unchanged: the cash counter and cash-received suites, the kitchen flow, the one-day report and CSV, offline queueing, the two-till sequence, the H1 eight-tile menu and legacy-id compatibility, the H2 cart alignment, and the whole login suite including `G-09` (ten wrong attempts in a row, then a correct sign-in straight away) after Neo's refactor of `login.js` onto `normaliseUser`/`sha256Hex`.
+
+Screenshots recaptured after the fix: `{phone,tablet}-reports-days-{orders,empty}.png`, `{phone,tablet}-login-version.png`, `{phone,tablet}-header-version.png`, and the whole pre-existing set regenerated by the usual `screenshots.spec.js` run.
+
+### Bug status after this round
+
+| Bug | Severity | Screen | Status |
+|---|---|---|---|
+| BUG-1 | minor | cash counter, card hides the tender buttons | verified |
+| BUG-2 | blocker | cash counter phone, order bar covered a control | verified |
+| BUG-3 | major | cash counter recent strip | verified |
+| BUG-4 | major | cash received | verified |
+| BUG-5 | major | stored order | withdrawn (requirement change) |
+| BUG-6 | major | Sales by day, "Open day" accessible name | **verified** |
+| BUG-7 | major | Sales by day, scrolling table cards had no keyboard access | **verified** |
+
+**No open bugs.** Nothing in this round touched live Firestore; every write was to the emulator, and no `git`, `gh` or real-project `firebase` command was run.

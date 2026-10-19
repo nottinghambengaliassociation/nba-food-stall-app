@@ -544,3 +544,152 @@ export async function tenderText(page) {
   const text = await scope.evaluate((el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim());
   return text;
 }
+
+/* -------------------------------------------- Phase III: range fixture ----
+ * A scripted week for #/reports/days, pinned to the last seven London days so
+ * the screen's default range ("Last 7 days ending today") covers it exactly.
+ * Five trading days with two quiet days between them, one cancelled order and
+ * one Phase I order carrying the legacy `tendered` field.
+ * Hand-calculated expectations live in RANGE_EXPECT below and in
+ * qa/test-plan.md section 27. The shape matches tests/unit/range-fixtures.js.
+ */
+
+/** Today's London day shifted by n days, as YYYY-MM-DD. */
+export function londonDayOffset(n, from = londonDay()) {
+  const ms = Date.parse(from + 'T00:00:00Z') + Math.round(n) * 86400000;
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** Epoch ms for a Europe/London wall-clock time on any day string. */
+export function londonTimeOn(day, hour, minute = 0) {
+  const [y, m, d] = day.split('-').map(Number);
+  const probe = Date.UTC(y, m - 1, d, 12, 0);
+  const local = new Date(probe).toLocaleString('en-GB', { timeZone: 'Europe/London', hour12: false, hour: '2-digit' });
+  const offsetHours = Number(local.slice(0, 2)) - 12;
+  return Date.UTC(y, m - 1, d, hour - offsetHours, minute);
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** "Sun 18 Oct", worked out here rather than taken from logic.js. */
+export function dayLabelOf(day) {
+  const d = new Date(Date.parse(day + 'T00:00:00Z'));
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+}
+
+export function weekdayOf(day) {
+  return WEEKDAYS[new Date(Date.parse(day + 'T00:00:00Z')).getUTCDay()];
+}
+
+/** The five trading days and the two quiet ones, newest last. */
+export function rangeDays(today = londonDay()) {
+  return {
+    d0: londonDayOffset(-6, today),
+    d1: londonDayOffset(-5, today),
+    quietA: londonDayOffset(-4, today),
+    d3: londonDayOffset(-3, today),
+    d4: londonDayOffset(-2, today),
+    quietB: londonDayOffset(-1, today),
+    d6: today
+  };
+}
+
+export function rangeFixture(today = londonDay()) {
+  const D = rangeDays(today);
+  const t = (day, h, m) => londonTimeOn(day, h, m);
+  const l = (id, name, qty) => ({ id, name, qty, price: 500 });
+  return [
+    { orderNo: 'A-001', name: 'Priya', till: 'A', day: D.d0, items: [l('fuchka', 'Fuchka / Gol Gappa', 2)], total: 1000, payment: 'cash', status: 'collected', createdAtMs: t(D.d0, 11, 0), readyAtMs: t(D.d0, 11, 2) },
+    { orderNo: 'A-002', name: 'Sam', till: 'A', day: D.d0, items: [l('momo', 'Momo', 1)], total: 500, payment: 'card', status: 'collected', createdAtMs: t(D.d0, 11, 20), readyAtMs: t(D.d0, 11, 25) },
+
+    { orderNo: 'B-001', name: 'Ahmed', till: 'B', day: D.d1, items: [l('chat', 'Papri Chat', 3)], total: 1500, payment: 'cash', status: 'collected', createdAtMs: t(D.d1, 12, 5), readyAtMs: t(D.d1, 12, 10) },
+    { orderNo: 'B-002', name: 'Lucy', till: 'B', day: D.d1, items: [l('sweet_box', 'Sweet Box', 1), l('marshmallow', 'Marshmallow (V)', 1)], total: 1000, payment: 'card', status: 'ready', createdAtMs: t(D.d1, 12, 40), readyAtMs: t(D.d1, 12, 45) },
+    { orderNo: 'B-003', name: 'Gone', till: 'B', day: D.d1, items: [l('fuchka', 'Fuchka / Gol Gappa', 2)], total: 1000, payment: 'cash', status: 'cancelled', createdAtMs: t(D.d1, 12, 50), cancelledAtMs: t(D.d1, 12, 51) },
+
+    // The legacy day: retired ids, and a Phase I `tendered` field to be ignored.
+    { orderNo: 'A-010', name: 'Meera', till: 'A', day: D.d3, items: [l('samosa', 'Sweets Box Samosa / Shingara', 2)], total: 1000, payment: 'cash', status: 'collected', tendered: 2000, createdAtMs: t(D.d3, 13, 0), readyAtMs: t(D.d3, 13, 4) },
+    { orderNo: 'A-011', name: 'Josh', till: 'A', day: D.d3, items: [l('straw', 'Chocolate Strawberry & Marshmallow (V)', 1)], total: 500, payment: 'card', status: 'collected', createdAtMs: t(D.d3, 13, 10), readyAtMs: t(D.d3, 13, 12) },
+
+    { orderNo: 'A-020', name: 'Rina', till: 'A', day: D.d4, items: [l('fuchka', 'Fuchka / Gol Gappa', 10)], total: 5000, payment: 'cash', status: 'collected', createdAtMs: t(D.d4, 14, 0), readyAtMs: t(D.d4, 14, 5) },
+    { orderNo: 'A-021', name: 'Dev', till: 'A', day: D.d4, items: [l('momo', 'Momo', 4)], total: 2000, payment: 'card', status: 'collected', createdAtMs: t(D.d4, 14, 40), readyAtMs: t(D.d4, 14, 44) },
+    { orderNo: 'A-022', name: 'Kate', till: 'A', day: D.d4, items: [l('fountain', 'Chocolate Fountain', 2)], total: 1000, payment: 'cash', status: 'ready', createdAtMs: t(D.d4, 15, 10), readyAtMs: t(D.d4, 15, 14) },
+
+    { orderNo: 'A-030', name: 'Nina', till: 'A', day: D.d6, items: [l('fuchka', 'Fuchka / Gol Gappa', 1), l('momo', 'Momo', 1), l('chat', 'Papri Chat', 1)], total: 1500, payment: 'cash', status: 'collected', createdAtMs: t(D.d6, 10, 0), readyAtMs: t(D.d6, 10, 3) },
+    { orderNo: 'A-031', name: 'Omar', till: 'A', day: D.d6, items: [l('choc_strawberry', 'Chocolate Strawberry', 3)], total: 1500, payment: 'card', status: 'new', createdAtMs: t(D.d6, 10, 20) }
+  ];
+}
+
+/** Hand-calculated expectations for rangeFixture(). Every figure is a literal. */
+export function rangeExpect(today = londonDay()) {
+  const D = rangeDays(today);
+  return {
+    days: D,
+    trading: [D.d0, D.d1, D.d3, D.d4, D.d6],
+    quiet: [D.quietA, D.quietB],
+    rows: [
+      { day: D.d0, orders: 2, items: 3, sales: 1500, cash: 1000, card: 500, avgOrder: 750, peak: '11:00–11:30' },
+      { day: D.d1, orders: 2, items: 5, sales: 2500, cash: 1500, card: 1000, avgOrder: 1250, peak: '12:00–12:30' },
+      { day: D.d3, orders: 2, items: 3, sales: 1500, cash: 1000, card: 500, avgOrder: 750, peak: '13:00–13:30' },
+      { day: D.d4, orders: 3, items: 16, sales: 8000, cash: 6000, card: 2000, avgOrder: 2667, peak: '14:00–14:30' },
+      { day: D.d6, orders: 2, items: 6, sales: 3000, cash: 1500, card: 1500, avgOrder: 1500, peak: '10:00–10:30' }
+    ],
+    totals: {
+      sales: 16500, orders: 11, items: 33, itemsPerOrder: '3.0',
+      cash: 11000, card: 5500, avgOrder: 1500,
+      bestDay: D.d4, bestSales: 8000, averagePerDay: 3300, ordersPerDay: 2, tradingDays: 5
+    },
+    items: [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa', units: { [D.d0]: 2, [D.d1]: 0, [D.d3]: 0, [D.d4]: 10, [D.d6]: 1 }, total: 13, sales: 6500, bestDay: D.d4 },
+      { id: 'momo', name: 'Momo', units: { [D.d0]: 1, [D.d1]: 0, [D.d3]: 0, [D.d4]: 4, [D.d6]: 1 }, total: 6, sales: 3000, bestDay: D.d4 },
+      { id: 'chat', name: 'Papri Chat', units: { [D.d0]: 0, [D.d1]: 3, [D.d3]: 0, [D.d4]: 0, [D.d6]: 1 }, total: 4, sales: 2000, bestDay: D.d1 },
+      { id: 'sweet_box', name: 'Sweet Box', units: { [D.d0]: 0, [D.d1]: 1, [D.d3]: 0, [D.d4]: 0, [D.d6]: 0 }, total: 1, sales: 500, bestDay: D.d1 },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', units: { [D.d0]: 0, [D.d1]: 0, [D.d3]: 0, [D.d4]: 0, [D.d6]: 3 }, total: 3, sales: 1500, bestDay: D.d6 },
+      { id: 'marshmallow', name: 'Marshmallow (V)', units: { [D.d0]: 0, [D.d1]: 1, [D.d3]: 0, [D.d4]: 0, [D.d6]: 0 }, total: 1, sales: 500, bestDay: D.d1 },
+      { id: 'fountain', name: 'Chocolate Fountain', units: { [D.d0]: 0, [D.d1]: 0, [D.d3]: 0, [D.d4]: 2, [D.d6]: 0 }, total: 2, sales: 1000, bestDay: D.d4 },
+      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', units: { [D.d0]: 0, [D.d1]: 0, [D.d3]: 2, [D.d4]: 0, [D.d6]: 0 }, total: 2, sales: 1000, bestDay: D.d3 },
+      { id: 'straw', name: 'Chocolate Strawberry & Marshmallow (V)', units: { [D.d0]: 0, [D.d1]: 0, [D.d3]: 1, [D.d4]: 0, [D.d6]: 0 }, total: 1, sales: 500, bestDay: D.d3 }
+    ]
+  };
+}
+
+/** Seed the scripted range and wait until the emulator really holds it. */
+export async function seedRangeDays(today = londonDay()) {
+  const fixture = rangeFixture(today);
+  for (const o of fixture) await seedDoc('orders', o);
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const got = await readCollection('orders');
+    if (got.length === fixture.length) return fixture;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const got = await readCollection('orders');
+  throw new Error(`seedRangeDays expected ${fixture.length} orders, emulator holds ${got.length}`);
+}
+
+/** Seed settings/event = { name, from, to } (CLAUDE.md Phase III 2). */
+export async function seedEvent(name, from, to) {
+  await seedDoc('settings', { name, from, to }, 'event');
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const docs = await readCollection('settings');
+    if (docs.some((d) => d._id === 'event')) return;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  throw new Error('seedEvent: settings/event never appeared in the emulator');
+}
+
+/** "£1,234.50" from integer pence, computed here rather than by logic.js. */
+export function gbp(pence) {
+  const neg = pence < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(pence));
+  const pounds = Math.floor(abs / 100);
+  const pennies = String(abs % 100).padStart(2, '0');
+  return `${neg}£${pounds.toLocaleString('en-GB')}.${pennies}`;
+}
+
+/** Whitespace-normalised innerText of a locator. */
+export async function textOf(locator) {
+  return (await locator.innerText()).replace(/\s+/g, ' ').trim();
+}

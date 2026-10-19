@@ -54,6 +54,14 @@ jobs:
           APP_LOGIN_PASSWORD_SHA256: ${{ secrets.APP_LOGIN_PASSWORD_SHA256 }}
         run: node scripts/write-login-config.mjs --from-env
 
+      # Writes the gitignored public/js/version.js from package.json and the
+      # commit being deployed. Nothing secret: version, 7-character SHA and
+      # build date only. GITHUB_SHA is always set on a runner, so the build id
+      # is the deployed commit and never gets a "-dirty" suffix. The app falls
+      # back to "dev" labels if the file is missing, so this can't break a deploy.
+      - name: Write app version stamp
+        run: node scripts/write-version.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 

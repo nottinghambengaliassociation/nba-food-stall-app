@@ -135,7 +135,7 @@ Mock-ups: `design/Login.dc.html`, `design/LoginMobile.dc.html`, and the Sign out
 5. Cash vs card split with amounts and percentages.
 6. "Export CSV" downloads one row per order line: day, orderNo, till, name, item, qty, price, lineTotal, payment, status, createdAt, readyAt, waitSeconds.
 
-### Hotfix H1: split menu items (18 Oct 2026)
+### Hotfix H1: split menu items (18 Oct 2026) — shipped 19 Oct, don't rebuild
 The menu change itself may already have been made by hand in the Firebase console (4 new documents, `samosa` and `straw` set `active: false`, `fountain` sort 8). The hotfix makes the code match:
 
 1. `MENU` seed in `public/js/logic.js` = the table above, including the two retired rows with `active: false`, so `stationOf` knows every id and a fresh emulator seeds the same menu.
@@ -147,7 +147,7 @@ The menu change itself may already have been made by hand in the Firebase consol
 
 Ship H1 on its own, before Phase III: build, test, push to `main`, run `menu-sync`, live check (read-only apart from `menu-sync`).
 
-### Hotfix H2: cart line alignment (19 Oct 2026)
+### Hotfix H2: cart line alignment (19 Oct 2026) — shipped 19 Oct, don't rebuild
 Cosmetic bug on the cash counter: the − / + buttons sat at different positions on each cart row because each row was a flex row sized by its item name ("Chocolate Strawberry" pushed its buttons right, "Momo" didn't).
 
 The fix is **already in the working tree, uncommitted**: `public/css/app.css`, `.line` is now a grid with fixed columns `minmax(0, 1fr) 52px 28px 52px 58px`, `column-gap: 6px`; `.line__name` 18 px and wraps; `.line__qty` and `.line__amount` use tabular numbers. Don't redesign it; keep the 52 px steppers.
@@ -171,6 +171,24 @@ Mock-ups: `design/ReportsByDay.dc.html` and the One day / Sales by day toggle in
 8. "Items sold by day" table: menu items as rows, trading days as columns, then Total and Sales. Each item's best day cell shaded #FEF3C7. Note under it: "Shading marks each item's best day."
 9. "Export CSV for Sheets" on this screen exports every order line in the range, same columns as the One day CSV, file name `nba-food-stall_<from>_<to>.csv`.
 10. Some Phase I orders carry a `tendered` field and newer ones don't. Ignore it: it's not used anywhere in this report or the CSV.
+
+### Phase III (part 2): App version on login and headers
+Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the `v1.2.0` label in the header of every other mock-up. Nothing secret is involved.
+
+| Version | What |
+|---|---|
+| 1.0.0 | Phase I (17 Oct 2026) |
+| 1.1.0 | Phase II: login, sign out, Cash received calculator (18 Oct) |
+| 1.1.1 | Hotfix H1: menu split into eight items (19 Oct) |
+| 1.1.2 | Hotfix H2: cart line alignment (19 Oct) |
+| **1.2.0** | **Phase III: Sales by day report and app version (this run)** |
+
+1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
+2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
+3. The app imports `version.js` dynamically. If it's missing, every label shows `dev` and nothing errors.
+4. Login screen (tablet and phone): one line at the bottom of the card, always visible (before and after sign-in): "Version 1.2.0 · build a1b2c3d · updated 19 Oct 2026". 13 px, #78716C, centred. On phone it sits at the bottom of the screen.
+5. Every dark header (landing, cash counter, food counter, both reports), 700 px and wider: an outlined pill right after the screen title, text `v1.2.0`, 13 px bold, #D6D3D1 text, 1 px #57534E border, fully rounded. Below 700 px: `v1.2.0` in 12 px bold #A8A29E under the title, so it never squeezes the header buttons.
+6. Both carry `title` and `aria-label` "Version 1.2.0, build a1b2c3d, updated 19 Oct 2026". Test ids: `login-version`, `app-version`.
 
 ## Design
 
@@ -200,6 +218,7 @@ public/index.html  public/css/app.css  public/manifest.webmanifest
 public/js/{app,router,store,logic,cash,kitchen,reports,icons}.js
 public/js/firebase-config.example.js     committed, placeholders
 public/js/login-config.js                generated, gitignored
+public/js/version.js                     generated, gitignored (Phase III)
 public/js/login-config.example.js        committed, placeholders
 public/js/login.js                       login screen, session, route guard, sign out
 public/img/nba-logo.png                  NBA logo (provided)

@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfix H1
+# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1/H2 + Phase III
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -18,9 +18,11 @@ In scope:
 - Layout and touch-target constraints, accessibility (axe), console cleanliness.
 - Secret hygiene: no committed string matching `AIza[0-9A-Za-z_-]{35}`.
 - **Hotfix H1 (18 Oct 2026)** — the ten-row menu, the four new icons, `stationOf` for retired ids, the eight-tile till and phone layout, and backwards compatibility of orders holding `samosa`/`straw` (section 20–23).
+- **Hotfix H2 (19 Oct 2026)** — cart line alignment (sections 24–26).
+- **Phase III (19 Oct 2026)** — the Sales by day report `#/reports/days`, the One day / Sales by day toggle, the range rules and the range CSV (sections 27–28), and the app version label on the login card and in every dark header (section 29).
 - Live smoke against `LIVE_URL`.
 
-Out of scope (per brief): **Phase III `#/reports/days` (Sales by day) — deferred, no case is written for it**, Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
+Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
 
 ## 2. Environments
 
@@ -47,7 +49,9 @@ Chromium only. HTML report to `playwright-report/`, trace and screenshot on fail
 
 ## 3. Test case index
 
-IDs: `U-*` unit, `H-*` hotfix H1, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke, **`G-*` login gate / sign out (Phase II A)**, **`T-*` cash received (Phase II B)**.
+IDs: `U-*` unit, `H-*` hotfix H1/H2, `L-*` landing, `C-*` cash counter, `K-*` food counter, `R-*` reports, `D-*` data model, `O-*` offline/connection, `X-*` cross-cutting design/a11y, `S-*` live smoke, `G-*` login gate / sign out (Phase II A), `T-*` cash received (Phase II B), **`P3-U-*` Phase III unit, `P3-*` Phase III end to end, `V-*` app version (Phase III part 2)**.
+
+The cross-cutting `X-*` cases and the route-guard `G-10`/`G-12`/`G-13` cases now run over five routes, not four: `#/reports/days` was added to their route lists when Phase III landed.
 
 Because login now gates every route, every pre-existing `L-*`, `C-*`, `K-*`, `R-*`, `D-*`, `O-*` and `X-*` case runs with a session already seeded into `localStorage["nba.session"]` by the shared Playwright fixture (`tests/e2e/session.js`). That is a harness change, not a product change.
 
@@ -428,7 +432,7 @@ Cash vs card: cash A-001 1000 + A-003 1500 + A-005 2000 = £45.00 (75%); card A-
 ## 12. Screenshots
 
 Every screen, both projects, empty and with orders, written to
-`qa/screenshots/<project>-<screen>-<state>.png` where `<project>` ∈ {phone, tablet}, `<screen>` ∈ {login, landing, cash, kitchen, reports}, `<state>` ∈ {empty, orders} (login uses `empty`, `error` and `confirm`; the cash screen also has `tender`). The password field is **always masked** in a screenshot — the Show/Hide toggle is never left on. 22 files minimum, plus failure screenshots from Playwright and `qa/screenshots/live-*.png` from the smoke run.
+`qa/screenshots/<project>-<screen>-<state>.png` where `<project>` ∈ {phone, tablet}, `<screen>` ∈ {login, landing, cash, kitchen, reports, reports-days}, `<state>` ∈ {empty, orders} (login uses `empty`, `error`, `confirm` and `version`; the cash screen also has `tender`; `reports-days` uses `orders` for the scripted range and `empty` for a range with no sales; `header-version` captures the header pill). The password field is **always masked** in a screenshot — the Show/Hide toggle is never left on. 22 files minimum, plus failure screenshots from Playwright and `qa/screenshots/live-*.png` from the smoke run.
 
 ---
 
@@ -654,7 +658,7 @@ Added 2026-10-18, written from `CLAUDE.md` → "Menu" (the ten-row table) and "H
 
 Scope of this hotfix for QA: the menu seed, the icons, `stationOf`, the till's tile set and phone layout with eight tiles, and — the part that matters most — **backwards compatibility of existing orders that contain the retired ids `samosa` and `straw`**. Live Firestore holds real trading records from this evening's service, two of which contain those ids, so a regression here corrupts actual accounts.
 
-**Explicitly out of scope here:** Phase III (`#/reports/days`, Sales by day). It is deferred and no `H-*` case touches it.
+**Explicitly out of scope here:** Phase III (`#/reports/days`, Sales by day) — it was deferred when H1 shipped and is covered from section 27 onwards instead. No `H-*` case touches it.
 
 **Write discipline.** Every H1 case runs against the Firestore emulator. Nothing in this hotfix writes to live Firestore; the single permitted live write is Trinity's `scripts/menu-sync.mjs` run, which Trinity tests against the emulator and which is not exercised by this suite. The H1 live verification (`H-20`) is **read-only**.
 
@@ -838,4 +842,191 @@ Run on 2026-10-19 against deploy `bdf8954` (Pages run `39181519382`). **8/8 pass
 3. **52 px is asserted on width *and* height.** `CLAUDE.md` → Cash counter 2 says "each at least 52×52 px"; the H2 note says keep them. A fix that aligned the columns by narrowing the buttons would satisfy alignment and break the brief, so both dimensions are checked on all eight rows.
 4. **Overflow is checked three ways** — `scrollWidth` vs `clientWidth` on the name, the name's right edge against its own − button, and the row's right edge against the order panel's — because a grid track with `minmax(0, 1fr)` can clip content without ever widening the row.
 5. **H2 adds no unit case.** The change is pure CSS; `logic.js` is untouched, so there is nothing new to unit-test. The existing `U-*` suite is unchanged.
-6. **Phase III (Sales by day) is still deferred** and has no test plan section yet.
+6. **Phase III (Sales by day) landed on 19 Oct 2026** and is covered from section 27 onwards. H2's assertions are unchanged by it.
+
+---
+
+# Phase III — Sales by day, and the app version label
+
+Added 2026-10-19. Source: `CLAUDE.md` → "Phase III: Sales by day report" 1–10 and "Phase III (part 2): App version on login and headers" 1–6, plus the mock-ups `design/ReportsByDay.dc.html` (the whole file, including the script that fixes the layout maths, colours and label formats), the One day / Sales by day toggle in `design/Reports.dc.html`, the `v1.2.0` pill in the headers of the other mock-ups and the version footer of `design/Login.dc.html` / `design/LoginMobile.dc.html`.
+
+Written against the brief, not against `public/js/reports-days.js`. Every figure asserted end to end is hand-calculated in section 27.1 and restated as literals in `tests/e2e/helpers.js` → `rangeExpect()`; the unit fixture `tests/unit/range-fixtures.js` carries the same numbers for the pure layer. Where a value could be produced by the code under test (a weekday name, a money string), the test computes it independently.
+
+**Write discipline.** Everything in this phase runs against the Firestore emulator. Nothing here writes to live Firestore; the live check comes after the deploy and is read-only.
+
+## 27. Phase III unit cases — `public/js/logic.js` (`P3-U-*`), `tests/unit/range.test.js`
+
+### 27.1 The scripted range (hand-calculated)
+
+Seven consecutive days, five of which trade. Every item is £5. In the unit fixture the range is 13–19 Oct 2026; end to end it is the last seven London days, so the screen's default range covers it exactly.
+
+| Day | Orders | Lines | Items | Sales | Cash | Card | Avg order | Peak 30 min |
+|---|---|---|---|---|---|---|---|---|
+| Tue 13 Oct | 2 | 2 | 3 | £15.00 | £10.00 | £5.00 | £7.50 | 11:00–11:30 |
+| Wed 14 Oct (+1 **cancelled**) | 2 | 3 | 5 | £25.00 | £15.00 | £10.00 | £12.50 | 12:00–12:30 |
+| Thu 15 Oct | — | — | — | — | — | — | — | *no orders: absent* |
+| Fri 16 Oct (legacy ids, one order carries `tendered`) | 2 | 2 | 3 | £15.00 | £10.00 | £5.00 | £7.50 | 13:00–13:30 |
+| Sat 17 Oct (**best day**) | 3 | 3 | 16 | £80.00 | £60.00 | £20.00 | £26.67 | 14:00–14:30 |
+| Sun 18 Oct | — | — | — | — | — | — | — | *no orders: absent* |
+| Mon 19 Oct | 2 | 4 | 6 | £30.00 | £15.00 | £15.00 | £15.00 | 10:00–10:30 |
+| **Total** | **11** | **14** | **33** | **£165.00** | **£110.00** | **£55.00** | **£15.00** | — |
+
+Derived tiles: items per order 33/11 = **3.0**; best day **Sat 17 Oct £80.00**; average per trading day £165.00/5 = **£33.00**, note **2 orders a day** (round(11/5)).
+
+Items sold by day (menu sort order; retired ids keep their original names and never merge with the new ones):
+
+| Item | Tue | Wed | Fri | Sat | Mon | Total | Sales | Best day |
+|---|---|---|---|---|---|---|---|---|
+| Fuchka / Gol Gappa | 2 | 0 | 0 | 10 | 1 | 13 | £65.00 | Sat |
+| Momo | 1 | 0 | 0 | 4 | 1 | 6 | £30.00 | Sat |
+| Papri Chat | 0 | 3 | 0 | 0 | 1 | 4 | £20.00 | Wed |
+| Sweet Box | 0 | 1 | 0 | 0 | 0 | 1 | £5.00 | Wed |
+| Chocolate Strawberry | 0 | 0 | 0 | 0 | 3 | 3 | £15.00 | Mon |
+| Marshmallow (V) | 0 | 1 | 0 | 0 | 0 | 1 | £5.00 | Wed |
+| Chocolate Fountain | 0 | 0 | 0 | 2 | 0 | 2 | £10.00 | Sat |
+| Sweets Box Samosa / Shingara (**retired**) | 0 | 0 | 2 | 0 | 0 | 2 | £10.00 | Fri |
+| Chocolate Strawberry & Marshmallow (V) (**retired**) | 0 | 0 | 1 | 0 | 0 | 1 | £5.00 | Fri |
+
+`samosa_only` never sold in the range, so it has no row at all.
+
+### P3-U-01 `isDayString`
+**Expected** `true` only for a real `YYYY-MM-DD` calendar day (`2026-02-29` is false, `2024-02-29` true). Never throws on `''`, `19/10/2026`, `null`, a number or an object.
+
+### P3-U-02 `addDays` / `dayDiff` / `rangeLength` / `listDays`
+**Expected** Calendar arithmetic over month and year ends. **Crossing the BST → GMT change on 25 Oct 2026 adds exactly one day, not 23 or 25 hours** (the arithmetic runs at UTC midnight on day strings that are already Europe/London dates). `rangeLength` is inclusive and order-independent; `listDays` is ascending whichever way round the ends are, and `[]` for an unusable end.
+
+### P3-U-03 Day labels
+**Expected** `weekdayShort('2026-10-18') === 'Sun'`, `formatDayShort === '18 Oct'`, `formatDayLabel === 'Sun 18 Oct'` (the chart and table label from the mock-up), `formatDayLong('2026-10-19') === '19 Oct 2026'` (the version line). `''` for junk.
+
+### P3-U-04 `clampRange` (`CLAUDE.md` Phase III 2)
+**Expected** A good range is untouched. **To before From swaps them** (`swapped: true`). **Exactly 31 days is allowed**; **32 days is `tooLong`, carries the message `Pick 31 days or fewer` and lists no days**, so the screen has nothing to query — the same when the long range is given the wrong way round. One end missing collapses to the other; both missing is invalid and never throws.
+
+### P3-U-05 Default and quick ranges
+**Expected** `defaultRange('2026-10-19')` is `2026-10-13 → 2026-10-19` — **the last 7 days ending today**. `todayRange` is a single day. With no argument both end on the Europe/London today.
+
+### P3-U-06 `ordersInRange`
+**Expected** Inclusive on both ends, by `day` string; `[]` for an unusable end; nothing in a range with no orders.
+
+### P3-U-07 Trading days only (`CLAUDE.md` Phase III 4)
+**Expected** One row per day that traded, ascending; the two quiet days appear nowhere, not even as zero rows. An empty range gives `tradingDays: 0`, `empty: true`, zeroes rather than `NaN`, `best: null`, and the message constant is `No sales in this range`. A range holding only cancelled orders is empty.
+
+### P3-U-08 Per-day rows
+**Expected** Row by row, field by field, the table in 27.1: weekday, date, label, orders, items, sales, cash, card, average order and peak 30 minutes. `cash + card === sales` on every row and sales is an integer.
+
+### P3-U-09 Cancelled orders excluded everywhere (`CLAUDE.md` Phase III 3)
+**Expected** The whole report — every day row, the totals, the matrix, the best day — is byte-identical to a report built from the same orders with the cancelled one removed before it ever arrives.
+
+### P3-U-10 Totals tiles (`CLAUDE.md` Phase III 5)
+**Expected** Total sales £165.00, orders 11, items 33 (3.0 per order), best day Sat 17 Oct £80.00, average per trading day £33.00 with 2 orders a day. **A tie for best day goes to the earlier day** (the brief is silent; the earlier day is the deliberate reading, matching the peak-slot rule).
+
+### P3-U-11 Totals row of the day table (`CLAUDE.md` Phase III 7)
+**Expected** Each total equals the sum of the rows actually on screen, and `cash + card === sales`.
+
+### P3-U-12 Items sold by day (`CLAUDE.md` Phase III 8, Hotfix H1 6)
+**Expected** The matrix in 27.1: one row per item that sold, in menu order with the retired ids last; a cell per trading day; `Total` and `Sales` columns; **each item's best day flagged exactly once**; retired ids under their original names, never merged with `samosa_only`/`choc_strawberry`. Row totals sum to 33 items and £165.00.
+
+### P3-U-13 The legacy `tendered` field is ignored (`CLAUDE.md` Phase III 10)
+**Expected** Deleting `tendered` from every order changes nothing in the report.
+
+### P3-U-14 Range CSV (`CLAUDE.md` Phase III 9)
+**Expected** Exactly the One day columns, in the One day order. One row per order line in range, cancelled excluded. **No `tendered` or `changeGiven` column, and the legacy tender amount never appears on its order's row.** Retired ids keep their stored names. Every trading day is represented. The file name is `nba-food-stall_<from>_<to>.csv`.
+
+### P3-U-15 Money formatting on the by-day screen
+**Expected** `formatPenceGrouped(200500) === '£2,005.00'` (thousands grouped, as the mock-up), `formatPoundsRounded(200500) === '£2,005'` (gridlines), and bar labels stay exact until the figures reach four digits. The readout string is `Sun 18 Oct · £2,005.00 · 208 orders`.
+
+## 28. Phase III end-to-end cases — `#/reports/days` (`P3-*`, both projects)
+
+Every case clears Firestore and seeds the scripted range from 27.1 relative to today's London day, so the screen's default range ("Last 7 days ending today") covers it exactly. File: `tests/e2e/reports-days.spec.js`.
+
+### P3-01 The toggle, both ways (`CLAUDE.md` Phase III 1)
+**Steps** `#/reports`, then `#/reports/days`.
+**Expected** `report-toggle-day` and `report-toggle-days` are present on **both** report screens, each at least 48 px tall. The current view is filled ink `#1C1917` and the other is not. Tapping each navigates to the other route and the other screen renders.
+
+### P3-02 Direct load and the default range (`CLAUDE.md` Phase III 2)
+**Expected** `#/reports/days` loads straight from the URL. `range-from` and `range-to` are `input[type=date]`; To is today and From is today − 6.
+
+### P3-03 Trading days only, cancelled excluded (`CLAUDE.md` Phase III 3, 4)
+**Expected** A `day-row-<day>` and a `day-bar-<day>` for each of the five trading days; **nothing at all** for the two quiet days; five rows plus the totals row in `days-table`. The cancelled Wednesday order shows in no figure.
+
+### P3-04 The five totals tiles and their notes (`CLAUDE.md` Phase III 5)
+**Expected** `tile-total-sales` £165.00; `tile-orders` 11 with the note "excludes cancelled"; `tile-items` 33 with "3.0 per order"; `tile-best-day` naming Sat 17 Oct and £80.00; `tile-avg-day` £33.00 with "2 orders a day".
+
+### P3-05 The bar chart (`CLAUDE.md` Phase III 6)
+**Expected** One bar per trading day and no more. Each bar is a **real `<button>`** with an `aria-label` carrying its day, its sales and its order count, and a value label on the bar. **Best day `#B45309`, every other bar `#FBBF24`.** Weekday and date under each bar. The readout `days-readout` reads `Sat 17 Oct · £80.00 · 3 orders` — the mock-up format — on **hover, on focus and on tap**, each asserted separately with the pointer parked away from the chart in between.
+
+### P3-06 The Day by day table (`CLAUDE.md` Phase III 7)
+**Expected** Columns Day, Orders, Items, Sales, Cash, Card, Avg order, Peak 30 min (plus the Open column). Every cell of every `day-row-<day>` matches 27.1 exactly, and `days-totals-row` matches the Total line.
+
+### P3-07 "Open day" (`CLAUDE.md` Phase III 7)
+**Expected** `open-day-<day>`'s `href` is exactly `#/reports?day=<day>`; following it lands on the One day report **with `report-date` set to that day** and `kpi-sales`, `kpi-orders`, `kpi-items` equal to that day's hand-calculated figures.
+
+### P3-08 Items sold by day (`CLAUDE.md` Phase III 8, Hotfix H1 6)
+**Expected** `items-by-day-table` header is `Item`, one column per trading day, then `Total` and `Sales`. The rows are the matrix in 27.1, in the same order, with the same numbers. **Each item's best-day cell is shaded `#FEF3C7` and no other day cell in that row is.** The retired ids appear under their original names alongside the new ones. The note reads "Shading marks each item's best day."
+
+### P3-09 Export CSV for Sheets (`CLAUDE.md` Phase III 9, 10)
+**Expected** The download is named `nba-food-stall_<from>_<to>.csv`; the header is the thirteen One day columns in the One day order; there are **14** data rows (one per order line in range) and the cancelled order is absent; `lineTotal = qty × price` on every row; every trading day is represented; **`tendered` appears nowhere**, including on the legacy order's row; the legacy line's `item` cell is its stored name.
+
+### P3-10 Swap, Today and Last 7 days (`CLAUDE.md` Phase III 2)
+**Expected** Entering To before From swaps the two inputs and shows no error. `quick-today` sets both inputs to today and leaves only today's figures (£30.00). `quick-7days` restores today − 6 → today and the full £165.00.
+
+### P3-11 The 31-day maximum (`CLAUDE.md` Phase III 2) — **and that it makes no query**
+**Expected** A 31-day range is accepted and queried. A 32-day range shows `range-error` reading exactly `Pick 31 days or fewer`, and **no request to the Firestore emulator carries the out-of-range From date** — proved by recording every request to `127.0.0.1:8080` (URL and body) across the change, not by watching the screen. Coming back inside the limit recovers.
+
+### P3-12 An empty range (`CLAUDE.md` Phase III 4)
+**Expected** `days-empty` shows `No sales in this range`, `days-table` is hidden, and the tiles read £0.00 — never `NaN`, `Infinity` or `undefined`.
+
+### P3-13 "This event" (`CLAUDE.md` Phase III 2)
+**Expected** `quick-event` is **hidden** while `settings/event` does not exist. After seeding `settings/event = {name, from, to}` into the emulator and reloading, it is visible; tapping it sets the inputs to the event's `from`/`to` and the report holds only the trading days inside the event (£125.00 on the scripted range), with the days outside it absent.
+
+### P3-14 Layout, touch targets and console
+**Expected** Every control in the main area is at least 48 px tall (chart bars excepted: they are sized by their value); no horizontal scroll at 360 px; no console errors.
+
+### P3-16 Accessibility
+**Expected** `@axe-core/playwright`: **zero serious or critical violations** on `#/reports/days` with trading days on screen, both projects.
+
+### P3-17 Named from the visible text, and the scrolling cards take the keyboard
+Behavioural guard for `BUG-6` and `BUG-7`, written so neither can come back silently if the axe ruleset ever changes.
+**Expected**
+1. Every `open-day-<day>` link's visible text is exactly "Open day" and its **accessible name contains that visible text** (WCAG 2.1 SC 2.5.3 *Label in Name*: a speech-input user says what they see). An `aria-label` that adds the date after it is fine; one that replaces it is not.
+2. Every element in `main` that **actually** scrolls sideways (`scrollWidth > clientWidth` at the viewport under test) has `tabIndex >= 0` and a non-empty accessible name, and the names of the scrolling cards are distinct from one another.
+3. The scrolling card takes focus and really moves — `CLAUDE.md` Phase III 7 puts the wide tables in a card that scrolls sideways, and a scroller only a mouse can reach hides Cash, Card, Avg order and Peak 30 min from a keyboard user.
+
+### P3-15 Screenshots
+**Expected** `qa/screenshots/<project>-reports-days-orders.png` (the scripted range) and `<project>-reports-days-empty.png` (a range with no sales), both projects.
+
+## 29. App version cases (`V-*`), `tests/e2e/version.spec.js`
+
+Spec: `CLAUDE.md` → "Phase III (part 2): App version on login and headers" 1–6.
+
+> **The build string is asserted by shape, never by value.** Trinity regenerates `public/js/version.js` immediately before the commit, so a literal SHA in a test would break the suite the moment the tree is committed. The accepted shape is a 7-character hex SHA, optionally `-dirty` while the working tree is uncommitted, or `dev` when the file is missing.
+
+### V-01 `login-version` (`CLAUDE.md` Phase III part 2, 4 and 6)
+**Expected** A `login-version` element on `#/login` reading `Version <version> · build <build> · updated <date>`, where `<version>` equals `package.json` `version` read at run time ("package.json is the single source of truth"), `<build>` matches the shape above and `<date>` is `19 Oct 2026` shaped. Its `title` and `aria-label` both read `Version …, build …, updated …` with the **same three values**. 13 px and centred.
+
+### V-02 Always visible (`CLAUDE.md` Phase III part 2, 4: "always visible (before and after sign-in)")
+**Expected** The line is there on a fresh login screen, still there after a failed attempt (an obviously fake password), and still there — with the same text — on the login screen reached after signing in and back out again.
+
+### V-03 `app-version` in every dark header (`CLAUDE.md` Phase III part 2, 5 and 6)
+**Expected** On `#/`, `#/cash`, `#/kitchen`, `#/reports` and `#/reports/days`, in both projects: an `app-version` element inside `header` reading `v<version>`, with matching `title` and `aria-label` of the same three values.
+- **Tablet (≥ 700 px):** 13 px bold, text `#D6D3D1`, a 1 px `#57534E` border, fully rounded, sitting **right after** the screen title on its line.
+- **Phone (< 700 px):** 12 px bold on its **own line under the title**, and every header button and select still at least 44 px tall — the version must never squeeze them.
+No console errors throughout. Screenshot `qa/screenshots/<project>-header-version.png`.
+
+### V-04 It never covers a header control
+**Expected** The version label's box intersects no header button, select or link, and no header control is pushed off screen by it.
+
+### V-05 Fallback when `version.js` is missing (`CLAUDE.md` Phase III part 2, 3)
+**Steps** Intercept `**/js/version.js` with a 404 and load the app.
+**Expected** `login-version` reads `Version dev · build dev · updated dev`, its `title` and `aria-label` read `Version dev, build dev, updated dev`, and the header label on all five routes falls back to `dev` and never shows a stale version. **No uncaught exception and no application console error** — the browser's own "failed to load resource" note for the 404 is the browser, not the app, and is the only message tolerated.
+
+## 30. Phase III deliberate readings of the brief
+
+1. **Best-day tie → the earlier day.** The brief does not say. The earlier day wins, matching the peak-slot rule already used by the One day report.
+2. **"Always visible (before and after sign-in)"** is read as: the version line is on the login card in every state of that screen — fresh, after a failed attempt, and after signing out again. Signing in navigates away from the card, so there is no "after sign-in" state of the card itself to assert.
+3. **The build string is asserted by shape, not by value** (see section 29). A literal SHA would be wrong within minutes of the test being written.
+4. **The matrix is read through `items-by-day-table`, not through per-cell test ids.** `.claude/agents/neo.md` fixes `items-by-day-table` as the contract; the row and cell ids the implementation also carries are not in it, so the test parses the table structurally instead of depending on them.
+5. **"Fires no query" is proved from the network, not from the screen.** Every request to `127.0.0.1:8080` is recorded across the range change and searched for the out-of-range From date.
+6. **Chart bars are exempt from the 48 px floor.** A bar's height is its value; `CLAUDE.md` Phase III 6 sizes it by the data. Every other control on the screen is held to 48 px.
+7. **One `aria-label` reading is a defect, not a reading.** `CLAUDE.md` Phase III 7 fixes the visible text of "Open day"; WCAG 2.5.3 then requires that text to be inside the accessible name. See `BUG-6` (fixed and verified).
+7a. **The scrolling table cards are named regions.** `CLAUDE.md` Phase III 7 asks for horizontal scroll inside the card; it does not say how the card is exposed, and the mock-up's plain `overflow-x: auto` div has no name. Giving each card `tabindex="0" role="region"` with its own name, and renaming the day `<section>`'s `aria-label` from "Day by day table" to "Day by day" so the two names stay unique, is additive and takes nothing from the brief or the mock-up — the visible heading is still "Day by day". No case here depends on either `aria-label`: the tables are addressed through `days-table` and `items-by-day-table`, the rows through `day-row-<day>`, the note through its visible text. See `BUG-7`.
+8. **`settings/event` is seeded and removed through the emulator**, never in live Firestore, so both the hidden and the visible state of "This event" are proved on the same run.
