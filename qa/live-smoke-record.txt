@@ -266,3 +266,36 @@ P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 8 data row(s
 P3L-08 tablet after sign out: "Version 1.2.0 · build 4534093 · updated 19 Oct 2026"
 P3L-09 live orders after the check: 1 document(s); days [2026-10-19]
 P3L-09 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+P4L-00 live orders before the check: 1 document(s); days [2026-10-19]; status {"collected":1}; [A-001/collected/2026-10-19]
+P4L-00 live menu before the check: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+P4L-01 phone login-version: "Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026"
+P4L-01 phone console errors signed out: 0
+P4L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 phone rendered version labels: #/=1.3.0/064f0a8/19 Oct 2026 | #/cash=1.3.0/064f0a8/19 Oct 2026 | #/kitchen=1.3.0/064f0a8/19 Oct 2026 | #/reports=1.3.0/064f0a8/19 Oct 2026 | #/reports/days=1.3.0/064f0a8/19 Oct 2026 | #/reports/orders=1.3.0/064f0a8/19 Oct 2026
+P4L-04 phone tabs: One day | By day | Orders, Orders current
+P4L-05 phone summary on 2026-10-19: "1 orders · £40.00"
+P4L-05 phone row A-001: "View order A-001 Guest Collected 1× Fuchka, 1× Momo, 1× Papri Chat, 1× Sweet Box, 1× Samosa, 1× Choc Strawberry, 1× Marshmallow, 1× Choc Fountain 01:14 · Cash · till A £40.00"
+P4L-06 phone detail A-001: "All orders A-001 Guest Collected Till A Payment Cash Placed Mon 19 Oct 01:14 Wait (placed to ready) 0 min Timeline Placed 01:14 Started 01:14 Ready 01:14 Collected 01:14 Items Items on this order Item Qty Line Fuchka / G"
+P4L-07 phone ?day=2026-10-19 and ?day=2020-01-01 both opened their own day
+P4L-09 phone axe list: 0 serious/critical
+P4L-09 phone axe detail: 0 serious/critical
+P4L-10 phone after sign out: "Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026"
+P4L-11 live orders after the check: 1 document(s); days [2026-10-19]; [A-001/collected/2026-10-19]
+P4L-11 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+P4L-00 live orders before the check: 1 document(s); days [2026-10-19]; status {"collected":1}; [A-001/collected/2026-10-19]
+P4L-00 live menu before the check: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+P4L-01 tablet login-version: "Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026"
+P4L-01 tablet console errors signed out: 0
+P4L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 tablet rendered version labels: #/=1.3.0/064f0a8/19 Oct 2026 | #/cash=1.3.0/064f0a8/19 Oct 2026 | #/kitchen=1.3.0/064f0a8/19 Oct 2026 | #/reports=1.3.0/064f0a8/19 Oct 2026 | #/reports/days=1.3.0/064f0a8/19 Oct 2026 | #/reports/orders=1.3.0/064f0a8/19 Oct 2026
+P4L-04 tablet tabs: One day | Sales by day | Orders, Orders current
+P4L-05 tablet summary on 2026-10-19: "1 orders · £40.00"
+P4L-05 tablet row A-001: "A-001 01:14 Guest 1× Fuchka, 1× Momo, 1× Papri Chat, 1× Sweet Box, 1× Samosa, 1× Choc Strawberry, 1× Marshmallow, 1× Choc Fountain £40.00 Cash Collected 0 min"
+P4L-06 tablet detail A-001: "A-001 Guest Collected Till A Payment Cash Placed Mon 19 Oct 01:14 Wait (placed to ready) 0 min Timeline Placed 01:14 Started 01:14 Ready 01:14 Collected 01:14 Items Items on this order Item Qty Price Line Fuchka / Gol Ga"
+P4L-07 tablet ?day=2026-10-19 and ?day=2020-01-01 both opened their own day
+P4L-08 tablet CSV "nba-food-stall_orders_2026-10-19.csv": 8 data row(s), 13 columns, orders [A-001], no tendered column
+P4L-09 tablet axe list: 0 serious/critical
+P4L-09 tablet axe detail: 0 serious/critical
+P4L-10 tablet after sign out: "Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026"
+P4L-11 live orders after the check: 1 document(s); days [2026-10-19]; [A-001/collected/2026-10-19]
+P4L-11 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]

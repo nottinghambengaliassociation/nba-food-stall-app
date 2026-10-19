@@ -20,7 +20,7 @@ In scope:
 - **Hotfix H1 (18 Oct 2026)** — the ten-row menu, the four new icons, `stationOf` for retired ids, the eight-tile till and phone layout, and backwards compatibility of orders holding `samosa`/`straw` (section 20–23).
 - **Hotfix H2 (19 Oct 2026)** — cart line alignment (sections 24–26).
 - **Phase III (19 Oct 2026)** — the Sales by day report `#/reports/days`, the One day / Sales by day toggle, the range rules and the range CSV (sections 27–28), and the app version label on the login card and in every dark header (section 29).
-- **Phase IV (19 Oct 2026)** — the Orders list and order detail `#/reports/orders`, the third report tab, the filters, the live list, the detail panel and the orders CSV (sections 32–34).
+- **Phase IV (19 Oct 2026)** — the Orders list and order detail `#/reports/orders`, the third report tab, the filters, the live list, the detail panel and the orders CSV (sections 32–34), and the read-only live verification of the deployed v1.3.0 (section 35).
 - Live smoke against `LIVE_URL`.
 
 Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
@@ -1251,7 +1251,60 @@ Each test clears the emulator and seeds the scripted day above (`seedOrdersDay`)
 4. **"<n> orders" is not forced into a singular.** Both mock-ups render `rows.length + ' orders'`, so `1 orders` is what the design does; the tests accept `1 order` or `1 orders` and pin everything else exactly.
 5. **The money format is not grouped below £1,000.** The fixture keeps every figure under £1,000, where `£95.00` and `£95.00` are the same string either way, so the tests do not accidentally pin a thousands separator the brief never asks for.
 6. **The Orders CSV includes cancelled orders; the other two exports still don't.** `CLAUDE.md` Phase IV 8 exports "the orders currently shown (after filters)", and a cancelled order *is* shown: Phase IV 5 lists it and Phase IV 4 keeps it out of the **total** only. The `status` column exists precisely so an exported row can read `cancelled`. The settling case is the one a reader would try: filter Status to Cancelled and export — a header with no rows would be plainly wrong. So the Orders export is every row on screen, cancelled included, in the list's newest-first order. This **deliberately differs** from the One day (`Reports` 6) and Sales by day (Phase III 9) exports, which follow `Reports` 2 ("Cancelled orders excluded everywhere") and must not change; `P4-U-07` asserts both behaviours side by side so neither can drift into the other. ("Same columns as the One day CSV" is about the columns, which are identical.)
-7. **No export button on the phone.** `design/ReportsOrdersMobile.dc.html` has no export control and `CLAUDE.md` Phase IV 8 does not require one at that width, so P4-14 runs on tablet only.
+7. **No export button on the phone, in the tests.** `design/ReportsOrdersMobile.dc.html` has no export control and `CLAUDE.md` Phase IV 8 does not require one at that width, so `P4-14` and `P4L-08` run on tablet only. The app does render the button at phone width; that is additive and takes nothing from the brief, so it is recorded as an observation in `qa/bugs.md` rather than a bug, and the tests keep the conservative reading.
 8. **Retired names are pinned where they are unambiguous.** `straw`'s short name (`Choc Strawberry`) is identical to the live `choc_strawberry`'s, so on screen the two cannot be told apart by text; the identity of a retired line is pinned instead in the CSV, which carries the name stored on the order line, and by `samosa` (short `Sweets Box`) never rendering as the new `Samosa`.
 9. **The version bump (requirement 10) needs a case of its own.** The `V-*` suite deliberately reads the expected version out of `package.json` rather than a literal, so it agrees with whatever number is there and can never catch a missed bump. `P4-U-09` therefore asserts `package.json` is on `1.3.0` — the one number `CLAUDE.md` Phase IV 10 states outright. It is the only Phase IV case failing at the end of this round (`BUG-8`).
 10. **A-900 is seeded on the day before** so that "the same single-field `day ==` query" is proved by a day that *has* data to leak, not by an empty neighbour.
+
+## 35. Phase IV live verification (gated, **read-only, zero writes**) — `tests/e2e/live-p4.spec.js`
+
+**Gate** `LIVE_P4=1`, the same style as the `S-*`, `H-20`, `H-22` and `P3L-*` live specs, so `npm run test:e2e` stays offline and deterministic. Run after the deploy with
+`LIVE_P4=1 LIVE_BUILD=<short sha> npx playwright test tests/e2e/live-p4.spec.js`.
+Run on 2026-10-19 against deploy `064f0a8`. **23/23 passed, 1 skipped (phone CSV, by design), both viewports.**
+
+**Write discipline — as strict as H2 and P3.** No write to live Firestore of any kind. Every Firestore call in the spec is a GET over the REST API; the Orders screen is itself read-only, so no till tile is tapped, `send-order` is never clicked, no status is changed, nothing is cancelled, and no menu or `settings` document is touched. Exporting the CSV is a download of data already fetched. `P4L-00` and `P4L-11` bracket the run with a fingerprint of the orders collection and the list of menu ids. The leftover QA smoke order `A-001` is read, never altered.
+
+**Cache discipline.** A fresh Playwright context per test and the browser HTTP cache switched off over CDP (`Network.setCacheDisabled`) before the first navigation. A `Cache-Control: no-cache` request header is deliberately **not** used: it is not CORS-safelisted and would preflight the Firebase SDK's cross-origin imports into failure.
+
+**The version is read through the UI, never by fetching `version.js`.** Reading the file would prove the deploy; the labels are what Phase IV ships. The expected build is passed in at run time (`LIVE_BUILD`), never written into the spec.
+
+**Expectations are recomputed from the live documents**, not hard-coded: the summary line, every row field, the timeline times and the CSV row count are derived from what `orders` actually holds at the moment of the run, so the spec keeps working as live data changes.
+
+### P4L-00 Snapshot live Firestore first
+**Expected** A fingerprint of `orders` and the list of `menu` ids, recorded before anything else for `P4L-11` to compare against.
+
+### P4L-01 Signed out: the guard, and the v1.3.0 line on the card
+**Expected** `#/login` renders a real form (not "Login not configured"); `login-version` reads `Version 1.3.0 · build <7-char sha> · updated <d MMM yyyy>` and the build equals `LIVE_BUILD`; all six guarded routes redirect to `#/login`; zero console errors.
+
+### P4L-02 Signed in: all seven routes
+**Expected** The shared account signs in and lands on `#/`; `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days` and `#/reports/orders` each render with no "Storage not configured" banner and `conn-pill` reading `Online · synced`; **zero** console errors across all of them.
+
+### P4L-03 The v1.3.0 pill in every dark header
+**Expected** On all six signed-in screens `app-version` reads `v1.3.0` with `title` and `aria-label` identical and carrying the same version, build and date, and the build equals `LIVE_BUILD`. Tablet: 13 px, `#D6D3D1` on a 1 px `#57534E` border, fully rounded, right after the screen title. Phone: 12 px under the title with every header button still at least 44 px.
+
+### P4L-04 The third tab, live (`CLAUDE.md` Phase IV 1)
+**Expected** All three tabs on all three report screens, at least 48 px; labels `One day | Sales by day | Orders` at tablet width and `One day | By day | Orders` on phone; on `#/reports/orders` the Orders tab is filled ink `#1C1917` with `aria-current="page"` and neither other tab is filled.
+
+### P4L-05 The live list, its summary, filters and search
+**Expected** The Day input holds the day being read; the summary line equals the one recomputed from the live documents; the listed order numbers are the live ones, newest first; every field of the newest row (number, time, name, items in menu short names, total, pay, status, and wait on tablet / `HH:MM · Pay · till X` on phone) matches its document. Selecting the order's own status keeps it, another status empties the list with "No orders match these filters."; on tablet the payment filter does the same; search by order number and by name matches in lower and upper case; a nonsense search shows the empty message. Zero console errors.
+
+### P4L-06 The detail, live
+**Expected** Tablet starts with "Select an order to see its items."; opening the order shows its number, name, status, till, payment, placed time, wait, the timeline (Placed always, then Started/Ready/Collected, or Placed → Cancelled), every item line with an icon, and the total — all matching the live document. Phone: the detail is full screen, the "All orders" button returns to the list, and the **browser Back button** does too. Tablet: the panel sits beside the list and the read-only note reads verbatim.
+
+### P4L-07 `?day=`, live
+**Expected** `#/reports/orders?day=<day with orders>` opens that day with its order and its summary; `#/reports/orders?day=2020-01-01` opens that day with `0 orders · £0.00` and the empty message.
+
+### P4L-08 The orders CSV, live — downloaded and read
+**Expected** The download is named `nba-food-stall_orders_<day>.csv` from the day actually on screen; the header is the thirteen One day columns in the One day order; one row per line of the orders shown, in the list's newest-first order; every row has 13 fields on the exported day with `lineTotal = qty × price` and a non-blank item name; each order's line totals add up to the `total` stored on its document; no `tendered` anywhere. **The bytes are parsed and asserted, not inferred from a 200.** Tablet only (section 34.7).
+
+### P4L-09 Accessibility, live
+**Expected** `@axe-core/playwright` finds zero serious or critical violations on `#/reports/orders`, both viewports, in the list state and with an order open.
+
+### P4L-10 Sign out from the Orders screen
+**Expected** Sign out returns to `#/login`, clears `nba.session`, and the version line is still on the card with the same version and build.
+
+### P4L-11 Nothing was written
+**Expected** `orders` is the same length with a byte-identical fingerprint to `P4L-00`, and `menu` holds exactly the same ten document ids.
+
+### P4L screenshots
+`qa/screenshots/live-p4-<project>-<screen>.png` for both projects: `login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-orders`, `reports-orders-detail`, `header-version`, `signed-out` — 20 files.

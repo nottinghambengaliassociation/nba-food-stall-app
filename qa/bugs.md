@@ -710,7 +710,7 @@ Credentials were read at run time from the gitignored `.secrets/app-login.env`. 
 
 Full suite green on both projects. Phase IV screenshots: `qa/screenshots/p4-{phone,tablet}-orders-{list,detail,empty}.png`, plus `{phone,tablet}-reports-orders-{empty,orders}.png` from the standard sweep.
 
-### BUG-8 | minor | every screen's header and the login card | status: **open**
+### BUG-8 | minor | every screen's header and the login card | status: **verified** (live, round P4 live)
 
 **Steps** Run `npm test`, or load any signed-in route and read the version pill (`qa/screenshots/p4-tablet-orders-list.png` shows it).
 **Expected** `CLAUDE.md` Phase IV 10: *"`package.json` version 1.3.0; the version label shows v1.3.0 after deploy"*, with `package.json` the single source of truth (Phase III part 2, 1).
@@ -718,11 +718,56 @@ Full suite green on both projects. Phase IV screenshots: `qa/screenshots/p4-{pho
 **Screenshot** `qa/screenshots/p4-tablet-orders-list.png` (header, top left: `Reports v1.2.0`).
 **Caught by** `P4-U-09` in `tests/unit/orders.test.js`, which fails until the bump. The `V-*` suite cannot catch this on its own: it reads the expected version out of `package.json`, so it agrees with whatever is there.
 **Fix** One line: `version` to `1.3.0` in `package.json`. Trinity's `scripts/write-version.mjs` then stamps it into `version.js` on the next local run and in CI, and the live `V-c` check after deploy will read `v1.3.0`.
+**Verified** `package.json` is on `1.3.0`, `P4-U-09` passes, and the deployed site renders `Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026` on the login card and `v1.3.0` in all six signed-in headers on both viewports, read through the UI with the HTTP cache disabled (`P4L-01`, `P4L-03`, `P4L-10`).
 
 ### Open bugs
 
 | Id | Severity | Screen | Status |
 |---|---|---|---|
-| BUG-8 | minor | version label, every screen | **open** — one-line version bump in `package.json` |
+| BUG-8 | minor | version label, every screen | **verified** — bumped to 1.3.0 and confirmed live |
 
-No blocker and no major defect is open against Phase IV.
+**Nothing is open against Phase IV: no blocker, no major, no minor.**
+
+## Round P4 live — read-only check against the deployed site (19 Oct 2026)
+
+`LIVE_P4=1 LIVE_BUILD=064f0a8 npx playwright test tests/e2e/live-p4.spec.js`, both viewports, against
+`https://nottinghambengaliassociation.github.io/nba-food-stall-app/`.
+**23 passed, 0 failed, 1 skipped** (`P4L-08` on phone: the CSV case is tablet-only by design). No bug found.
+
+| Check | phone | tablet | Case |
+|---|---|---|---|
+| Login card reads `Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026`, form not "not configured" | **PASS** | **PASS** | `P4L-01` |
+| All six signed-in routes redirect to `#/login` when signed out; zero console errors | **PASS** | **PASS** | `P4L-01` |
+| All seven routes load signed in, no "Storage not configured", pill reads `Online · synced`, **zero console errors** | **PASS** | **PASS** | `P4L-02` |
+| `v1.3.0` pill in every dark header with matching `title`/`aria-label`, correct size, colour, border and placement | **PASS** | **PASS** | `P4L-03` |
+| Orders tab on all three report screens; `One day \| By day \| Orders` on phone, `One day \| Sales by day \| Orders` on tablet; Orders filled ink and `aria-current="page"` | **PASS** | **PASS** | `P4L-04` |
+| List renders the live order; summary `1 orders · £40.00` matches the live documents; every row field matches | **PASS** | **PASS** | `P4L-05` |
+| Status filter in and out, payment filter (tablet), search by number and by name in both cases, empty message | **PASS** | **PASS** | `P4L-05` |
+| Detail opens; number, name, status, till, payment, placed, wait, timeline, all eight item lines with icons, total | **PASS** | **PASS** | `P4L-06` |
+| Phone: full-screen detail, "All orders" button **and** the browser Back button both return to the list | **PASS** | n/a | `P4L-06` |
+| Tablet: detail beside the list, read-only note verbatim | n/a | **PASS** | `P4L-06` |
+| `#/reports/orders?day=2026-10-19` and `?day=2020-01-01` each open their own day | **PASS** | **PASS** | `P4L-07` |
+| CSV downloaded and **read**: `nba-food-stall_orders_2026-10-19.csv`, 13 One day columns, 8 data rows, `lineTotal = qty × price`, line totals add up to the stored £40.00, no `tendered` | skipped | **PASS** | `P4L-08` |
+| Axe: zero serious or critical, list and detail | **PASS** | **PASS** | `P4L-09` |
+| Sign out from `#/reports/orders` returns to `#/login` and clears the session | **PASS** | **PASS** | `P4L-10` |
+| **Nothing written to live Firestore** | **PASS** | **PASS** | `P4L-11` |
+
+### Live data seen
+
+`orders` holds **one document**, unchanged from the H2 and P3 live checks: `A-001`, `collected`, day `2026-10-19`, total £40.00, eight lines of one each at £5. It is the leftover QA smoke order and was left exactly where it is — it is item 1 of "Needs you" above.
+`menu` holds its ten documents (`chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box`).
+
+### Write discipline
+
+Every Firestore call in `tests/e2e/live-p4.spec.js` is a GET over the REST API. The Orders screen is itself read-only, so this round had even less to guard than P3: no till tile was tapped, `send-order` was never clicked, no status was changed, nothing was cancelled, no menu or settings document was touched. Exporting the CSV is a download of data already fetched. `P4L-00` and `P4L-11` bracket the run: after the check the orders collection is the same length with a byte-identical fingerprint (document id, orderNo, status, total, day and every line's `id|name|qty|price`), and the menu holds the same ten ids.
+
+Credentials were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle was never pressed, so the password is masked in every capture; no screenshot, log line or entry in `qa/live-smoke-record.txt` contains the username, the password or the web API key.
+
+### Observation (not a bug)
+
+The phone header carries the "Export these orders (CSV)" button, although `design/ReportsOrdersMobile.dc.html` shows no export control at that width. It is additive and takes nothing away from the brief (`CLAUDE.md` Phase IV 8 does not forbid it), so no bug is raised; the CSV case stays tablet-only, which is the conservative reading. If the export is meant to be available on the phone, the mobile mock-up should be updated to say so and `P4-14`/`P4L-08` can drop their skip.
+
+### Screenshots
+
+`qa/screenshots/live-p4-<project>-<screen>.png` for `project` ∈ {phone, tablet}:
+`login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-orders`, `reports-orders-detail`, `header-version`, `signed-out` — 20 files.

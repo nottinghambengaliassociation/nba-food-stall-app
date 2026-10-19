@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -12,6 +12,7 @@ Phase I prototype built 17 October 2026; shared login, sign out and the Cash rec
 | Food counter | [`#/kitchen`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/kitchen) | Food counter volunteers |
 | Reports, one day | [`#/reports`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports) | Organisers |
 | Reports, sales by day | [`#/reports/days`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/days) | Organisers |
+| Reports, orders | [`#/reports/orders`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/orders) | Organisers |
 
 Repo: https://github.com/nottinghambengaliassociation/nba-food-stall-app
 Firebase project: `nba-food-stall-9fec6`, Firestore `(default)` in `europe-west2` (London).
@@ -67,15 +68,23 @@ The till builds an order, takes a name to call out, takes cash or card, and send
 
 Reports give total sales, order count, items sold, average order, average wait, sales per item, orders per 30 minutes with the peak highlighted, the cash-versus-card split, and a CSV export with one row per order line. Cancelled orders are excluded from every figure.
 
-There are two report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
+There are three report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
 
-Every screen now shows the app version. The login card carries a line reading `Version 1.2.0 · build <7 characters> · updated <date>`, and every dark header carries a `v1.2.0` pill. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
+**Orders** lists a single day's orders one by one, which is the screen to open when somebody is standing in front of you asking what was in order A-041. Pick a day, search by order number or by name, and narrow by status or by how it was paid. Tap an order and you get everything about it: till, payment, when it was placed, how long it waited, the full Placed → Started → Ready → Collected timeline with the actual times, and every item with its quantity and price. On a phone the order opens full screen and the usual Back button returns you to the list. It updates itself live, so an order taken at the till appears while the screen is open. It is read-only: nothing on it changes an order, which makes it safe to hand to anyone who needs to look something up. Cancelled orders are listed, so you can see that an order existed and was cancelled, but they are left out of the total. Its CSV export covers whatever the filters are currently showing, named `nba-food-stall_orders_<day>.csv`, and that one does include the cancelled rows, with `cancelled` in the status column.
+
+Every screen now shows the app version. The login card carries a line reading `Version 1.3.0 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.0` pill. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
 
 ---
 
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**19 October 2026, v1.3.0 — the Orders screen.** Organisers get a third report screen, **Orders**, reached from the One day / Sales by day / Orders toggle at the top of any report. It lists a single day's orders one at a time rather than totalling them, so when a customer asks what was in order A-041 you can answer. Search by order number or name, narrow by status or payment, tap an order for its till, payment, timeline with real times, and every item with quantity and price. On a phone it opens full screen and the Back button returns to the list. It updates live, so an order taken at the till appears while the screen is open.
+
+It is read-only. Nothing on that screen changes an order: cancelling still happens at the cash counter and status changes still happen at the food counter, which makes Orders safe to hand to anyone who needs to look something up mid-service. Cancelled orders are listed so you can see they existed, but they are left out of the total. Its CSV covers whatever the filters are showing and, unlike the other two exports, includes the cancelled rows with `cancelled` in the status column, so filtering to Cancelled and exporting gives you something rather than an empty file.
+
+Nothing changed about how orders are stored, so there is nothing to do on any till beyond refreshing. Every screen now reads `v1.3.0`.
 
 **19 October 2026, v1.2.0 — Sales by day report, and the version on every screen.** Organisers get a second report screen, **Sales by day**, reached from the One day / Sales by day toggle at the top of either report. It covers a range of dates rather than one: totals across the range, a chart of sales per day with the best day picked out, a day-by-day table that can open any single day's report, and a grid of every item against every day. Only trading days appear and the range is capped at 31 days. It reads existing orders and changes nothing about how they are stored, so there is nothing to do on any till. Every screen also shows the app version now, on the login card and as a pill in each dark header, so you can tell at a glance whether a device is on the current build.
 
@@ -89,17 +98,18 @@ Newest first. The app updates itself when a device loads it, but a till left ope
 
 ## Test results
 
-Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one — a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
+Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one, for a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Phase IV took none against the app: the only thing the loop caught was the version bump, and four first-round failures that turned out to be defects in the new tests rather than in the screen. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
-| Unit (Vitest) | 228 | 228 | 0 |
-| E2E phone 390×844 (Playwright) | 124 | 124 | 0 |
-| E2E tablet 1280×800 (Playwright) | 125 | 125 | 0 |
-| Live checks (against the deployed site) | 20 | 20 | 0 |
-| **Total** | **497** | **497** | **0** |
+| Unit (Vitest) | 307 | 307 | 0 |
+| E2E, phone 390×844 and tablet 1280×800 (Playwright) | 286 | 286 | 0 |
+| Live checks, Phase IV (against the deployed site) | 23 | 23 | 0 |
+| **Total** | **616** | **616** | **0** |
 
-Also clean: zero axe accessibility violations on all six routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
+A further 62 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+
+Also clean: zero axe accessibility violations on all seven routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
 - Test plan: [`qa/test-plan.md`](qa/test-plan.md)
 - Bug log with the final status of every bug: [`qa/bugs.md`](qa/bugs.md)
@@ -111,6 +121,12 @@ To run the tests yourself: `npm install`, then `npm test`. Needs Java 21 for the
 ### Live smoke test
 
 Run against the deployed site, not the emulator, after each phase.
+
+**Phase IV (19 October 2026), 23 checks passed, 0 failed, read-only.** On the deployed build `064f0a8` at both viewports, with zero console errors: all seven routes load signed in and all six guarded ones bounce to the login screen signed out; the three report tabs read `One day | Sales by day | Orders` on a tablet and `One day | By day | Orders` on a phone; the Orders screen renders the live order with every field correct, filters by status, by payment and by search in either case, opens the detail with its full timeline and all eight item lines, and on a phone returns from the full-screen detail by both the "All orders" button and the browser Back button.
+
+Two of these were checked the hard way rather than the convenient way. The CSV was downloaded and parsed, not inferred from a 200: thirteen columns, eight data rows, every `lineTotal` equal to `qty × price`, the rows summing to the stored total. And the version labels were read through the rendered UI with the HTTP cache disabled, never by fetching `version.js` — fetching the file proves the deploy happened and says nothing about the labels, which are the thing being checked.
+
+**Nothing was written.** The run is bracketed by a before-and-after fingerprint: `orders` still holds its single document, byte-identical, and `menu` still holds the same ten ids. Every Firestore call in the spec is a REST GET, no tile was tapped and Send was never clicked.
 
 **Phase II (18 October 2026), 15 checks passed, 0 failed.** On both a phone and a tablet viewport, with **zero console errors** anywhere: the login screen renders the form rather than "Login not configured", so the CI secret step worked; `#/cash`, `#/kitchen` and `#/reports` all redirect to `#/login` with no session; a wrong password shows the error and creates no session; the real credentials sign in and land on `#/`; all four working routes load signed in with the pill reading `Online · synced`; and Sign out clears the session while preserving the till letter.
 
@@ -130,7 +146,9 @@ All test orders from both phases have been deleted, along with earlier hand-test
 
 ### Bugs found and fixed
 
-Five across both phases, all closed.
+Six across all phases, all closed.
+
+Phase IV found one, and it was the version bump rather than anything on the new screen: the app was built and tested at `1.2.0`, so every header pill and the login card would have gone live reading the previous version. The existing version suite could not catch it, because it reads the expected value from `package.json` itself and so agreed with the mistake. A case that asserts the Phase IV version as a literal was added, which is what failed, and it passed once the bump landed.
 
 Phase II found one real bug: the Cash received figure survived emptying the order panel, so a fresh order opened showing a stale "Change to give" from the previous customer. Fixed and re-verified at both sizes. A second was withdrawn rather than fixed, because the requirement changed underneath it.
 
@@ -161,6 +179,10 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 **Prices are edited in the Firebase console, not in the app.** There is no price-editing screen in Phase I.
 
 **Multi-day reporting is capped at 31 days** on the Sales by day screen. For longer periods, export each range's CSV and combine them in Google Sheets.
+
+**The Orders screen covers one day at a time.** There is no way to list orders across a date range; use Sales by day for that and open a single day from it.
+
+**The Orders CSV button appears on a phone, although the phone mock-up does not show one.** It works, and it is the export an organiser checking Reports on a phone would want, so it was kept rather than removed to match the drawing. It is the one Phase IV control the automated checks skip on a phone.
 
 **A fresh clone may fail to push** if the machine's keychain holds a different GitHub account. The fix is one repo-local command, in the note at the end of this file.
 
