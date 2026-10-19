@@ -1,7 +1,7 @@
 // App shell: header, storage banner, routing, shared settings.
 
 import { el, clear, setText } from './ui.js';
-import { currentRoute, startRouter, href } from './router.js';
+import { currentRoute, currentQuery, startRouter, href } from './router.js';
 import { start, status, seedMenuIfEmpty, onConnection } from './store.js';
 import { peekOrderNo, dayString } from './logic.js';
 import { mountLanding } from './landing.js';
@@ -10,6 +10,7 @@ import { mountCash } from './cash.js';
 import { mountKitchen } from './kitchen.js';
 import { mountReports } from './reports.js';
 import { mountReportsDays } from './reports-days.js';
+import { mountReportsOrders } from './reports-orders.js';
 import { createVersionPill } from './app-version.js';
 
 const TILL_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -20,7 +21,8 @@ const TITLES = {
   '/cash': 'Cash counter',
   '/kitchen': 'Food counter',
   '/reports': 'Reports',
-  '/reports/days': 'Reports'
+  '/reports/days': 'Reports',
+  '/reports/orders': 'Reports'
 };
 
 const settings = {
@@ -74,6 +76,11 @@ const ctx = {
 
 let nodes = {};
 let unmount = null;
+let mountedRoute = null;
+// A screen may ask to handle hash query changes itself (the orders report
+// keeps the selected order in the hash, so Back works) instead of being torn
+// down and rebuilt on every tap.
+let queryChangeHandler = null;
 
 function buildShell() {
   const root = document.getElementById('app');
@@ -180,8 +187,8 @@ function renderNav(route) {
       href: href(path),
       testid,
       text: label,
-      // The Reports link stays current on the Sales by day screen too.
-      'aria-current': (path === route || (path === '/reports' && route === '/reports/days')) ? 'page' : null
+      // The Reports link stays current on the other two report screens too.
+      'aria-current': (path === route || (path === '/reports' && route.startsWith('/reports'))) ? 'page' : null
     }));
   }
 }
@@ -191,6 +198,8 @@ function mountRoute(route) {
     try { unmount(); } catch (err) { console.error(err); }
   }
   unmount = null;
+  queryChangeHandler = null;
+  mountedRoute = null;
 
   // Route guard, both ways (CLAUDE.md "Login and sign out" 6).
   if (route !== '/login' && !hasSession()) {
@@ -219,7 +228,8 @@ function mountRoute(route) {
     ...ctx,
     headerLeft: nodes.slotLeft,
     headerRight: nodes.slotRight,
-    onSignedIn: () => { location.hash = '#/'; }
+    onSignedIn: () => { location.hash = '#/'; },
+    onQueryChange: (fn) => { queryChangeHandler = typeof fn === 'function' ? fn : null; }
   };
 
   if (route === '/login') unmount = mountLogin(nodes.outlet, screenCtx);
@@ -227,9 +237,25 @@ function mountRoute(route) {
   else if (route === '/kitchen') unmount = mountKitchen(nodes.outlet, screenCtx);
   else if (route === '/reports') unmount = mountReports(nodes.outlet, screenCtx);
   else if (route === '/reports/days') unmount = mountReportsDays(nodes.outlet, screenCtx);
+  else if (route === '/reports/orders') unmount = mountReportsOrders(nodes.outlet, screenCtx);
   else unmount = mountLanding(nodes.outlet, screenCtx);
 
+  mountedRoute = route;
   document.body.setAttribute('data-route', route);
+}
+
+/**
+ * Hash changed. Staying on the same screen with a different query (the orders
+ * report selecting an order) is handed to the screen; everything else is a
+ * fresh mount.
+ */
+function handleRoute(route) {
+  if (route === mountedRoute && queryChangeHandler) {
+    if (!hasSession()) { location.replace('#/login'); return; }
+    try { queryChangeHandler(currentQuery()); } catch (err) { console.error(err); }
+    return;
+  }
+  mountRoute(route);
 }
 
 async function boot() {
@@ -243,7 +269,7 @@ async function boot() {
     seedMenuIfEmpty().catch((err) => console.error('menu seed failed', err));
   }
 
-  startRouter(mountRoute);
+  startRouter(handleRoute);
   document.body.setAttribute('data-app-ready', 'true');
 }
 

@@ -692,3 +692,37 @@ Credentials were read at run time from the gitignored `.secrets/app-login.env`. 
 
 1. **`orders` still holds the QA smoke order `A-001` (2026-10-19, £40.00, collected).** It will appear in the one-day report for 19 Oct and in any range covering it, so the first real day's takings would be £40.00 over by eight items. QA is read-only and did not delete it: someone should remove that document in the Firebase console before trading, or accept and subtract it.
 2. **`settings/event` does not exist**, so the "This event" quick range is hidden — correct per `CLAUDE.md` Phase III 2, but it means organisers have no one-tap event range. If they want it, create `settings/event` in the Firebase console as `{name, from, to}` with `from`/`to` as `YYYY-MM-DD` strings; the button appears on the next load with no deploy.
+
+## Round P4 — Phase IV (Orders list and order detail), 2026-10-19
+
+`npm test` against the emulator, both projects. **No application bug found.** Every Phase IV requirement in `CLAUDE.md` passed on the first full run except four cases that were wrong in the tests themselves; those are corrected below per `CLAUDE.md` → Workflow 3 (*"If a test is wrong against the brief, Morpheus fixes the test and notes it"*). No entry here needs anything from Neo.
+
+### Tests corrected against the brief (no app change required)
+
+| Test | Problem | Correction |
+|---|---|---|
+| `P4-09` (both projects) | Asserted the detail's item rows read quantity-first (`/2.{0,3}Fuchka/`). `CLAUDE.md` Phase IV 6 orders the table **icon, name, qty, price, line total**, which is what the app renders ("Fuchka / Gol Gappa 2 £5.00 £10.00"). The test, not the app, had the columns the wrong way round. | Tablet now reads `order-detail-items` structurally and asserts each row's name, qty, price and line total plus the Total row and the per-line icons; phone keeps a text check. |
+| `P4-13` (phone) | Waited for the newly placed order on `[data-testid="orders-row-A-001"]`. `helpers.orderEntry` resolved its "row or card" choice **at call time**, before the live order existed, so on the phone it fell back to the tablet row id and could never match. | `orderEntry` now returns one locator over all four spellings, so it resolves whenever the element arrives. |
+| `P4-17` (phone) | Opened an order, then clicked a status filter. On the phone the detail is full screen (`CLAUDE.md` Phase IV 7), so the filter row is correctly hidden; the test was driving a control the design deliberately removes from that view. | Returns to the list before using a filter. |
+| `P4-U-07` CSV (unit) | Asserted the Orders export through `ordersToCsv` — the One day function, which the Export button never calls — and expected cancelled orders to be left out. `CLAUDE.md` Phase IV 8 exports "the orders currently shown", and Phase IV 5 shows cancelled orders; the settling case is filtering to Cancelled and exporting, where a header-only file would be plainly wrong. | Phase IV CSV cases now run through `exportOrdersCsv`, assert the cancelled row is exported with `cancelled` in the `status` column, assert the rows follow the list newest first, and keep one case on `ordersToCsv` asserting the One day and Sales by day exports still exclude cancelled, so the two functions cannot be collapsed back together. `P4-14` adds the same check on the real download. Recorded in `qa/test-plan.md` section 34.6. |
+
+### Result after the corrections
+
+Full suite green on both projects. Phase IV screenshots: `qa/screenshots/p4-{phone,tablet}-orders-{list,detail,empty}.png`, plus `{phone,tablet}-reports-orders-{empty,orders}.png` from the standard sweep.
+
+### BUG-8 | minor | every screen's header and the login card | status: **open**
+
+**Steps** Run `npm test`, or load any signed-in route and read the version pill (`qa/screenshots/p4-tablet-orders-list.png` shows it).
+**Expected** `CLAUDE.md` Phase IV 10: *"`package.json` version 1.3.0; the version label shows v1.3.0 after deploy"*, with `package.json` the single source of truth (Phase III part 2, 1).
+**Actual** `package.json` is still `1.2.0`, so `public/js/version.js` is generated as `APP_VERSION = "1.2.0"` and every header pill and the login version line read **v1.2.0** on a build that contains Phase IV.
+**Screenshot** `qa/screenshots/p4-tablet-orders-list.png` (header, top left: `Reports v1.2.0`).
+**Caught by** `P4-U-09` in `tests/unit/orders.test.js`, which fails until the bump. The `V-*` suite cannot catch this on its own: it reads the expected version out of `package.json`, so it agrees with whatever is there.
+**Fix** One line: `version` to `1.3.0` in `package.json`. Trinity's `scripts/write-version.mjs` then stamps it into `version.js` on the next local run and in CI, and the live `V-c` check after deploy will read `v1.3.0`.
+
+### Open bugs
+
+| Id | Severity | Screen | Status |
+|---|---|---|---|
+| BUG-8 | minor | version label, every screen | **open** — one-line version bump in `package.json` |
+
+No blocker and no major defect is open against Phase IV.

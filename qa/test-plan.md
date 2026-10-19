@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1/H2 + Phase III
+# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1/H2 + Phase III + Phase IV
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -10,7 +10,7 @@ Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design
 In scope:
 
 - Pure logic in `public/js/logic.js` (money, order numbers, Europe/London day string, change due, cash-received parsing and change calculation, report aggregation, CSV) — unit tested with Vitest.
-- The five routes `#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports` — end-to-end tested with Playwright against the Firestore emulator.
+- The routes `#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days` and `#/reports/orders` — end-to-end tested with Playwright against the Firestore emulator.
 - **Phase II Feature A** — login, session, route guard, Sign out in every header, the cash-counter discard confirm (sections 16).
 - **Phase II Feature B** — Cash received (optional): quick buttons, Other amount, the four display states, resets, that it never blocks sending, and that **nothing about it is persisted** (section 17).
 - Live data flow between two browser contexts (till → kitchen) via Firestore `onSnapshot`.
@@ -20,6 +20,7 @@ In scope:
 - **Hotfix H1 (18 Oct 2026)** — the ten-row menu, the four new icons, `stationOf` for retired ids, the eight-tile till and phone layout, and backwards compatibility of orders holding `samosa`/`straw` (section 20–23).
 - **Hotfix H2 (19 Oct 2026)** — cart line alignment (sections 24–26).
 - **Phase III (19 Oct 2026)** — the Sales by day report `#/reports/days`, the One day / Sales by day toggle, the range rules and the range CSV (sections 27–28), and the app version label on the login card and in every dark header (section 29).
+- **Phase IV (19 Oct 2026)** — the Orders list and order detail `#/reports/orders`, the third report tab, the filters, the live list, the detail panel and the orders CSV (sections 32–34).
 - Live smoke against `LIVE_URL`.
 
 Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
@@ -1075,3 +1076,182 @@ Run on 2026-10-19 against deploy `4534093` (Pages run 39189833432). **20/20 pass
 
 ### P3L screenshots
 `qa/screenshots/live-p3-<project>-<screen>.png` for both projects: `login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-open-day`, `header-version`, `signed-out`.
+
+---
+
+# Phase IV — Orders list and order detail (`#/reports/orders`, v1.3.0)
+
+Spec: `CLAUDE.md` → "Phase IV: Orders list and order detail", requirements 1–10; the orchestrator's Phase IV DOM contract; the mock-ups `design/ReportsOrders.dc.html` (tablet/desktop), `design/ReportsOrdersMobile.dc.html` (phone) and the third tab in `design/Reports.dc.html` and `design/ReportsByDay.dc.html`. **Read-only screen: it must write nothing.**
+
+| Req | What it says | Covered by |
+|---|---|---|
+| 1 | Third tab on every report screen, phone labels One day / By day / Orders, current filled ink | P4-01, P4-02 |
+| 2 | Day input (default today, `?day=`), search, status buttons, payment buttons (tablet only) | P4-03, P4-07, P4-U-02 |
+| 3 | `where("day","==",day)`, live `onSnapshot`, cancelled listed but out of the total | P4-08, P4-13, P4-U-02 |
+| 4 | Summary line, "(excludes n cancelled)" only when n > 0 | P4-06, P4-U-03 |
+| 5 | Tablet table: columns, newest first, pill colours, grey cancelled total, selected row, empty message | P4-04, P4-05, P4-08, P4-11, P4-U-01, P4-U-04, P4-U-05 |
+| 6 | Detail panel: fields, timeline (incl. the cancelled path), items, total, note, nothing-selected state, stacking under 1100 px | P4-09, P4-10, P4-11, P4-U-06 |
+| 7 | Phone cards, full-screen detail, "All orders" back and the browser back button | P4-04, P4-12 |
+| 8 | "Export these orders (CSV)": the filtered set, One day columns, `nba-food-stall_orders_<day>.csv` | P4-14, P4-U-07 |
+| 9 | Retired `samosa` / `straw` keep their original names and icons | P4-04, P4-14, P4-U-04, P4-U-07 |
+| 10 | `package.json` 1.3.0 and the version label reads v1.3.0 | **P4-U-09** pins the number itself; the existing `V-*` suite (`tests/e2e/version.spec.js`) then checks the label matches `package.json` on every screen, and `V-c` checks it live after deploy |
+
+## 32. Phase IV unit cases — `public/js/logic.js` (`P4-U-*`), `tests/unit/orders.test.js`
+
+### 32.1 The scripted day (hand-calculated)
+
+One trading day, every item £5. The same orders are used end to end (`helpers.ordersFixture`), pinned there to today's London date. 17 Oct 2026 is inside BST.
+
+| Order | Time | Name | Till | Pay | Status | Lines | Items | Total | Ready | Wait |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A-010 | 09:30 | Josh | A | cash | collected | 2× `samosa` (**retired**, carries `tendered: 2000`) | 2 | £10.00 | 09:34 | 4 min |
+| A-011 | 09:40 | Rina | A | card | collected | 1× `straw` (**retired**) | 1 | £5.00 | 09:43 | 3 min |
+| A-040 | 10:05 | Lucy | A | cash | collected | 2× Sweet Box, 1× Samosa | 3 | £15.00 | 10:09 | 4 min |
+| A-041 | 10:12 | Priya | A | cash | collected | 2× Fuchka, 1× Momo | 3 | £15.00 | 10:16 | 4 min |
+| B-017 | 10:20 | Tom | B | card | collected | 3× Fuchka | 3 | £15.00 | 10:25 | 5 min |
+| A-042 | 10:30 | Sam | A | card | ready | 1× Fuchka, 1× Choc Strawberry | 2 | £10.00 | 10:35 | 5 min |
+| A-043 | 10:40 | Meera | A | cash | preparing | 1× Choc Fountain, 1× Sweet Box | 2 | £10.00 | — | — |
+| B-019 | 10:50 | Ahmed | B | cash | new | 2× Momo, 1× Papri Chat | 3 | £15.00 | — | — |
+| A-044 | 10:55 | Guest | A | card | **cancelled** | 2× Samosa | 2 | £10.00 | — | — |
+| *A-900* | *12:00 **the day before*** | *Yesterday* | *A* | *cash* | *collected* | *1× Fuchka* | *1* | *£5.00* | *12:03* | *3 min* |
+
+Derived by hand:
+
+- Rows on today's list: **9** (the cancelled order is listed, A-900 is on another day).
+- Total shown: £15 + £15 + £15 + £10 + £10 + £15 + £10 + £5 = **£95.00**; the cancelled £10.00 is out.
+- Summary line with no filters: **`9 orders · £95.00 (excludes 1 cancelled)`**.
+- Newest first: A-044, B-019, A-043, A-042, B-017, A-041, A-040, A-011, A-010.
+- CSV with no filters: **14 rows** of order lines, the cancelled A-044's line included (see section 34.6); cash only: **9 rows**; Cancelled only: **1 row**.
+
+Filters, hand-calculated (rows newest first; total over the non-cancelled rows):
+
+| Filter | Rows | Total | Cancelled in view |
+|---|---|---|---|
+| none / All | all 9 | £95.00 | 1 |
+| New | B-019 | £15.00 | 0 |
+| Preparing | A-043 | £10.00 | 0 |
+| Ready | A-042 | £10.00 | 0 |
+| Collected | B-017, A-041, A-040, A-011, A-010 | £60.00 | 0 |
+| Cancelled | A-044 | **£0.00** | 1 |
+| Cash | B-019, A-043, A-041, A-040, A-010 | £65.00 | 0 |
+| Card | A-044, A-042, B-017, A-011 | £30.00 | 1 |
+| search `a-04` | A-044, A-043, A-042, A-041, A-040 | £50.00 | 1 |
+| search `priya` / `PRIYA` / `  priya  ` | A-041 | £15.00 | 0 |
+| search `b-0` | B-019, B-017 | £30.00 | 0 |
+| search `eer` | A-043 (Meera) | £10.00 | 0 |
+| search `zzz` | — | £0.00 | 0 |
+| Collected + Cash + `a-0` | A-041, A-040, A-010 | £40.00 | 0 |
+| Cancelled + Cash | — | £0.00 | 0 |
+
+### P4-U-00 The Phase IV logic API
+**Expected** `logic.js` exports the pure functions the screen is built from, under the names `.claude/agents/neo.md` fixes (`filterOrders`, `orderSummary`, `orderTimeline`, `orderWaitMinutes`) plus a summary-line function and a CSV file-name function. `logic.js` still imports nothing from Firebase.
+
+### P4-U-01 Newest first (`CLAUDE.md` Phase IV 5)
+**Steps** Shuffle the day into order-number order, then run it through the list's sort.
+**Expected** A-044, B-019, A-043, A-042, B-017, A-041, A-040, A-011, A-010. An order with no `createdAtMs` sorts last rather than throwing. The caller's array is never reordered in place (the screen is read-only).
+
+### P4-U-02 `filterOrders` (`CLAUDE.md` Phase IV 2, 3)
+**Steps** Every row of the filter table above, plus rubbish input (`null`, `[]`, no options at all).
+**Expected** Exactly the listed order numbers in the listed order. Search is a case-insensitive substring of **order number or name only** (searching `Fuchka`, an item name, matches nothing), trimmed before use, and a blank search matches everything. Cancelled orders are listed, never hidden. Nothing throws. A single day's query never mixes in A-900.
+
+### P4-U-03 The summary line (`CLAUDE.md` Phase IV 4)
+**Expected** `9 orders · £95.00 (excludes 1 cancelled)` unfiltered; `5 orders · £60.00` with Collected, **with no "(excludes …)" clause at all** when nothing in view is cancelled; `1 orders · £0.00 (excludes 1 cancelled)` with Cancelled — the row is counted, its money is not. Every filter row of the table is checked for count, total and clause. An empty list reads `0 orders · £0.00`, never `NaN`.
+
+### P4-U-04 `orderSummary`: the Items column (`CLAUDE.md` Phase IV 5, 9)
+**Expected** `2× Fuchka, 1× Momo` — menu **short** names, a `×` (U+00D7), `, ` between lines, no long names ("Gol Gappa" never appears). Retired ids keep their own identity: the old `samosa` line reads as a **Sweets Box**, never as the new `Samosa` item; the old `straw` line still reads as a strawberry item. An id that is in no menu at all falls back to the name stored on the order line. An order with no lines gives `''`, and `null`/`{}` never throw.
+
+### P4-U-05 Wait, placed to ready (`CLAUDE.md` Phase IV 5)
+**Expected** 4, 3, 4, 4, 5, 5 minutes for A-010, A-011, A-040, A-041, B-017, A-042; `null` (rendered `—`) for A-043, B-019 and the cancelled A-044. A half-written order (ready before placed, no timestamps at all) returns `null`, never `NaN`, and never throws.
+
+### P4-U-06 `orderTimeline` (`CLAUDE.md` Phase IV 6)
+**Expected** A collected order gives Placed → Started → Ready → Collected with `10:12 / 10:13 / 10:16 / 10:17`, all four reached. A preparing order gives the same four steps with Ready and Collected unreached and shown as `—`. A new order has only Placed reached. **A cancelled order gives exactly Placed → Cancelled** (`10:55 / 10:56`) and no other step. Nothing throws on a half-written order.
+
+### P4-U-07 The orders CSV (`CLAUDE.md` Phase IV 8, 9)
+**Expected** File name `nba-food-stall_orders_2026-10-17.csv`. Header exactly the thirteen One day columns in the One day order. One row per line of **the orders currently shown** — 14 rows unfiltered, 9 with Cash, **1 with Cancelled** — every row 13 fields with `lineTotal = qty × price`. The cancelled A-044 is exported, with `cancelled` in the `status` column (section 34.6). The rows follow the list, newest first. A view with no rows gives a header and nothing else. The One day and Sales by day exports (`ordersToCsv` / `rangeToCsv`) are re-checked here and still leave cancelled orders out. Retired items are written under the name stored on the line (`Sweets Box Samosa / Shingara`). The Phase I `tendered` value never appears, as a column or as a value. A name containing a comma is quoted. Rubbish input gives a header, not an exception.
+
+### P4-U-08 Read-only
+**Expected** Filtering, summarising, rendering a timeline, computing a wait and exporting the CSV leave every order object byte-identical.
+
+### P4-U-09 The Phase IV version (`CLAUDE.md` Phase IV 10)
+**Expected** `package.json` `version` is `1.3.0`; every version label follows from it.
+
+## 33. Phase IV end-to-end cases — `#/reports/orders` (`P4-*`, both projects), `tests/e2e/reports-orders.spec.js`
+
+Each test clears the emulator and seeds the scripted day above (`seedOrdersDay`), pinned to today's London date so the screen's default day covers it.
+
+### P4-01 The third tab is on all three report screens (`CLAUDE.md` Phase IV 1)
+**Steps** Load `#/reports`, `#/reports/days` and `#/reports/orders`.
+**Expected** The Orders tab is present on all three, at least 48 px tall, and the three labels read **One day / Sales by day / Orders** on tablet and **One day / By day / Orders** on phone.
+
+### P4-02 The current tab is filled ink, and every tab navigates (`CLAUDE.md` Phase IV 1)
+**Expected** On `#/reports/orders` the Orders pill is `#1C1917` and carries `aria-current="page"`; the other two are not filled. Orders → One day → Orders → Sales by day → Orders all navigate and render.
+
+### P4-03 The day (`CLAUDE.md` Phase IV 2)
+**Expected** `orders-day` is a `date` input defaulting to today (Europe/London) and yesterday's A-900 is not listed. `#/reports/orders?day=<yesterday>` loads directly, sets the input to that day and lists exactly A-900 with `1 orders · £5.00`. Typing today's date back into the input restores the nine rows.
+
+### P4-04 The list (`CLAUDE.md` Phase IV 5, 7, 9)
+**Expected** Rows in the newest-first order above. Tablet: for every order the eight columns read exactly the hand-calculated Order, Time, Name, Items, Total, Pay, Status and Wait of the table in 32.1 (`—` for the two orders that never went ready); the Order cell is a real `<button>` with an `aria-label` naming the order. Phone: each card carries the number, the name, the status, the items and `HH:MM · Cash · till A`, plus the total. Retired lines (A-010, A-011) show their own names, never the new items'.
+
+### P4-05 Status pill colours (`CLAUDE.md` Phase IV 5)
+**Expected** New `#FDE68A`, Preparing `#BFDBFE`, Ready `#0F766E` with white text, Collected `#E7E5E4`, Cancelled white with a `#B91C1C` border and `#B91C1C` text — on every row (tablet) or card (phone).
+
+### P4-06 The summary line (`CLAUDE.md` Phase IV 4)
+**Expected** `9 orders · £95.00 (excludes 1 cancelled)` to start; after each status filter and (tablet) each payment filter, the count, the total and the presence or absence of the "(excludes …)" clause match the filter table in 32.1. Cancelled-only reads `£0.00` with the clause.
+
+### P4-07 Filters, search and the empty state (`CLAUDE.md` Phase IV 2, 5)
+**Expected** Each status button leaves exactly its hand-calculated rows and is the one with `aria-pressed="true"`. Tablet: Cash and Card do the same. **Phone has no payment filter at all** (`orders-pay-cash` has zero matches). Search matches order number or name, case-insensitively and trimmed; `zzz` shows `orders-empty` reading exactly "No orders match these filters.". Status + payment + search together give A-041, A-040, A-010 and `£40.00`.
+
+### P4-08 Cancelled: listed, not counted (`CLAUDE.md` Phase IV 3, 5)
+**Expected** A-044 has a row; the summary still reads £95.00 and never £105.00; on tablet its Total cell reads £10.00 in `#78716C`.
+
+### P4-09 The detail panel (`CLAUDE.md` Phase IV 6)
+**Expected** Before anything is selected, tablet shows "Select an order to see its items." Opening A-041 shows the number, name, Collected pill, Till A, Payment Cash, Placed (with the time 10:12 and, on tablet, the day), Wait 4 min, a Placed → Started → Ready → Collected timeline reading 10:12 / 10:13 / 10:16 / 10:17 with no Cancelled step, the two item lines with their line totals, a £15.00 total, and (tablet) the note verbatim: "Read-only. Orders are cancelled from the cash counter; status changes happen on the food counter. Cancelled orders are listed but excluded from every total."
+
+### P4-10 Unreached steps and the cancelled path (`CLAUDE.md` Phase IV 6)
+**Expected** A-043 (preparing) shows Placed 10:40, Started 10:42, Ready `—`, Collected `—`, Wait `—`. A-044 shows **only** Placed 10:55 → Cancelled 10:56; `order-step-started`, `-ready` and `-collected` do not exist for it.
+
+### P4-11 Tablet layout (`CLAUDE.md` Phase IV 5, 6)
+**Expected** The selected row is shaded `#FEF3C7` and no other row is. At 1280 px the detail panel sits to the right of the list; resized to 1000 px it stacks underneath.
+
+### P4-12 Phone: detail and both ways back (`CLAUDE.md` Phase IV 7)
+**Expected** Tapping a card hides the list and opens the full-screen detail. The "All orders" button (at least 44 px) returns to the list; opening another order and pressing the **browser back button** also returns to the list, with all nine rows still there.
+
+### P4-13 Live updates (`CLAUDE.md` Phase IV 3)
+**Steps** With the Orders screen open, a second browser context takes B-019 from New to Preparing on `#/kitchen`, then places a new £5.00 cash order on `#/cash`.
+**Expected** B-019's row turns Preparing and the new order appears, both without a reload; the summary becomes `10 orders · £100.00 (excludes 1 cancelled)`.
+
+### P4-14 Export these orders (CSV) (`CLAUDE.md` Phase IV 8, 9)
+**Expected** File name `nba-food-stall_orders_<today>.csv`; the thirteen One day columns in the One day order; **14 rows** in the list's own newest-first order, all on today's day, none from yesterday, each with `lineTotal = qty × price`; the cancelled A-044's line is there with `cancelled` in the `status` column; `tendered` nowhere; A-010's item reads "Sweets Box Samosa / Shingara". Filtering to Cash and exporting again gives 9 rows, all `cash`; filtering to **Cancelled** and exporting gives the header and **one row**, not an empty file. **Phone is skipped**: `design/ReportsOrdersMobile.dc.html` carries no export control.
+
+### P4-15 Read-only (`CLAUDE.md` Phase IV, heading)
+**Steps** Record a fingerprint of `orders`, then filter, search and open a detail with every request to the emulator watched.
+**Expected** No write request (a POST/PATCH/PUT/DELETE carrying a document write) leaves the page, the fingerprint is unchanged and the collection still holds ten documents.
+
+### P4-16 Layout and touch targets
+**Expected** Every button, link, input and select in `main` is at least 44 px tall; the three report tabs at least 48 px; at 360 px wide the document does not scroll sideways.
+
+### P4-17 Console
+**Expected** Loading the list, opening a detail, switching the status filter and searching for nothing produce no application console error.
+
+### P4-18 Accessibility
+**Expected** `@axe-core/playwright` finds zero serious or critical violations on both viewports, both in the list state and with an order open.
+
+### P4-19 Screenshots
+`qa/screenshots/p4-<project>-orders-list.png`, `-detail.png` and `-empty.png` for both projects. The plain empty-day and with-orders shots of the route also come from `tests/e2e/screenshots.spec.js` as `<project>-reports-orders-empty.png` and `<project>-reports-orders-orders.png`.
+
+### P4-20 A retired item keeps its name and icon in the detail (`CLAUDE.md` Phase IV 9)
+**Steps** Open A-010, whose two lines are the retired `samosa`.
+**Expected** The panel names it as a Sweets Box, never as the live `Samosa` item; at least one inline SVG icon is drawn on the item lines; where the lines carry per-item test ids, the retired id is the one used and `order-line-samosa_only` is absent.
+
+## 34. Phase IV deliberate readings of the brief
+
+1. **Two names exist for five elements.** The orchestrator's DOM contract says `orders-row-<no>`, `orders-open-<no>`, `orders-back`, `export-orders-csv`, `report-view-orders`; `.claude/agents/neo.md` says `order-row-<no>`, `order-open-<no>`, `order-back`, `orders-export-csv`, `report-view-orders`. The helpers try the contract name first and the `neo.md` name second, so the tests assert the brief rather than one spelling. Neither document is "the app", so this is not a bug.
+2. **Where the sort lives is not specified.** `CLAUDE.md` Phase IV 5 fixes the *order on screen*, not the function that produces it. The unit cases compose `sortOrdersNewestFirst(filterOrders(...))` when `logic.js` exports a sort, and assert the composed result; the e2e cases read the rendered order, which is the real requirement.
+3. **The summary-line and CSV-file-name functions are resolved by name list.** No contract names them. The test fails with the list of names it tried, so a rename is a one-line fix rather than a mystery.
+4. **"<n> orders" is not forced into a singular.** Both mock-ups render `rows.length + ' orders'`, so `1 orders` is what the design does; the tests accept `1 order` or `1 orders` and pin everything else exactly.
+5. **The money format is not grouped below £1,000.** The fixture keeps every figure under £1,000, where `£95.00` and `£95.00` are the same string either way, so the tests do not accidentally pin a thousands separator the brief never asks for.
+6. **The Orders CSV includes cancelled orders; the other two exports still don't.** `CLAUDE.md` Phase IV 8 exports "the orders currently shown (after filters)", and a cancelled order *is* shown: Phase IV 5 lists it and Phase IV 4 keeps it out of the **total** only. The `status` column exists precisely so an exported row can read `cancelled`. The settling case is the one a reader would try: filter Status to Cancelled and export — a header with no rows would be plainly wrong. So the Orders export is every row on screen, cancelled included, in the list's newest-first order. This **deliberately differs** from the One day (`Reports` 6) and Sales by day (Phase III 9) exports, which follow `Reports` 2 ("Cancelled orders excluded everywhere") and must not change; `P4-U-07` asserts both behaviours side by side so neither can drift into the other. ("Same columns as the One day CSV" is about the columns, which are identical.)
+7. **No export button on the phone.** `design/ReportsOrdersMobile.dc.html` has no export control and `CLAUDE.md` Phase IV 8 does not require one at that width, so P4-14 runs on tablet only.
+8. **Retired names are pinned where they are unambiguous.** `straw`'s short name (`Choc Strawberry`) is identical to the live `choc_strawberry`'s, so on screen the two cannot be told apart by text; the identity of a retired line is pinned instead in the CSV, which carries the name stored on the order line, and by `samosa` (short `Sweets Box`) never rendering as the new `Samosa`.
+9. **The version bump (requirement 10) needs a case of its own.** The `V-*` suite deliberately reads the expected version out of `package.json` rather than a literal, so it agrees with whatever number is there and can never catch a missed bump. `P4-U-09` therefore asserts `package.json` is on `1.3.0` — the one number `CLAUDE.md` Phase IV 10 states outright. It is the only Phase IV case failing at the end of this round (`BUG-8`).
+10. **A-900 is seeded on the day before** so that "the same single-field `day ==` query" is proved by a day that *has* data to leak, not by an empty neighbour.

@@ -32,12 +32,12 @@ button{font-family:inherit;cursor:pointer}
 <input id="mname" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Priya" autocomplete="off" style="height: 48px; box-sizing: border-box; padding: 0 14px; font-size: 21px; font-family: inherit; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
 </div>
 
-<section aria-label="Menu" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<section aria-label="Menu" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
 <sc-for list="{{tiles}}" as="item" hint-placeholder-count="6">
-<div style="position: relative; height: 100px">
+<div style="position: relative; height: 92px">
 <button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="width: 100%; height: 100%; padding: 10px 8px; border-radius: 18px; border: 3px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center">
-<dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 44 }}" hint-size="44px,44px"></dc-import>
-<span style="font-size: 15px; line-height: 18px; font-weight: 700">{{item.short}}</span>
+<dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 36 }}" hint-size="36px,36px"></dc-import>
+<span style="font-size: 14px; line-height: 16px; font-weight: 700">{{item.short}}</span>
 </button>
 <sc-if value="{{item.hasQty}}" hint-placeholder-val="{{ false }}">
 <span style="position: absolute; top: 8px; right: 8px; min-width: 36px; height: 36px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 19px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none">{{item.qty}}</span>
@@ -85,15 +85,17 @@ button{font-family:inherit;cursor:pointer}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { cart: { chat: 1, straw: 2 }, name: 'Josh', pay: 'cash', tendered: 2000, other: '', seq: 44, toast: '' };
+    this.state = { cart: { chat: 1, choc_strawberry: 2 }, name: 'Josh', pay: 'cash', tendered: 2000, other: '', seq: 44, toast: '' };
   }
   renderVals() {
     const MENU = [
       { id: 'fuchka', name: 'Fuchka / Gol Gappa', short: 'Fuchka', bg: '#FDE68A', price: 500 },
       { id: 'momo', name: 'Momo', short: 'Momo', bg: '#BFDBFE', price: 500 },
       { id: 'chat', name: 'Papri Chat', short: 'Papri Chat', bg: '#FECACA', price: 500 },
-      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', short: 'Sweets Box', bg: '#FED7AA', price: 500 },
-      { id: 'straw', name: 'Choc Strawberry & Marshmallow (V)', short: 'Choc Strawberry', bg: '#E9D5FF', price: 500 },
+      { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', bg: '#FED7AA', price: 500 },
+      { id: 'samosa_only', name: 'Samosa', short: 'Samosa', bg: '#D9F99D', price: 500 },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', bg: '#E9D5FF', price: 500 },
+      { id: 'marshmallow', name: 'Marshmallow (V)', short: 'Marshmallow', bg: '#FBCFE8', price: 500 },
       { id: 'fountain', name: 'Chocolate Fountain', short: 'Choc Fountain', bg: '#E7D3BF', price: 500 }
     ];
     const s = this.state;

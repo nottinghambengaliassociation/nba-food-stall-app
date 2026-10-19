@@ -68,7 +68,11 @@ Never create the repo under any other owner.
 
 Write `scripts/menu-sync.mjs` per CLAUDE.md "Hotfix H1". Run it against the emulator for Morpheus first. After the hotfix deploy is green, run it once against the live project (config from the gitignored `public/js/firebase-config.js`) and record what it created, retired or reported in HANDOVER.md. It never deletes and never overwrites a value that differs.
 
-## Phase III: app version
+## Phase IV
+
+Set `package.json` `version` to `1.3.0` before committing. Nothing else changes for the platform.
+
+## Phase III: app version (done)
 
 1. Set `package.json` `version` to `1.2.0`.
 2. Write `scripts/write-version.mjs` per CLAUDE.md "App version" (local: `git rev-parse --short HEAD`, `-dirty` if the tree is dirty; CI: `GITHUB_SHA`). Add `public/js/version.js` to `.gitignore`. Run it locally before Morpheus's e2e run.

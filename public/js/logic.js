@@ -431,6 +431,35 @@ function isoOrBlank(ms) {
   return new Date(n).toISOString();
 }
 
+/** The CSV lines for one order: one row per order line, already escaped. */
+function csvRowsForOrder(o) {
+  const items = Array.isArray(o.items) ? o.items : [];
+  const createdAt = isoOrBlank(o.createdAtMs);
+  const readyAt = isoOrBlank(o.readyAtMs);
+  const waitSeconds = (Number(o.readyAtMs) && Number(o.createdAtMs) && Number(o.readyAtMs) >= Number(o.createdAtMs))
+    ? String(Math.round((Number(o.readyAtMs) - Number(o.createdAtMs)) / 1000))
+    : '';
+  return items.map((line) => {
+    const qty = Math.round(Number(line && line.qty) || 0);
+    const price = Math.round(Number(line && line.price) || 0);
+    return [
+      o.day || '',
+      o.orderNo || '',
+      o.till || '',
+      o.name || '',
+      (line && line.name) || (line && line.id) || '',
+      qty,
+      price,
+      qty * price,
+      o.payment || '',
+      o.status || '',
+      createdAt,
+      readyAt,
+      waitSeconds
+    ].map(csvEscape).join(',');
+  });
+}
+
 /**
  * One CSV row per order line. Cancelled orders are excluded, as everywhere else in reports.
  * Money columns stay in integer pence.
@@ -442,33 +471,7 @@ export function ordersToCsv(orders) {
     return d || String(a.orderNo || '').localeCompare(String(b.orderNo || ''));
   });
 
-  for (const o of live) {
-    const items = Array.isArray(o.items) ? o.items : [];
-    const createdAt = isoOrBlank(o.createdAtMs);
-    const readyAt = isoOrBlank(o.readyAtMs);
-    const waitSeconds = (Number(o.readyAtMs) && Number(o.createdAtMs) && Number(o.readyAtMs) >= Number(o.createdAtMs))
-      ? String(Math.round((Number(o.readyAtMs) - Number(o.createdAtMs)) / 1000))
-      : '';
-    for (const line of items) {
-      const qty = Math.round(Number(line && line.qty) || 0);
-      const price = Math.round(Number(line && line.price) || 0);
-      rows.push([
-        o.day || '',
-        o.orderNo || '',
-        o.till || '',
-        o.name || '',
-        (line && line.name) || (line && line.id) || '',
-        qty,
-        price,
-        qty * price,
-        o.payment || '',
-        o.status || '',
-        createdAt,
-        readyAt,
-        waitSeconds
-      ].map(csvEscape).join(','));
-    }
-  }
+  for (const o of live) rows.push(...csvRowsForOrder(o));
   return rows.join('\n');
 }
 
@@ -782,3 +785,198 @@ export async function sha256Hex(text) {
 
 /** Alias kept because the brief names the parser `parseAmount`. */
 export const parseAmount = parseAmountToPence;
+
+/* ------------------------------------ Phase IV: orders list and detail */
+//
+// Read-only helpers for #/reports/orders. Cancelled orders are *listed* here
+// (unlike everywhere else in reports) but never counted in the total.
+
+export const ORDER_STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'new', label: 'New' },
+  { key: 'preparing', label: 'Preparing' },
+  { key: 'ready', label: 'Ready' },
+  { key: 'collected', label: 'Collected' },
+  { key: 'cancelled', label: 'Cancelled' }
+];
+
+export const ORDER_PAY_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'cash', label: 'Cash' },
+  { key: 'card', label: 'Card' }
+];
+
+export const STATUS_LABELS = {
+  new: 'New',
+  preparing: 'Preparing',
+  ready: 'Ready',
+  collected: 'Collected',
+  cancelled: 'Cancelled'
+};
+
+/** "Preparing" for a stored status; unknown statuses fall back to "New". */
+export function statusLabel(status) {
+  return STATUS_LABELS[status] || STATUS_LABELS.new;
+}
+
+/** "Cash" / "Card"; anything unset is cash, as the till writes it. */
+export function paymentLabel(payment) {
+  return payment === 'card' ? 'Card' : 'Cash';
+}
+
+const MENU_BY_ID = MENU.reduce((acc, m) => { acc[m.id] = m; return acc; }, {});
+
+/**
+ * The short name for one order line: the menu's short name when the id is
+ * known (retired ids included, so old orders keep their original wording),
+ * then the name stored on the line, then the raw id.
+ */
+export function lineShortName(line) {
+  const id = line && line.id;
+  const seed = id ? MENU_BY_ID[id] : null;
+  return (seed && seed.short) || (line && line.name) || id || '';
+}
+
+/** The full name for one order line, for the detail panel. */
+export function lineFullName(line) {
+  const id = line && line.id;
+  const seed = id ? MENU_BY_ID[id] : null;
+  return (line && line.name) || (seed && seed.name) || id || '';
+}
+
+/**
+ * When the order was placed, in epoch ms. Orders carry createdAtMs; the
+ * Firestore serverTimestamp in createdAt is the fallback for anything odd.
+ */
+export function orderTimeMs(order) {
+  const ms = Number(order && order.createdAtMs);
+  if (Number.isFinite(ms) && ms > 0) return ms;
+  const stamp = order && order.createdAt;
+  if (stamp && typeof stamp.toMillis === 'function') return stamp.toMillis();
+  if (stamp && Number.isFinite(Number(stamp.seconds))) return Number(stamp.seconds) * 1000;
+  return 0;
+}
+
+/** "15:02", Europe/London, for the Time column; "—" when there is no stamp. */
+export function formatClock(ms) {
+  const n = Number(ms);
+  return Number.isFinite(n) && n > 0 ? hhmm(londonMinutes(n)) : '—';
+}
+
+/** The order list runs newest first (CLAUDE.md Phase IV 5). */
+export function sortOrdersNewestFirst(orders) {
+  return (Array.isArray(orders) ? orders.filter(Boolean) : []).slice().sort((a, b) => {
+    const d = orderTimeMs(b) - orderTimeMs(a);
+    return d || String(b.orderNo || '').localeCompare(String(a.orderNo || ''));
+  });
+}
+
+/** "2× Fuchka, 1× Momo" from an order's lines, using the menu short names. */
+export function orderSummary(order) {
+  const items = Array.isArray(order && order.items) ? order.items : [];
+  return items
+    .filter((line) => Math.round(Number(line && line.qty) || 0) > 0)
+    .map((line) => `${Math.round(Number(line.qty) || 0)}× ${lineShortName(line)}`)
+    .join(', ');
+}
+
+/** Whole minutes from placed to ready; null when the order never went ready. */
+export function orderWaitMinutes(order) {
+  const placed = Number(order && order.createdAtMs);
+  const ready = Number(order && order.readyAtMs);
+  if (!Number.isFinite(placed) || !placed || !Number.isFinite(ready) || !ready) return null;
+  if (ready < placed) return null;
+  return Math.round((ready - placed) / 60000);
+}
+
+/** "4 min" or "—" for the Wait column. */
+export function orderWaitText(order) {
+  const mins = orderWaitMinutes(order);
+  return mins === null ? '—' : `${mins} min`;
+}
+
+/**
+ * Placed → Started → Ready → Collected, or Placed → Cancelled.
+ * Steps that were never reached keep a "—" time so the panel shows the whole
+ * journey either way (CLAUDE.md Phase IV 6).
+ */
+export function orderTimeline(order) {
+  const o = order || {};
+  const step = (key, label, ms) => {
+    const n = Number(ms);
+    const reached = Number.isFinite(n) && n > 0;
+    return { key, label, ms: reached ? n : null, time: reached ? formatClock(n) : '—', reached };
+  };
+  if (o.status === 'cancelled') {
+    return [step('placed', 'Placed', orderTimeMs(o)), step('cancelled', 'Cancelled', o.cancelledAtMs)];
+  }
+  return [
+    step('placed', 'Placed', orderTimeMs(o)),
+    step('started', 'Started', o.startedAtMs),
+    step('ready', 'Ready', o.readyAtMs),
+    step('collected', 'Collected', o.collectedAtMs)
+  ];
+}
+
+/**
+ * The orders list filters: status, payment and a free-text search over the
+ * order number or the name (trimmed, case-insensitive). Cancelled orders pass
+ * the filters like any other; they are only left out of the money total.
+ */
+export function filterOrders(orders, options = {}) {
+  const status = options.status || 'all';
+  const pay = options.pay || options.payment || 'all';
+  const q = String(options.q === null || options.q === undefined ? '' : options.q).trim().toLowerCase();
+
+  return (Array.isArray(orders) ? orders.filter(Boolean) : []).filter((o) => {
+    if (status !== 'all' && (o.status || 'new') !== status) return false;
+    if (pay !== 'all' && (o.payment === 'card' ? 'card' : 'cash') !== pay) return false;
+    if (!q) return true;
+    const no = String(o.orderNo || '').toLowerCase();
+    const name = String(o.name || '').toLowerCase();
+    return no.includes(q) || name.includes(q);
+  });
+}
+
+/** Total of an order in pence: the stored total, or the lines when it is missing. */
+export function orderAmount(order) {
+  const total = Number(order && order.total);
+  return Number.isFinite(total) ? Math.round(total) : orderTotal(order && order.items);
+}
+
+/**
+ * The line above the list: "<n> orders · £<total>", plus "(excludes <c>
+ * cancelled)" when any of the rows are cancelled (CLAUDE.md Phase IV 4).
+ * Everything the screen shows comes from here, phone and tablet alike.
+ */
+export function summariseOrders(orders) {
+  const rows = Array.isArray(orders) ? orders.filter(Boolean) : [];
+  const cancelled = rows.filter(isCancelled).length;
+  const total = rows.filter((o) => !isCancelled(o)).reduce((sum, o) => sum + orderAmount(o), 0);
+  const text = `${rows.length} orders · ${formatPence(total)}`
+    + (cancelled ? ` (excludes ${cancelled} cancelled)` : '');
+  return { count: rows.length, total, cancelled, text };
+}
+
+/** Just the text of the summary line. */
+export function ordersSummaryText(orders) {
+  return summariseOrders(orders).text;
+}
+
+/**
+ * CSV of the orders currently on the screen (CLAUDE.md Phase IV 8): the same
+ * thirteen columns as the One day export, over the filtered rows and in the
+ * order they are listed. Cancelled orders are shown on this screen, so they
+ * are exported too, with "cancelled" in the status column; the One day and
+ * Sales by day exports keep leaving them out.
+ */
+export function exportOrdersCsv(orders) {
+  const rows = [CSV_HEADER.join(',')];
+  for (const o of (Array.isArray(orders) ? orders.filter(Boolean) : [])) rows.push(...csvRowsForOrder(o));
+  return rows.join('\n');
+}
+
+/** "nba-food-stall_orders_2026-10-17.csv" */
+export function ordersCsvFilename(day) {
+  return `nba-food-stall_orders_${day}.csv`;
+}

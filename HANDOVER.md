@@ -158,11 +158,9 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 **Cash received is not recorded.** It is a calculator for the volunteer at the till, so the amount handed over and the change given are not saved to the order and are not in the CSV. If you want to reconcile the cash tin at the end of the day, the CSV tells you what each cash order *should* have taken, not what was actually handed over.
 
-**`CLAUDE.md` is out of step on this point.** The brief still describes `tendered` and `changeGiven` as stored fields with two extra CSV columns. That was changed by decision during the Phase II build and the brief was not re-edited. The app and this file are correct; `DECISIONS.md` records why.
-
 **Prices are edited in the Firebase console, not in the app.** There is no price-editing screen in Phase I.
 
-**Reports cover one day at a time.** There is no date range, and no multi-day totals.
+**Multi-day reporting is capped at 31 days** on the Sales by day screen. For longer periods, export each range's CSV and combine them in Google Sheets.
 
 **A fresh clone may fail to push** if the machine's keychain holds a different GitHub account. The fix is one repo-local command, in the note at the end of this file.
 

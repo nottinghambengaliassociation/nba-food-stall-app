@@ -45,6 +45,7 @@ One static single-page app, a shared login, three working screens, shared data i
 | `#/kitchen` | Food counter: New → Preparing → Ready → Collected | Food counter volunteers (tablet or phone) |
 | `#/reports` | One day: daily totals, per item, peak demand, cash vs card, CSV export | Organisers |
 | `#/reports/days` | Phase III. Sales by day across a date range | Organisers |
+| `#/reports/orders` | Phase IV. List a day's orders and view each order's items | Organisers |
 | `#/` | Landing page after sign-in: three big buttons to the above, till letter setting | Everyone |
 
 ### Menu (seed into Firestore on first load if `menu` is empty)
@@ -158,7 +159,7 @@ The fix is **already in the working tree, uncommitted**: `public/css/app.css`, `
 4. Morpheus: read-only live check of `#/cash` with items in the cart, both viewports, screenshot `qa/screenshots/live-h2-cart-*.png`. Place no orders.
 5. Add a line to `HANDOVER.md` under "What changed". Remind volunteers to refresh open tills.
 
-### Phase III: Sales by day report
+### Phase III: Sales by day report (shipped 19 Oct 2026 as v1.2.0, don't rebuild)
 Mock-ups: `design/ReportsByDay.dc.html` and the One day / Sales by day toggle in `design/Reports.dc.html`. Read-only: no change to how orders are stored.
 
 1. Toggle at the top of both report screens: "One day" (`#/reports`) and "Sales by day" (`#/reports/days`), pill buttons at least 48 px, current one filled ink.
@@ -172,7 +173,7 @@ Mock-ups: `design/ReportsByDay.dc.html` and the One day / Sales by day toggle in
 9. "Export CSV for Sheets" on this screen exports every order line in the range, same columns as the One day CSV, file name `nba-food-stall_<from>_<to>.csv`.
 10. Some Phase I orders carry a `tendered` field and newer ones don't. Ignore it: it's not used anywhere in this report or the CSV.
 
-### Phase III (part 2): App version on login and headers
+### Phase III (part 2): App version on login and headers (shipped 19 Oct 2026 as v1.2.0)
 Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the `v1.2.0` label in the header of every other mock-up. Nothing secret is involved.
 
 | Version | What |
@@ -181,7 +182,8 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 | 1.1.0 | Phase II: login, sign out, Cash received calculator (18 Oct) |
 | 1.1.1 | Hotfix H1: menu split into eight items (19 Oct) |
 | 1.1.2 | Hotfix H2: cart line alignment (19 Oct) |
-| **1.2.0** | **Phase III: Sales by day report and app version (this run)** |
+| 1.2.0 | Phase III: Sales by day report and app version (19 Oct, live) |
+| **1.3.0** | **Phase IV: Orders list and order detail in Reports (next run)** |
 
 1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
 2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
@@ -189,6 +191,20 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 4. Login screen (tablet and phone): one line at the bottom of the card, always visible (before and after sign-in): "Version 1.2.0 · build a1b2c3d · updated 19 Oct 2026". 13 px, #78716C, centred. On phone it sits at the bottom of the screen.
 5. Every dark header (landing, cash counter, food counter, both reports), 700 px and wider: an outlined pill right after the screen title, text `v1.2.0`, 13 px bold, #D6D3D1 text, 1 px #57534E border, fully rounded. Below 700 px: `v1.2.0` in 12 px bold #A8A29E under the title, so it never squeezes the header buttons.
 6. Both carry `title` and `aria-label` "Version 1.2.0, build a1b2c3d, updated 19 Oct 2026". Test ids: `login-version`, `app-version`.
+
+### Phase IV: Orders list and order detail (v1.3.0)
+Mock-ups: `design/ReportsOrders.dc.html` (tablet/desktop), `design/ReportsOrdersMobile.dc.html` (phone), and the third "Orders" tab added to `design/Reports.dc.html` and `design/ReportsByDay.dc.html`. Read-only: no change to how orders are stored, no writes.
+
+1. Third tab on every report screen: One day | Sales by day | **Orders** (`#/reports/orders`). Same pill style; current tab filled ink. On phone the labels are One day | By day | Orders.
+2. Filters (tablet): Day date input (default today, Europe/London; `#/reports/orders?day=YYYY-MM-DD` opens that day), search box "Search order number or name" (case-insensitive, matches order number or name), Status buttons (All, New, Preparing, Ready, Collected, Cancelled), Payment buttons (All, Cash, Card). Phone: date and search on one row, status buttons in a sideways-scrolling row, no payment filter.
+3. Data: the same single-field query as the One day report (`where("day", "==", day)`), live via `onSnapshot` so new orders and status changes appear without a refresh. Cancelled orders are listed but excluded from the total.
+4. Summary line above the list: "<n> orders · £<total> (excludes <c> cancelled)", reflecting the current filters. The "(excludes …)" part only when c > 0.
+5. Tablet list: table, newest first: Order (a real `<button>` showing the order number; opens the detail), Time (HH:MM), Name, Items ("2× Fuchka, 1× Momo", menu `short` names), Total (grey for cancelled), Pay, Status pill (New #FDE68A, Preparing #BFDBFE, Ready #0F766E white text, Collected #E7E5E4, Cancelled white with #B91C1C border and text), Wait (placed to ready, "—" if not ready). Selected row shaded #FEF3C7. Horizontal scroll inside the card on narrow widths. Empty: "No orders match these filters."
+6. Tablet detail panel (right of the list, stacks below it under 1100 px): order number, name, status pill; Till, Payment, Placed (day and time), Wait; Timeline Placed → Started → Ready → Collected (or Placed → Cancelled) with times, "—" and a grey dot for steps not reached; Items table with icon, name, qty, price, line total and a Total row; note "Read-only. Orders are cancelled from the cash counter; status changes happen on the food counter. Cancelled orders are listed but excluded from every total." Nothing selected: "Select an order to see its items." Default selection: none.
+7. Phone: order cards (number, name, status pill, items, "HH:MM · Cash · till A", total); tapping a card opens the full-screen detail with an "All orders" back button. The browser back button also returns to the list.
+8. "Export these orders (CSV)" exports the orders currently shown (after filters), same columns as the One day CSV, file `nba-food-stall_orders_<day>.csv`.
+9. Retired items (`samosa`, `straw`) in older orders show under their original names and icons.
+10. `package.json` version 1.3.0; the version label shows v1.3.0 after deploy.
 
 ## Design
 

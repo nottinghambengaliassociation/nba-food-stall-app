@@ -55,6 +55,14 @@ H1-d. `scripts/menu-sync.mjs` against the emulator: first run creates and retire
 V-a. Version: `login-version` on the login screen and `app-version` in the header of every signed-in route, both projects, shows the `version` from package.json; the title/aria-label contains the build and date; below 700 px it sits under the title and the header buttons keep 48 px.
 V-b. Intercept `**/version.js` with a 404: every label shows `dev`, no console errors.
 V-c. Live check: the build shown on the live site equals the short SHA of the commit Trinity pushed.
+P4-a. Tabs: One day / Sales by day / Orders on all three report screens, both directions; `#/reports/orders` and `#/reports/orders?day=…` load directly.
+P4-b. List: seed a day with every status incl. cancelled and one old `samosa` order; rows newest first; summary count and total match hand-calculated values and exclude cancelled; items text, wait and status pill correct per row.
+P4-c. Filters: each status, each payment, search by order number and by name (case-insensitive), combinations, and the empty message.
+P4-d. Detail: open via the order-number button (tablet) and the card (phone); every field, timeline step and line total matches the seeded order; cancelled shows Placed → Cancelled; phone back button and browser back both return to the list.
+P4-e. Live updates: a status change made on the kitchen screen in a second context shows on the Orders screen without reload.
+P4-f. CSV: file name `nba-food-stall_orders_<day>.csv`, only the filtered orders, same columns as the one-day CSV.
+P4-g. Read-only: no Firestore writes from this screen (spy on the store module or count documents before and after).
+P4-h. Axe: zero serious or critical violations on both viewports, list and detail states.
 19. Phase III toggle: One day and Sales by day switch both ways; `#/reports/days` loads directly.
 20. Sales by day: seed orders across five days (one with a cancelled order, one older Phase I order that carries `tendered`); every tile, bar label, table row, totals row and matrix cell matches hand-calculated values; best day highlighted; days with no orders are absent.
 21. Range rules: To before From swaps; 32 days shows `range-error` and makes no query; empty range shows `range-empty`; Today and Last 7 days set the inputs; This event hidden without `settings/event`, visible and correct with it.

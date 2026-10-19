@@ -34,9 +34,9 @@ button:disabled{cursor:not-allowed}
 
 <div style="display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; align-items: flex-start">
 
-<section aria-label="Menu" style="flex: 999 1 560px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px">
+<section aria-label="Menu" style="flex: 999 1 560px; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px">
 <sc-for list="{{tiles}}" as="item" hint-placeholder-count="6">
-<button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="position: relative; min-height: 212px; padding: 20px 16px; border-radius: 22px; border: 4px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center">
+<button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="position: relative; min-height: 180px; padding: 16px 12px; border-radius: 22px; border: 4px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center">
 <dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 76 }}" hint-size="76px,76px"></dc-import>
 <span style="font-size: 21px; line-height: 26px; font-weight: 700">{{item.name}}</span>
 <span style="font-size: 19px; color: #44403C">£5</span>
@@ -150,8 +150,10 @@ class Component extends DCLogic {
       { id: 'fuchka', name: 'Fuchka / Gol Gappa', bg: '#FDE68A', price: 500 },
       { id: 'momo', name: 'Momo', bg: '#BFDBFE', price: 500 },
       { id: 'chat', name: 'Papri Chat', bg: '#FECACA', price: 500 },
-      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', bg: '#FED7AA', price: 500 },
-      { id: 'straw', name: 'Choc Strawberry & Marshmallow (V)', bg: '#E9D5FF', price: 500 },
+      { id: 'sweet_box', name: 'Sweet Box', bg: '#FED7AA', price: 500 },
+      { id: 'samosa_only', name: 'Samosa', bg: '#D9F99D', price: 500 },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', bg: '#E9D5FF', price: 500 },
+      { id: 'marshmallow', name: 'Marshmallow (V)', bg: '#FBCFE8', price: 500 },
       { id: 'fountain', name: 'Chocolate Fountain', bg: '#E7D3BF', price: 500 }
     ];
     const s = this.state;

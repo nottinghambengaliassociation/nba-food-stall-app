@@ -14,10 +14,10 @@ body{margin:0}
 a{color:#0F766E}a:hover{color:#115E59}
 </style>
 </helmet>
-<div style="width: 1440px; height: 1720px; box-sizing: border-box; padding: 64px; background: #FFFFFF; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; gap: 40px">
+<div style="width: 1440px; height: 1800px; box-sizing: border-box; padding: 64px; background: #FFFFFF; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; gap: 40px">
 
 <div style="display: flex; flex-direction: column; gap: 12px; max-width: 1040px">
-<div style="font-size: 14px; letter-spacing: 0.12em; font-weight: 700; color: #B45309">PHASE I PROPOSAL · NO LOGIN · £0 RUNNING COST</div>
+<div style="font-size: 14px; letter-spacing: 0.12em; font-weight: 700; color: #B45309">LIVE v1.1.2 · NEXT v1.2.0 (PHASE III) · £0 RUNNING COST</div>
 <h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 56px; line-height: 60px">Charity food stall: from till to pass</h1>
 <p style="margin: 0; font-size: 20px; line-height: 30px; color: #44403C">One single-page web app on GitHub Pages. The cash counter takes the order and payment, the food counter sees it in under a second and works it through to collection. Every order and status change is stored with a timestamp for daily reporting.</p>
 </div>
@@ -71,7 +71,7 @@ a{color:#0F766E}a:hover{color:#115E59}
   till       "A"
 
 menu/{id}
-  name · short · price · colour · active · sort</div>
+  name · short · price · colour · station · active · sort</div>
 <p style="margin: 0; font-size: 15px; line-height: 22px; color: #57534E">Order numbers are generated on the device (A-001, A-002…; a second till uses B-), so the till never waits on the network. Prices live in the menu collection, edited in the Firebase console in Phase I.</p>
 </section>
 
@@ -98,25 +98,27 @@ menu/{id}
 <p style="margin: 0; font-size: 16px; line-height: 24px">500 orders in a day is about 2,500 writes (limit 20,000) and about 12,000 reads across four screens (limit 50,000). No billing account on the Spark plan, so nothing can be charged; over quota, Firestore pauses until the quota resets.</p>
 </section>
 <section style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid #E7E5E4; border-radius: 16px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">No login, with guardrails</h2>
-<p style="margin: 0; font-size: 16px; line-height: 24px">Firebase anonymous auth runs silently on load (no screen). Security rules accept only signed-in devices and order-shaped documents, and block deletes. The URL is shared only with volunteers. PINs per counter come in Phase II.</p>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">Login and secrets</h2>
+<p style="margin: 0; font-size: 16px; line-height: 24px">One shared login since v1.1.0: password checked as a SHA-256 in the browser, no lockout, session lasts until Sign out. Firebase config and the login hash live in GitHub Actions secrets and are written at deploy, so nothing secret is in the repo. Firestore rules are still open: the login is a gate for volunteers, not security.</p>
 </section>
 <section style="display: flex; flex-direction: column; gap: 12px; padding: 28px; border: 1px solid #E7E5E4; border-radius: 16px">
-<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">Menu, Phase I</h2>
+<h2 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-size: 24px">Menu since v1.1.1</h2>
 <div style="display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; font-size: 16px; line-height: 22px">
 <span>Fuchka / Gol Gappa</span><b>£5</b>
 <span>Momo</span><b>£5</b>
 <span>Papri Chat</span><b>£5</b>
-<span>Sweets Box Samosa / Shingara</span><b>£5</b>
-<span>Choc Strawberry &amp; Marshmallow (V)</span><b>£5</b>
+<span>Sweet Box</span><b>£5</b>
+<span>Samosa</span><b>£5</b>
+<span>Chocolate Strawberry</span><b>£5</b>
+<span>Marshmallow (V)</span><b>£5</b>
 <span>Chocolate Fountain</span><b>£5</b>
 </div>
-<p style="margin: 0; font-size: 14px; line-height: 20px; color: #57534E">Single £5 price assumed per item. If the four £5 columns are portion sizes, they become variants on the tile.</p>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: #57534E">Hotfix H1 split Sweets Box Samosa and Choc Strawberry &amp; Marshmallow into four items. The old two are retired (inactive), so earlier orders keep their names in reports.</p>
 </section>
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1800}}'>
 class Component extends DCLogic {
   renderVals() {
     return {};

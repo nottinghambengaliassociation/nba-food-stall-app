@@ -1088,6 +1088,207 @@ table.data td.cell--best { background: var(--amber-pale); }
 }
 .open-day:hover { background: var(--page); color: var(--ink); }
 
+/* ------------------------------------------- orders list (Phase IV) */
+
+.reports-orders { gap: 20px; }
+
+.orders-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+.orders-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.orders-field--search { flex: 1 1 220px; }
+.orders-search {
+  width: 100%;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 2px solid var(--stone-400);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+}
+.orders-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid var(--stone-300);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+.chip[aria-pressed='true'] { background: var(--marigold); border-color: var(--ink); }
+
+.orders-summary { margin: 0; font-size: 16px; color: var(--ink-2); }
+.orders-summary__note { color: var(--muted); }
+
+.orders-cols { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+
+/* 700px basis: the detail panel drops under the list below about 1100px. */
+.orders-list-card {
+  flex: 3 1 700px;
+  min-width: 0;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 8px 8px 12px;
+}
+.orders-table-wrap[hidden],
+.orders-cards[hidden],
+.orders-empty[hidden],
+.orders-back-wrap[hidden],
+.order-detail__body[hidden],
+.order-detail__empty[hidden] { display: none; }
+
+table.orders-table { min-width: 760px; }
+table.orders-table th { padding: 12px 10px; border-bottom: 1.5px solid var(--stone-300); }
+table.orders-table td { padding: 6px 10px; }
+.orders-row[data-selected='true'] > td { background: var(--amber-pale); }
+.orders-no {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 2px solid var(--stone-300);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 18px;
+}
+.orders-no[aria-pressed='true'] { border-color: var(--ink); }
+.orders-time, .orders-items, .orders-wait { color: var(--ink-2); }
+/* Only the Items column wraps; the rest stay on one line and the card
+   scrolls sideways instead (CLAUDE.md Phase IV 5). */
+.orders-no, .orders-time, .orders-wait, .orders-name { white-space: nowrap; }
+.orders-name { font-weight: 700; }
+.orders-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.orders-total--cancelled { color: var(--stone-500); }
+.orders-empty { margin: 0; padding: 32px; text-align: center; font-size: 18px; color: var(--muted); }
+
+.status-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--line);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.status-pill--new { background: var(--marigold); border-color: var(--marigold); }
+.status-pill--preparing { background: var(--blue-pale); border-color: var(--blue-pale); }
+.status-pill--ready { background: var(--teal); border-color: var(--teal); color: #FFFFFF; }
+.status-pill--collected { background: var(--line); border-color: var(--line); }
+.status-pill--cancelled { background: var(--card); border-color: var(--red); color: var(--red); }
+
+/* The same rows as cards, for the phone (design/ReportsOrdersMobile.dc.html). */
+.orders-cards { display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+.orders-card-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+.orders-card-btn[data-selected='true'] { background: var(--amber-pale); }
+.orders-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+.orders-card__no { font-family: var(--font-head); font-weight: 800; font-size: 20px; }
+.orders-card__name { font-family: var(--font-body); font-weight: 700; font-size: 17px; }
+.orders-card__items { font-size: 15px; color: var(--ink-2); }
+.orders-card__foot {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.order-detail {
+  flex: 2 1 380px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 24px;
+}
+.order-detail__body { display: flex; flex-direction: column; gap: 18px; }
+.order-detail__empty { margin: 0; padding: 40px 0; text-align: center; font-size: 18px; color: var(--muted); }
+.order-detail__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.order-detail__ids { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.order-detail__no { font-family: var(--font-head); font-weight: 800; font-size: 36px; line-height: 40px; }
+.order-detail__name { font-size: 22px; font-weight: 700; }
+.order-detail .status-pill { padding: 6px 14px; font-size: 16px; }
+.order-detail__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  font-size: 16px;
+}
+.order-detail__meta-label { display: block; color: var(--muted); font-size: 14px; }
+.order-detail__block { display: flex; flex-direction: column; gap: 8px; }
+.order-detail__block h3 { font-size: 17px; }
+
+.timeline { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.timeline__step { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.timeline__dot { width: 12px; height: 12px; flex: none; border-radius: 50%; background: var(--teal); }
+.timeline__label { width: 92px; font-weight: 700; }
+.timeline__step[data-step='cancelled'] .timeline__dot { background: var(--red); }
+/* Last, so a step that was never reached stays grey whichever step it is. */
+.timeline__step[data-reached='false'] { color: var(--stone-500); }
+.timeline__step[data-reached='false'] .timeline__dot { background: var(--stone-300); }
+
+table.order-items th, table.order-items td { padding: 8px 4px; }
+.order-line__name { display: inline-flex; align-items: center; gap: 8px; }
+table.order-items .totals-row td { background: none; padding-top: 10px; }
+.order-detail__total { font-family: var(--font-head); font-weight: 800; font-size: 22px; }
+.order-detail__note { margin: 0; font-size: 14px; line-height: 20px; color: var(--muted); }
+
+.orders-back-wrap { align-self: flex-start; }
+.orders-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 2px solid var(--stone-300);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.orders-back:hover { background: var(--page); }
+
+/* Tablet and desktop: cards and the back button belong to the phone layout. */
+@media (min-width: 700px) {
+  .orders-cards { display: none; }
+  .orders-back-wrap { display: none; }
+}
+
 /* ------------------------------------------------------------- phone */
 
 @media (max-width: 699px) {
@@ -1276,4 +1477,55 @@ table.data td.cell--best { background: var(--amber-pale); }
   .days-chart__label { font-size: 12px; line-height: 16px; }
   .day-bar__value { font-size: 12px; margin-bottom: 4px; }
   .days-readout { font-size: 15px; }
+  /* Orders report (Phase IV): the day and search share a row, the status
+     chips scroll sideways, and the list becomes cards. */
+  .reports-orders { gap: 12px; }
+  .orders-filters {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    align-items: end;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .orders-field--status { grid-column: 1 / -1; }
+  .orders-field--pay { display: none; }
+  .orders-field--day .range-label,
+  .orders-field--search .range-label {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .reports-orders .range-input,
+  .orders-search { width: 100%; height: 44px; min-height: 44px; font-size: 16px; }
+  .orders-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .chip { flex: none; min-height: 44px; padding: 0 12px; font-size: 14px; }
+  .orders-summary { font-size: 15px; }
+
+  .orders-table-wrap { display: none; }
+  .orders-list-card { flex: 1 1 auto; padding: 0; background: none; border-radius: 0; }
+  .orders-cards { padding: 0; }
+  .orders-empty { padding: 28px 16px; background: var(--card); border-radius: 14px; }
+
+  .order-detail { padding: 16px; gap: 14px; }
+  .order-detail__no { font-size: 30px; line-height: 34px; }
+  .order-detail__name { font-size: 20px; }
+  .order-detail__meta { font-size: 15px; gap: 8px 12px; }
+  .timeline__label { width: 84px; }
+  table.order-items { font-size: 15px; }
+  table.order-items th, table.order-items td { padding: 8px 2px; }
+  /* Icon, quantity, name and line total only, as the phone mock-up has it
+     (design/ReportsOrdersMobile.dc.html). The tablet detail keeps Price. */
+  .order-line__price { display: none; }
+
+  /* List and detail are two screens on the phone; which one shows follows the
+     hash, so the browser Back button walks from the detail to the list. */
+  .reports-orders[data-view='list'] .order-detail { display: none; }
+  .reports-orders[data-view='detail'] .report-nav,
+  .reports-orders[data-view='detail'] .orders-filters,
+  .reports-orders[data-view='detail'] .orders-summary,
+  .reports-orders[data-view='detail'] .orders-list-card { display: none; }
 }

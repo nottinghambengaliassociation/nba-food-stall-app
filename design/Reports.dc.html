@@ -37,6 +37,7 @@ button{cursor:pointer}
 <nav aria-label="Report view" style="display: flex; flex-wrap: wrap; gap: 8px">
 <a href="Reports.dc.html" aria-current="page" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 17px; font-weight: 700; text-decoration: none">One day</a>
 <a href="ReportsByDay.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">Sales by day</a>
+<a href="ReportsOrders.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">Orders</a>
 </nav>
 <p style="margin: 0; font-size: 15px; color: #57534E">Illustrative figures to show the layout. The live page computes everything from that day's orders, excluding cancelled ones.</p>
 
@@ -147,8 +148,10 @@ class Component extends DCLogic {
       { id: 'fuchka', name: 'Fuchka / Gol Gappa', units: 96 },
       { id: 'momo', name: 'Momo', units: 84 },
       { id: 'chat', name: 'Papri Chat', units: 52 },
-      { id: 'samosa', name: 'Sweets Box Samosa / Shingara', units: 38 },
-      { id: 'straw', name: 'Choc Strawberry & Marshmallow', units: 30 },
+      { id: 'sweet_box', name: 'Sweet Box', units: 22 },
+      { id: 'samosa_only', name: 'Samosa', units: 16 },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', units: 18 },
+      { id: 'marshmallow', name: 'Marshmallow (V)', units: 12 },
       { id: 'fountain', name: 'Chocolate Fountain', units: 22 }
     ];
     const PRICE = 500, CASH = 93000;

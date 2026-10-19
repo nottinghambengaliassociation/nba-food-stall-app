@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orders report, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button,input{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="display: flex; align-items: center; justify-content: space-between; height: 60px; flex: none; padding: 0 16px; background: #1C1917; color: #FFFFFF">
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; line-height: 24px">Reports</span><span title="Version 1.3.0, build a1b2c3d" style="font-size: 12px; line-height: 14px; color: #A8A29E; font-weight: 700">v1.3.0</span></span>
+<a href="LoginMobile.dc.html" aria-label="Sign out" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; box-sizing: border-box; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</header>
+
+<sc-if value="{{isList}}" hint-placeholder-val="{{ true }}">
+<div style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column">
+<div style="flex: none; display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; background: #FFFFFF; border-bottom: 1px solid #E7E5E4">
+<nav aria-label="Report view" style="display: flex; gap: 6px">
+<a href="Reports.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">One day</a>
+<a href="ReportsByDay.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">By day</a>
+<a href="ReportsOrdersMobile.dc.html" aria-current="page" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none">Orders</a>
+</nav>
+<div style="display: flex; gap: 8px">
+<label for="mday" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Day</label>
+<input id="mday" type="date" value="2026-10-17" style="flex: none; width: 150px; height: 44px; padding: 0 8px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 15px; color: #1C1917">
+<label for="mq" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search order number or name</label>
+<input id="mq" value="{{q}}" onChange="{{onQ}}" placeholder="Search no. or name" autocomplete="off" style="flex: 1 1 auto; min-width: 0; height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 16px; color: #1C1917">
+</div>
+<div role="group" aria-label="Status" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px">
+<sc-for list="{{statusChips}}" as="c" hint-placeholder-count="6">
+<button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 14px; font-weight: 700">{{c.label}}</button>
+</sc-for>
+</div>
+<span style="font-size: 14px; color: #44403C"><b>{{countText}}</b> · {{sumText}}</span>
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 16px">
+<sc-for list="{{rows}}" as="o" hint-placeholder-count="5">
+<button onClick="{{o.pick}}" aria-label="View order {{o.no}}, {{o.name}}" style="display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 12px 14px; border: none; border-radius: 14px; background: #FFFFFF; color: #1C1917; text-align: left; box-shadow: 0 1px 2px rgba(28,25,23,0.08)">
+<span style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 20px">{{o.no}} <span style="font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; font-size: 17px">{{o.name}}</span></span>
+<span style="padding: 3px 10px; border-radius: 999px; background: {{o.stBg}}; color: {{o.stFg}}; border: 1.5px solid {{o.stBorder}}; font-size: 13px; font-weight: 700">{{o.statusLabel}}</span>
+</span>
+<span style="font-size: 15px; color: #44403C">{{o.summary}}</span>
+<span style="display: flex; justify-content: space-between; width: 100%; font-size: 15px; color: #57534E"><span>{{o.time}} · {{o.payLabel}} · till {{o.till}}</span><b style="color: {{o.totalColour}}">{{o.totalText}}</b></span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isDetail}}" hint-placeholder-val="{{ false }}">
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 12px 16px 20px">
+<button onClick="{{back}}" style="align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 16px; font-weight: 700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>All orders</button>
+<div style="background: #FFFFFF; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="display: flex; flex-direction: column"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px; line-height: 34px">{{sel.no}}</span><span style="font-size: 20px; font-weight: 700">{{sel.name}}</span></span>
+<span style="padding: 5px 12px; border-radius: 999px; background: {{sel.stBg}}; color: {{sel.stFg}}; border: 1.5px solid {{sel.stBorder}}; font-size: 14px; font-weight: 700">{{sel.statusLabel}}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; font-size: 15px">
+<div><span style="display: block; color: #57534E; font-size: 13px">Till</span><b>{{sel.till}}</b></div>
+<div><span style="display: block; color: #57534E; font-size: 13px">Payment</span><b>{{sel.payLabel}}</b></div>
+<div><span style="display: block; color: #57534E; font-size: 13px">Placed</span><b>{{sel.time}}</b></div>
+<div><span style="display: block; color: #57534E; font-size: 13px">Wait</span><b>{{sel.wait}}</b></div>
+</div>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px">
+<sc-for list="{{sel.steps}}" as="t" hint-placeholder-count="4">
+<li style="display: flex; align-items: center; gap: 10px; font-size: 15px; color: {{t.colour}}"><span style="width: 10px; height: 10px; flex: none; border-radius: 50%; background: {{t.dot}}"></span><span style="width: 84px; font-weight: 700">{{t.label}}</span><span>{{t.time}}</span></li>
+</sc-for>
+</ol>
+<div style="display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #E7E5E4; padding-top: 12px">
+<sc-for list="{{sel.lines}}" as="l" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 16px"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 26 }}" hint-size="26px,26px"></dc-import><b style="width: 28px">{{l.qty}}×</b><span style="flex: 1 1 auto; min-width: 0">{{l.name}}</span><b>{{l.lineText}}</b></div>
+</sc-for>
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px solid #E7E5E4"><b style="font-size: 17px">Total</b><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 26px; color: {{sel.totalColour}}">{{sel.totalText}}</span></div>
+</div>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: #57534E">Read-only. Cancel orders from the cash counter.</p>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'list', sel: null, status: 'all', q: '' };
+  }
+  renderVals() {
+    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow (V)', fountain: 'Choc Fountain' };
+    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow', fountain: 'Choc Fountain' };
+    const RAW = [
+      ['A-044', '15:08', 'Guest', 'A', 'card', 'cancelled', { samosa_only: 2 }, [null, null, null]],
+      ['B-019', '15:07', 'Ahmed', 'B', 'cash', 'new', { momo: 2, chat: 1 }, [null, null, null]],
+      ['A-043', '15:06', 'Meera', 'A', 'cash', 'preparing', { fountain: 1, sweet_box: 1 }, [2, null, null]],
+      ['A-042', '15:05', 'Sam', 'A', 'card', 'ready', { fuchka: 1, choc_strawberry: 1 }, [1, 4, null]],
+      ['B-018', '15:03', 'Josh', 'B', 'card', 'collected', { chat: 1, marshmallow: 2 }, [1, 5, 2]],
+      ['A-041', '15:02', 'Priya', 'A', 'cash', 'collected', { fuchka: 2, momo: 1 }, [1, 4, 1]],
+      ['A-040', '14:58', 'Lucy', 'A', 'cash', 'collected', { sweet_box: 2, samosa_only: 1 }, [1, 3, 1]],
+      ['B-017', '14:55', 'Tom', 'B', 'card', 'collected', { fuchka: 3 }, [2, 5, 1]]
+    ];
+    const ST = {
+      new: ['New', '#FDE68A', '#1C1917', '#FDE68A'], preparing: ['Preparing', '#BFDBFE', '#1C1917', '#BFDBFE'],
+      ready: ['Ready', '#0F766E', '#FFFFFF', '#0F766E'], collected: ['Collected', '#E7E5E4', '#1C1917', '#E7E5E4'],
+      cancelled: ['Cancelled', '#FFFFFF', '#B91C1C', '#B91C1C']
+    };
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const toMin = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3), 10);
+    const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const s = this.state;
+    const all = RAW.map(([no, time, name, till, pay, status, items, off]) => {
+      const lines = Object.keys(items).map((id) => ({ id: id, name: NAMES[id], qty: items[id], lineText: gbp(500 * items[id]) }));
+      const total = lines.reduce((a, l) => a + l.qty, 0) * 500;
+      const t0 = toMin(time);
+      const started = off[0] == null ? null : t0 + off[0];
+      const ready = off[1] == null ? null : started + off[1];
+      const collected = off[2] == null ? null : ready + off[2];
+      const st = ST[status];
+      const steps = status === 'cancelled'
+        ? [{ label: 'Placed', time: time }, { label: 'Cancelled', time: hhmm(t0 + 1) }]
+        : [{ label: 'Placed', time: time }, { label: 'Started', time: started == null ? '—' : hhmm(started) }, { label: 'Ready', time: ready == null ? '—' : hhmm(ready) }, { label: 'Collected', time: collected == null ? '—' : hhmm(collected) }];
+      return {
+        no: no, time: time, name: name, till: till, pay: pay, status: status, payLabel: pay === 'cash' ? 'Cash' : 'Card',
+        summary: lines.map((l) => l.qty + '× ' + SHORT[l.id]).join(', '),
+        lines: lines, total: total, totalText: gbp(total), totalColour: status === 'cancelled' ? '#78716C' : '#1C1917',
+        statusLabel: st[0], stBg: st[1], stFg: st[2], stBorder: st[3],
+        wait: ready == null ? '—' : (ready - t0) + ' min',
+        steps: steps.map((x) => ({ label: x.label, time: x.time, dot: x.time === '—' ? '#D6D3D1' : (x.label === 'Cancelled' ? '#B91C1C' : '#0F766E'), colour: x.time === '—' ? '#78716C' : '#1C1917' })),
+        pick: () => this.setState({ view: 'detail', sel: no })
+      };
+    });
+    const q = s.q.trim().toLowerCase();
+    const rows = all.filter((o) => (s.status === 'all' || o.status === s.status) && (!q || o.no.toLowerCase().includes(q) || o.name.toLowerCase().includes(q)));
+    const live = rows.filter((o) => o.status !== 'cancelled');
+    const cancelled = rows.length - live.length;
+    const sel = all.find((o) => o.no === s.sel) || {};
+    return {
+      isList: s.view === 'list', isDetail: s.view === 'detail',
+      q: s.q, onQ: (e) => this.setState({ q: e.target.value }),
+      statusChips: [['all', 'All'], ['new', 'New'], ['preparing', 'Preparing'], ['ready', 'Ready'], ['collected', 'Collected'], ['cancelled', 'Cancelled']].map(([k, l]) => ({
+        label: l, on: k === s.status, bg: k === s.status ? '#FDE68A' : '#FFFFFF', border: k === s.status ? '#1C1917' : '#D6D3D1',
+        pick: () => this.setState({ status: k })
+      })),
+      countText: rows.length + ' orders',
+      sumText: gbp(live.reduce((a, o) => a + o.total, 0)) + (cancelled ? ' (excl. ' + cancelled + ' cancelled)' : ''),
+      rows: rows, sel: sel,
+      back: () => this.setState({ view: 'list' })
+    };
+  }
+}
+</script>
+</body>
+</html>

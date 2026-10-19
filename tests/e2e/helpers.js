@@ -693,3 +693,225 @@ export function gbp(pence) {
 export async function textOf(locator) {
   return (await locator.innerText()).replace(/\s+/g, ' ').trim();
 }
+
+/* --------------------------------------- Phase IV: the orders-list fixture ----
+ * A scripted single day for #/reports/orders, pinned to today's London date so
+ * the screen's default day covers it exactly. Deliberately contains:
+ *   - every status, including one cancelled order (CLAUDE.md Phase IV 3);
+ *   - two tills and a cash/card mix (filters);
+ *   - two retired-id orders, one of which still carries the Phase I `tendered`
+ *     field (Hotfix H1 6, Phase IV 9);
+ *   - one order on the previous day, which must never show on today's list
+ *     (CLAUDE.md Phase IV 2: `?day=` opens that day).
+ * Hand-calculated expectations live in ordersExpect() and in qa/test-plan.md
+ * section 32. Every figure there is a literal, not a computation.
+ */
+
+export function ordersFixture(day = londonDay()) {
+  const t = (h, m) => londonTimeOn(day, h, m);
+  const l = (id, name, qty) => ({ id, name, qty, price: 500 });
+  const prev = londonDayOffset(-1, day);
+  return [
+    // Legacy orders: retired menu ids, and A-010 carries the Phase I `tendered`.
+    { orderNo: 'A-010', name: 'Josh', till: 'A', day, payment: 'cash', status: 'collected', tendered: 2000,
+      items: [l('samosa', 'Sweets Box Samosa / Shingara', 2)], total: 1000,
+      createdAtMs: t(9, 30), startedAtMs: t(9, 31), readyAtMs: t(9, 34), collectedAtMs: t(9, 35) },
+    { orderNo: 'A-011', name: 'Rina', till: 'A', day, payment: 'card', status: 'collected',
+      items: [l('straw', 'Chocolate Strawberry & Marshmallow (V)', 1)], total: 500,
+      createdAtMs: t(9, 40), startedAtMs: t(9, 41), readyAtMs: t(9, 43), collectedAtMs: t(9, 44) },
+
+    { orderNo: 'A-040', name: 'Lucy', till: 'A', day, payment: 'cash', status: 'collected',
+      items: [l('sweet_box', 'Sweet Box', 2), l('samosa_only', 'Samosa', 1)], total: 1500,
+      createdAtMs: t(10, 5), startedAtMs: t(10, 6), readyAtMs: t(10, 9), collectedAtMs: t(10, 10) },
+    { orderNo: 'A-041', name: 'Priya', till: 'A', day, payment: 'cash', status: 'collected',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 2), l('momo', 'Momo', 1)], total: 1500,
+      createdAtMs: t(10, 12), startedAtMs: t(10, 13), readyAtMs: t(10, 16), collectedAtMs: t(10, 17) },
+    { orderNo: 'B-017', name: 'Tom', till: 'B', day, payment: 'card', status: 'collected',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 3)], total: 1500,
+      createdAtMs: t(10, 20), startedAtMs: t(10, 22), readyAtMs: t(10, 25), collectedAtMs: t(10, 26) },
+    { orderNo: 'A-042', name: 'Sam', till: 'A', day, payment: 'card', status: 'ready',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 1), l('choc_strawberry', 'Chocolate Strawberry', 1)], total: 1000,
+      createdAtMs: t(10, 30), startedAtMs: t(10, 31), readyAtMs: t(10, 35) },
+    { orderNo: 'A-043', name: 'Meera', till: 'A', day, payment: 'cash', status: 'preparing',
+      items: [l('fountain', 'Chocolate Fountain', 1), l('sweet_box', 'Sweet Box', 1)], total: 1000,
+      createdAtMs: t(10, 40), startedAtMs: t(10, 42) },
+    { orderNo: 'B-019', name: 'Ahmed', till: 'B', day, payment: 'cash', status: 'new',
+      items: [l('momo', 'Momo', 2), l('chat', 'Papri Chat', 1)], total: 1500,
+      createdAtMs: t(10, 50) },
+    { orderNo: 'A-044', name: 'Guest', till: 'A', day, payment: 'card', status: 'cancelled',
+      items: [l('samosa_only', 'Samosa', 2)], total: 1000,
+      createdAtMs: t(10, 55), cancelledAtMs: t(10, 56) },
+
+    // Yesterday. Only `?day=<prev>` or the date input may show it.
+    { orderNo: 'A-900', name: 'Yesterday', till: 'A', day: prev, payment: 'cash', status: 'collected',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 1)], total: 500,
+      createdAtMs: londonTimeOn(prev, 12, 0), startedAtMs: londonTimeOn(prev, 12, 1), readyAtMs: londonTimeOn(prev, 12, 3), collectedAtMs: londonTimeOn(prev, 12, 4) }
+  ];
+}
+
+/** Hand-calculated expectations for ordersFixture(). Every figure is a literal. */
+export function ordersExpect(day = londonDay()) {
+  return {
+    day,
+    prevDay: londonDayOffset(-1, day),
+    /** Newest first by createdAtMs (CLAUDE.md Phase IV 5). */
+    newestFirst: ['A-044', 'B-019', 'A-043', 'A-042', 'B-017', 'A-041', 'A-040', 'A-011', 'A-010'],
+    notToday: ['A-900'],
+    rowCount: 9,          // cancelled orders are listed
+    liveTotal: 9500,      // £15+£15+£15+£10+£10+£15+£10+£5 = £95.00, cancelled £10 excluded
+    cancelledCount: 1,
+    summary: '9 orders · £95.00 (excludes 1 cancelled)',
+    rows: {
+      'A-044': { time: '10:55', name: 'Guest', items: '2× Samosa', total: '£10.00', pay: 'Card', status: 'Cancelled', wait: '—' },
+      'B-019': { time: '10:50', name: 'Ahmed', items: '2× Momo, 1× Papri Chat', total: '£15.00', pay: 'Cash', status: 'New', wait: '—' },
+      'A-043': { time: '10:40', name: 'Meera', items: '1× Choc Fountain, 1× Sweet Box', total: '£10.00', pay: 'Cash', status: 'Preparing', wait: '—' },
+      'A-042': { time: '10:30', name: 'Sam', items: '1× Fuchka, 1× Choc Strawberry', total: '£10.00', pay: 'Card', status: 'Ready', wait: '5 min' },
+      'B-017': { time: '10:20', name: 'Tom', items: '3× Fuchka', total: '£15.00', pay: 'Card', status: 'Collected', wait: '5 min' },
+      'A-041': { time: '10:12', name: 'Priya', items: '2× Fuchka, 1× Momo', total: '£15.00', pay: 'Cash', status: 'Collected', wait: '4 min' },
+      'A-040': { time: '10:05', name: 'Lucy', items: '2× Sweet Box, 1× Samosa', total: '£15.00', pay: 'Cash', status: 'Collected', wait: '4 min' },
+      'A-011': { time: '09:40', name: 'Rina', items: '1× Choc Strawberry', total: '£5.00', pay: 'Card', status: 'Collected', wait: '3 min' },
+      'A-010': { time: '09:30', name: 'Josh', items: '2× Sweets Box', total: '£10.00', pay: 'Cash', status: 'Collected', wait: '4 min' }
+    },
+    /** Each filter: the rows it leaves, newest first, and the summary figures. */
+    filters: {
+      all: { rows: ['A-044', 'B-019', 'A-043', 'A-042', 'B-017', 'A-041', 'A-040', 'A-011', 'A-010'], total: 9500, cancelled: 1 },
+      new: { rows: ['B-019'], total: 1500, cancelled: 0 },
+      preparing: { rows: ['A-043'], total: 1000, cancelled: 0 },
+      ready: { rows: ['A-042'], total: 1000, cancelled: 0 },
+      collected: { rows: ['B-017', 'A-041', 'A-040', 'A-011', 'A-010'], total: 6000, cancelled: 0 },
+      cancelled: { rows: ['A-044'], total: 0, cancelled: 1 },
+      cash: { rows: ['B-019', 'A-043', 'A-041', 'A-040', 'A-010'], total: 6500, cancelled: 0 },
+      card: { rows: ['A-044', 'A-042', 'B-017', 'A-011'], total: 3000, cancelled: 1 }
+    },
+    searches: {
+      'a-04': { rows: ['A-044', 'A-043', 'A-042', 'A-041', 'A-040'], total: 5000, cancelled: 1 },
+      'priya': { rows: ['A-041'], total: 1500, cancelled: 0 },
+      'PRIYA': { rows: ['A-041'], total: 1500, cancelled: 0 },
+      '  priya  ': { rows: ['A-041'], total: 1500, cancelled: 0 },
+      'b-0': { rows: ['B-019', 'B-017'], total: 3000, cancelled: 0 },
+      'zzz': { rows: [], total: 0, cancelled: 0 }
+    },
+    /** status=collected + pay=cash + search "a-0" */
+    combination: { rows: ['A-041', 'A-040', 'A-010'], total: 4000, cancelled: 0 },
+    detail: {
+      'A-041': {
+        no: 'A-041', name: 'Priya', status: 'Collected', till: 'A', pay: 'Cash', time: '10:12', wait: '4 min',
+        steps: [['placed', '10:12'], ['started', '10:13'], ['ready', '10:16'], ['collected', '10:17']],
+        lines: [
+          { id: 'fuchka', qty: 2, price: '£5.00', line: '£10.00' },
+          { id: 'momo', qty: 1, price: '£5.00', line: '£5.00' }
+        ],
+        total: '£15.00'
+      },
+      'A-043': {
+        no: 'A-043', name: 'Meera', status: 'Preparing', till: 'A', pay: 'Cash', time: '10:40', wait: '—',
+        steps: [['placed', '10:40'], ['started', '10:42'], ['ready', '—'], ['collected', '—']],
+        total: '£10.00'
+      },
+      'A-044': {
+        no: 'A-044', name: 'Guest', status: 'Cancelled', till: 'A', pay: 'Card', time: '10:55', wait: '—',
+        steps: [['placed', '10:55'], ['cancelled', '10:56']],
+        total: '£10.00'
+      }
+    },
+    /**
+     * One CSV row per line of the orders currently shown. The Orders export
+     * follows the list, so the cancelled order's line is in it too
+     * (CLAUDE.md Phase IV 8 "the orders currently shown" + 5 "cancelled
+     * orders are listed"), unlike the One day and Sales by day exports.
+     */
+    csvLines: { all: 14, cash: 9, cancelled: 1 }
+  };
+}
+
+/** Seed the scripted day and wait until the emulator really holds it. */
+export async function seedOrdersDay(day = londonDay()) {
+  const fixture = ordersFixture(day);
+  for (const o of fixture) await seedDoc('orders', o);
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const got = await readCollection('orders');
+    if (got.length === fixture.length) return fixture;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const got = await readCollection('orders');
+  throw new Error(`seedOrdersDay expected ${fixture.length} orders, emulator holds ${got.length}`);
+}
+
+/* ------------------------------------------ Phase IV: locators ----
+ * The orchestrator's DOM contract and .claude/agents/neo.md give two names for
+ * five of the Phase IV elements (orders-row-/order-row-, orders-open-/
+ * order-open-, orders-back/order-back, export-orders-csv/orders-export-csv,
+ * report-view-orders/report-toggle-orders). The contract name is tried first
+ * and the neo.md name second, so a test asserts the brief rather than one
+ * particular spelling. Noted in qa/test-plan.md section 34.
+ */
+
+export const ordersNav = (page) => firstOf(page, [
+  '[data-testid="report-view-orders"]', '[data-testid="report-toggle-orders"]'
+]);
+export const ordersRow = (page, no) => firstOf(page, [
+  `[data-testid="orders-row-${no}"]`, `[data-testid="order-row-${no}"]`
+]);
+export const ordersOpen = (page, no) => firstOf(page, [
+  `[data-testid="orders-open-${no}"]`, `[data-testid="order-open-${no}"]`
+]);
+export const ordersCard = (page, no) => firstOf(page, [
+  `[data-testid="orders-card-${no}"]`, `[data-testid="order-card-${no}"]`
+]);
+export const ordersBack = (page) => firstOf(page, [
+  '[data-testid="orders-back"]', '[data-testid="order-back"]'
+]);
+export const ordersExport = (page) => firstOf(page, [
+  '[data-testid="export-orders-csv"]', '[data-testid="orders-export-csv"]'
+]);
+
+/**
+ * The row (tablet) or card (phone) for an order, whichever this project shows.
+ * One locator over all four spellings, so it still resolves for an order that
+ * has not arrived yet (the live-update cases wait on it).
+ */
+export function orderEntry(page, no) {
+  return page.locator([
+    `[data-testid="orders-row-${no}"]`, `[data-testid="order-row-${no}"]`,
+    `[data-testid="orders-card-${no}"]`, `[data-testid="order-card-${no}"]`
+  ].join(', ')).first();
+}
+
+/** The control that opens an order's detail: the Order button or the phone card. */
+export async function openOrder(page, no) {
+  const target = await anyOf(page, [
+    `[data-testid="orders-open-${no}"]`, `[data-testid="order-open-${no}"]`,
+    `[data-testid="orders-card-${no}"]`, `[data-testid="order-card-${no}"]`
+  ]);
+  if (!target) throw new Error(`no way to open order ${no}: expected orders-open-${no} or orders-card-${no}`);
+  await target.click();
+  await page.waitForTimeout(400);
+  return target;
+}
+
+/** Order numbers currently listed, in document order. */
+export async function listedOrders(page) {
+  return page.evaluate(() => {
+    const seen = [];
+    for (const el of document.querySelectorAll('[data-testid]')) {
+      const m = /^orders?-(?:row|card)-([A-Z]-\d{3})$/.exec(el.dataset.testid);
+      if (m && !seen.includes(m[1])) seen.push(m[1]);
+    }
+    return seen;
+  });
+}
+
+/** Whitespace-normalised text of the order detail panel, or '' when absent. */
+export async function detailText(page) {
+  const panel = await anyOf(page, ['[data-testid="order-detail"]']);
+  if (!panel) return '';
+  return (await panel.innerText()).replace(/\s+/g, ' ').trim();
+}
+
+/** A named field of the detail panel: its own testid if present, else the panel text. */
+export async function detailField(page, testid) {
+  const loc = await anyOf(page, [`[data-testid="${testid}"]`]);
+  if (!loc) return null;
+  return (await loc.innerText()).replace(/\s+/g, ' ').trim();
+}

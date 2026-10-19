@@ -7,7 +7,10 @@ const SCREENS = [
   ['landing', '#/'],
   ['cash', '#/cash'],
   ['kitchen', '#/kitchen'],
-  ['reports', '#/reports']
+  ['reports', '#/reports'],
+  // Phase IV: the Orders list. The detail-panel shots are taken by P4-19 in
+  // tests/e2e/reports-orders.spec.js, which has the scripted day seeded.
+  ['reports-orders', '#/reports/orders']
 ];
 
 test('screenshots: empty state', async ({ page }, info) => {
