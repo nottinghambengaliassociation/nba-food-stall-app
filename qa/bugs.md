@@ -1062,3 +1062,67 @@ it was left alone.
 ### Open bugs after this round
 
 **None.** All bugs BUG-1 … BUG-9 are fixed and verified.
+
+---
+
+## Round: v1.3.2 (H4) read-only live check — 19 Oct 2026
+
+Build under test: commit `b03fecd`, published `js/version.js` = `1.3.2` /
+`b03fecd` / `2026-10-19`. Viewports: `tablet` (1280x800) and `iphone13`
+(390x664), plus `phone` (390x844) for the older gated suites.
+
+**No app bugs found. Nothing was written to live Firestore** — `orders` read
+0 documents before and after every suite, `menu` the same 7 documents.
+`send-order` was never clicked on any viewport.
+
+### Tests fixed this round (not app bugs)
+
+The H4 live run was the first time the gated live suites were exercised on
+`tablet`/`phone` since Hotfix H3 reset live data and rebuilt the phone cash
+counter. Six stale assertions surfaced; each contradicted CLAUDE.md, so the
+test was fixed, not the app.
+
+1. `live-h3.spec.js` H3L-03 — header `title` pinned `/^Version 1\.3\.1, build …/`.
+   The sibling line already asserts `'v' + PKG_VERSION`, so the literal was the
+   leftover half of the same bug recorded in the round above. Now derived from
+   `PKG_VERSION` (CLAUDE.md Phase III part 2, 1).
+2. `live-h3.spec.js` H3L-03 — the ☰-menu branch ran at every width. The ☰
+   header is the sub-700 px cash counter only (CLAUDE.md H3 preamble: "Tablet
+   and desktop (700 px and wider) are unchanged"), so at 1280 px `menu-button`
+   is hidden and the header pill is the correct target. Added the width guard.
+3. `live-h3.spec.js` H3L-04/H3L-05 — the H3 small-layout geometry (3 columns,
+   ~112 px tiles, 40 px icons, one-row ☰ header, order bar, sheet) was asserted
+   at tablet width too. Scoped to `isSmallCash(page)`. The tile short-name
+   assertion was also width-dependent: CLAUDE.md H3 2 puts `short` on the small
+   tile, CLAUDE.md Cash counter 1 keeps the full `name` on the tablet tile.
+4. `live-h2.spec.js` H-22.1 — expected the longest cart name to be the literal
+   "Chocolate Strawberry". H3 renamed `marshmallow` to "Chocolate Marshmallow
+   (V)", now the longest. Derived from the rendered rows instead. The alignment
+   itself passed throughout (all `dec.left` 1024, `inc.left` 1116, 52x52).
+5. `live-h2.spec.js` H-22.1/H-22.2 — measured the cart without opening the H3
+   Review & send sheet below 700 px, so every box read 0 px. Now opens the
+   sheet, uses the 48 px stepper floor there (CLAUDE.md H3 4) and steps the
+   lines back out, since the small sheet has no Clear order control.
+6. `live-h2.spec.js` H-22.3 and `live-p3.spec.js` P3L-09 — "the menu must still
+   hold its ten documents". CLAUDE.md H3 7 made it exactly seven.
+7. `live-p3.spec.js` P3L-03 and `live-p4.spec.js` P4L-03 — asserted the Phase
+   III header pill on `#/cash` at phone width. CLAUDE.md H3 1 moved that line
+   into the ☰ menu on that one screen. Now opens the ☰ there, reads v1.3.2 and
+   skips the pre-H3 pill geometry for that route only.
+8. `live-p4.spec.js` P4L-00 — required "at least one live order to read".
+   CLAUDE.md H3 7: "After the reset, reports start empty", so an empty `orders`
+   collection is the expected state until the stall trades. The precondition is
+   now recorded, and P4L-05…P4L-09 skip with a reason rather than fail. A
+   read-only check must never create an order to satisfy itself.
+
+### Not verifiable live (deliberate gap, recorded by H4L-09)
+
+CLAUDE.md H4 1 lists four moments the payment resets to Card. Three were checked
+against the live build: first load (H4L-04), after Clear order (H4L-07), and
+when the cart empties (H4L-08). **"After Send" was not checked live** — it needs
+an order write, which this run forbids. It is covered on the emulator by
+`cash-h4.spec.js` H4-03 (panel) and H4-06 (sheet).
+
+### Open bugs after this round
+
+**None.**

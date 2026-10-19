@@ -63,7 +63,10 @@ export default defineConfig({
     // small phone named in the H4 brief. `phone` and `tablet` run it as well,
     // so all three layouts are covered without a fourth full pass.
     ...[
-      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|live-h3)\.spec\.js/ },
+      // iphone13 also carries the gated read-only H4 live check: CLAUDE.md H4 1
+      // names the phone Review & send sheet, and 390x664 is the small phone the
+      // H3 and H4 briefs are written against.
+      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|live-h3|live-h4)\.spec\.js/ },
       { name: "iphone17", width: 402, height: 694, match: /(cash-h3|live-h3)\.spec\.js/ },
       { name: "promax", width: 430, height: 752, match: /(cash-h3|live-h3)\.spec\.js/ },
     ].map(({ name, width, height, match }) => ({

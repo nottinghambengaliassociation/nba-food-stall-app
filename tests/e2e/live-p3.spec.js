@@ -243,9 +243,22 @@ test('P3L-03 V-c: app-version shows the pushed build on all five signed-in scree
     await expect(page.locator('header').first()).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(1200);
 
+    // Hotfix H3 1 replaced the phone cash counter's dark header with a 52 px
+    // one-row header and moved the version line into the ☰ menu, so below
+    // 700 px the Phase III header pill is not on #/cash. Open the menu and
+    // read it there; the pill geometry below is the pre-H3 header and does
+    // not apply to that one screen.
+    const smallCash = phone && route === '#/cash';
+    if (smallCash) {
+      await tid(page, 'menu-button').click();
+      await expect(tid(page, 'app-menu'), '#/cash: CLAUDE.md H3 1: the ☰ menu').toBeVisible();
+    }
+
     const label = tid(page, 'app-version');
     await expect(label, `${route}: CLAUDE.md Phase III part 2, 5`).toBeVisible();
-    expect(await label.evaluate((el) => !!el.closest('header')), `${route}: the label belongs in the dark header`).toBe(true);
+    if (!smallCash) {
+      expect(await label.evaluate((el) => !!el.closest('header')), `${route}: the label belongs in the dark header`).toBe(true);
+    }
     expect(norm(await label.innerText()), `${route}: the header label reads v<version>`).toBe('v' + PKG_VERSION);
 
     const title = parseTitle(await label.getAttribute('title'));
@@ -261,6 +274,12 @@ test('P3L-03 V-c: app-version shows the pushed build on all five signed-in scree
         .toBe(EXPECTED_BUILD);
     }
     seen.push(`${route}=${title.version}/${title.build}/${title.date}`);
+
+    if (smallCash) {
+      await page.keyboard.press('Escape');
+      await expect(tid(page, 'app-menu')).toBeHidden({ timeout: 8000 });
+      continue;
+    }
 
     const geom = await label.evaluate((el) => {
       const cs = getComputedStyle(el);
@@ -556,7 +575,9 @@ test('P3L-09 this verification wrote nothing to live Firestore', async () => {
   const menu = await liveRead('/menu?pageSize=50');
   const ids = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
   record(`P3L-09 live menu untouched: ${ids.length} document(s) [${ids.join(', ')}]`);
-  expect(ids.length, 'the menu must still hold its ten documents').toBe(10);
+  // CLAUDE.md H3 7 reset the live menu to exactly seven documents; this used
+  // to expect the pre-H3 ten.
+  expect(ids.length, 'the menu must still hold its seven H3 documents').toBe(7);
 
   const event = await liveRead('/settings/event', { allow404: true });
   expect(!!event, 'settings/event must be exactly as it was found').toBe(!!LIVE_EVENT);

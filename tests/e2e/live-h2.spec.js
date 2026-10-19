@@ -21,7 +21,8 @@
 // toggle is never pressed, so the password stays masked in every screenshot.
 import { test, expect } from '@playwright/test';
 import {
-  attachConsole, realErrors, SHOTS, loginUserField, loginPassField, loginSubmit
+  attachConsole, realErrors, SHOTS, loginUserField, loginPassField, loginSubmit,
+  isSmallCash, openCashPanel
 } from './helpers.js';
 import { creds } from './creds.js';
 import { resolve } from 'node:path';
@@ -38,7 +39,11 @@ const ACTIVE_IDS = [
 ];
 const LONGEST = 'marshmallow';
 const SHORTEST = 'momo';
+// CLAUDE.md H2 keeps the tablet cart steppers at 52 px. CLAUDE.md H3 4 sets
+// them to 48 px inside the phone Review & send sheet ("the H2 aligned grid,
+// steppers 48 px"), so the floor depends on the layout.
 const MIN_STEPPER = 52;
+const MIN_STEPPER_SMALL = 48;
 const TOL = 1;
 const SIZE_TOL = 0.5;
 
@@ -233,6 +238,9 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
     const tile = page.locator(`[data-testid="tile-${ACTIVE_IDS[i]}"]`);
     for (let n = 0; n <= i; n++) { await tile.click(); await page.waitForTimeout(60); }
   }
+  // Below 700 px the cart lives in the Review & send sheet (CLAUDE.md H3 4),
+  // so open it before measuring; at 700 px and wider the panel is always open.
+  await openCashPanel(page);
   for (const id of ACTIVE_IDS) {
     await expect(page.locator(`[data-testid="line-${id}"]`), `line-${id} must be in the live cart`)
       .toHaveCount(1, { timeout: 15000 });
@@ -254,11 +262,16 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
   }
   const longest = m.rows.find((r) => r.id === LONGEST);
   const shortest = m.rows.find((r) => r.id === SHORTEST);
-  expect(longest.text).toBe('Chocolate Strawberry');
+  // The widest and narrowest names on the live menu. The literal used to be
+  // pinned to "Chocolate Strawberry"; H3 renamed `marshmallow` to "Chocolate
+  // Marshmallow (V)", which is now the longest, so this derives the name from
+  // what the till actually renders rather than restating it.
+  const widest = m.rows.slice().sort((a, b) => b.text.length - a.text.length)[0];
+  expect(longest.id, `the longest live item name is "${widest.text}" (${widest.id})`).toBe(widest.id);
   expect(shortest.text).toBe('Momo');
   for (const key of ['dec', 'inc']) {
     expect(Math.abs(longest[key].left - shortest[key].left),
-      `"Chocolate Strawberry" must not push its ${key === 'dec' ? '−' : '+'} button past "Momo"'s ` +
+      `"${longest.text}" must not push its ${key === 'dec' ? '−' : '+'} button past "${shortest.text}"'s ` +
       `(${r2(longest[key].left)} vs ${r2(shortest[key].left)}).\n\n${report}`).toBeLessThanOrEqual(TOL);
   }
 
@@ -277,10 +290,11 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
   // 3. the 52 px steppers are kept.
   for (const r of m.rows) {
     for (const key of ['dec', 'inc']) {
-      expect(r[key].width, `line-${key}-${r.id} is ${r2(r[key].width)} px wide live, under ${MIN_STEPPER}\n\n${report}`)
-        .toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
-      expect(r[key].height, `line-${key}-${r.id} is ${r2(r[key].height)} px tall live, under ${MIN_STEPPER}\n\n${report}`)
-        .toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
+      const floor = isSmallCash(page) ? MIN_STEPPER_SMALL : MIN_STEPPER;
+      expect(r[key].width, `line-${key}-${r.id} is ${r2(r[key].width)} px wide live, under ${floor}\n\n${report}`)
+        .toBeGreaterThanOrEqual(floor - SIZE_TOL);
+      expect(r[key].height, `line-${key}-${r.id} is ${r2(r[key].height)} px tall live, under ${floor}\n\n${report}`)
+        .toBeGreaterThanOrEqual(floor - SIZE_TOL);
     }
   }
 
@@ -312,8 +326,21 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
   }
 
   // Leave the till as we found it. Clearing the panel writes nothing.
+  // The small H3 sheet has no Clear order control (CLAUDE.md H3 4), so there
+  // the lines are stepped back out with their - buttons instead.
   const clear = page.locator('[data-testid="clear-order"], button:has-text("Clear order")').first();
-  if (await clear.count()) await clear.click();
+  if (await clear.count() && await clear.isVisible().catch(() => false)) {
+    await clear.click();
+  } else {
+    for (let guard = 0; guard < 60; guard += 1) {
+      await openCashPanel(page).catch(() => {});
+      const decs = page.locator('[data-testid^="line-dec-"]');
+      const visibleDecs = await decs.evaluateAll((els) => els.filter((e) => e.getBoundingClientRect().height > 0).length);
+      if (!visibleDecs) break;
+      await decs.first().click();
+      await page.waitForTimeout(100);
+    }
+  }
   await page.waitForTimeout(500);
 
   // Proof that nothing was sent. The toast node is built once and only
@@ -357,6 +384,7 @@ test('H-22.2 the deployed stylesheet really carries the fixed-column .line rule'
   await page.goto(LIVE + '#/cash', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="tile-momo"]')).toBeVisible({ timeout: 30000 });
   await page.locator('[data-testid="tile-momo"]').click();           // local state only
+  await openCashPanel(page);   // below 700 px the cart is in the H3 sheet
   await expect(page.locator('[data-testid="line-momo"]')).toHaveCount(1, { timeout: 15000 });
 
   const style = await page.evaluate(() => {
@@ -368,11 +396,15 @@ test('H-22.2 the deployed stylesheet really carries the fixed-column .line rule'
   expect(style.display, 'CLAUDE.md H2: .line is a grid, not a flex row').toBe('grid');
   const tracks = style.columns.trim().split(/\s+/);
   expect(tracks.length, `CLAUDE.md H2: five fixed columns, got "${style.columns}"`).toBe(5);
-  expect(parseFloat(tracks[1]), 'the − column is 52 px').toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
-  expect(parseFloat(tracks[3]), 'the + column is 52 px').toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
+  const floor = isSmallCash(page) ? MIN_STEPPER_SMALL : MIN_STEPPER;
+  expect(parseFloat(tracks[1]), `the − column is ${floor} px`).toBeGreaterThanOrEqual(floor - SIZE_TOL);
+  expect(parseFloat(tracks[3]), `the + column is ${floor} px`).toBeGreaterThanOrEqual(floor - SIZE_TOL);
 
+  // Leave the till empty. The small sheet has no Clear order (CLAUDE.md H3 4),
+  // so step the one line back out instead.
   const clear = page.locator('[data-testid="clear-order"], button:has-text("Clear order")').first();
-  if (await clear.count()) await clear.click();
+  if (await clear.count() && await clear.isVisible().catch(() => false)) await clear.click();
+  else await page.locator('[data-testid="line-dec-momo"]').click();
   await expect(page.locator('[data-testid="order-toast"]')).toBeHidden();
 });
 
@@ -389,7 +421,9 @@ test('H-22.3 this check wrote nothing to live Firestore', async () => {
 
   const menu = await liveRead('/menu?pageSize=50');
   const ids = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
-  expect(ids.length, 'the menu must still hold its ten documents').toBe(10);
+  // CLAUDE.md H3 7 reset the live menu to exactly seven documents; this used
+  // to expect the pre-H3 ten.
+  expect(ids.length, 'the menu must still hold its seven H3 documents').toBe(ACTIVE_IDS.length);
   record(`H-22.3 PASS: orders and menu unchanged [${ids.join(', ')}]. ` +
     `No order placed, nothing cancelled, no document written — H2 made no live write of any kind.`);
 });

@@ -230,8 +230,21 @@ test('P4L-00 snapshot the live orders and menu before anything else', async () =
     `days [${days.join(', ')}]; status ${JSON.stringify(byStatus)}; ` +
     `[${ORDERS_BEFORE.map((o) => `${o.orderNo}/${o.status}/${o.day}`).sort().join(', ')}]`);
   record(`P4L-00 live menu before the check: ${MENU_BEFORE.length} document(s) [${MENU_BEFORE.join(', ')}]`);
-  expect(ORDERS_BEFORE.length, 'there must be at least one live order to read').toBeGreaterThan(0);
+  // This used to demand at least one live order. CLAUDE.md H3 7 then reset
+  // live data ("After the reset, reports start empty"), so an empty `orders`
+  // collection is now the expected state until the stall trades. The
+  // data-dependent cases below skip with a reason rather than fail, and a
+  // read-only live check never creates an order to satisfy itself.
+  if (!ORDERS_BEFORE.length) {
+    record('P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run');
+  }
+  expect(MENU_BEFORE.length, 'the live menu must be readable').toBeGreaterThan(0);
 });
+
+/** CLAUDE.md H3 7: after the live reset there may be no orders to read. */
+const needOrders = () =>
+  test.skip(!(ORDERS_BEFORE && ORDERS_BEFORE.length),
+    'live `orders` is empty after the H3 reset (CLAUDE.md H3 7); nothing to read and this check never writes');
 
 /* ---------------------------------------------------------------- P4L-01 */
 
@@ -310,10 +323,21 @@ test('P4L-03 the v1.3.0 pill is in every dark header, read through the UI', asyn
     await expect(page.locator('header').first()).toBeVisible({ timeout: 30000 });
     await page.waitForTimeout(1200);
 
+    // Hotfix H3 1 replaced the phone cash counter's dark header and moved the
+    // version line into the ☰ menu, so below 700 px the Phase III header pill
+    // is not on #/cash and the pill geometry below does not apply there.
+    const smallCash = phone && route === '#/cash';
+    if (smallCash) {
+      await tid(page, 'menu-button').click();
+      await expect(tid(page, 'app-menu'), '#/cash: CLAUDE.md H3 1: the ☰ menu').toBeVisible();
+    }
+
     const label = tid(page, 'app-version');
     await expect(label, `${route}: CLAUDE.md Phase III part 2, 5`).toBeVisible();
-    expect(await label.evaluate((el) => !!el.closest('header')), `${route}: the label belongs in the dark header`).toBe(true);
-    expect(norm(await label.innerText()), `${route}: CLAUDE.md Phase IV 10 — the header label reads v1.3.0`)
+    if (!smallCash) {
+      expect(await label.evaluate((el) => !!el.closest('header')), `${route}: the label belongs in the dark header`).toBe(true);
+    }
+    expect(norm(await label.innerText()), `${route}: CLAUDE.md Phase IV 10 — the header label reads v<version>`)
       .toBe('v' + PKG_VERSION);
 
     const title = parseTitle(await label.getAttribute('title'));
@@ -329,6 +353,12 @@ test('P4L-03 the v1.3.0 pill is in every dark header, read through the UI', asyn
         .toBe(EXPECTED_BUILD);
     }
     seen.push(`${route}=${title.version}/${title.build}/${title.date}`);
+
+    if (smallCash) {
+      await page.keyboard.press('Escape');
+      await expect(tid(page, 'app-menu')).toBeHidden({ timeout: 8000 });
+      continue;
+    }
 
     const geom = await label.evaluate((el) => {
       const cs = getComputedStyle(el);
@@ -431,6 +461,7 @@ test('P4L-04 the Orders tab is on all three report screens with the right labels
 
 test('P4L-05 the live orders list, its summary, filters and search', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  needOrders();
   const errors = attachConsole(page);
   await disableCache(page);
   await signInLive(page);
@@ -535,6 +566,7 @@ test('P4L-05 the live orders list, its summary, filters and search', async ({ pa
 
 test('P4L-06 the detail opens from the live order, and the phone comes back', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  needOrders();
   const errors = attachConsole(page);
   await disableCache(page);
   await signInLive(page);
@@ -626,6 +658,7 @@ test('P4L-06 the detail opens from the live order, and the phone comes back', as
 
 test('P4L-07 ?day= opens that day', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  needOrders();
   await disableCache(page);
   await signInLive(page);
 
@@ -651,6 +684,7 @@ test('P4L-07 ?day= opens that day', async ({ page }, info) => {
 
 test('P4L-08 the orders CSV downloads and its bytes are right', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  needOrders();
   test.skip(info.project.name === 'phone', 'design/ReportsOrdersMobile.dc.html has no export control on the phone');
   await disableCache(page);
   await signInLive(page);
@@ -708,6 +742,7 @@ test('P4L-08 the orders CSV downloads and its bytes are right', async ({ page },
 
 test('P4L-09 axe finds no serious or critical violations on the live Orders screen', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  needOrders();
   await disableCache(page);
   await signInLive(page);
 

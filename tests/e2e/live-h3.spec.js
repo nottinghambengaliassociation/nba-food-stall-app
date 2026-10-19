@@ -26,7 +26,8 @@ import { readFileSync, appendFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   ROOT, SHOTS, attachConsole, realErrors,
-  loginUserField, loginPassField, loginSubmit, londonDay, londonDayOffset
+  loginUserField, loginPassField, loginSubmit, londonDay, londonDayOffset,
+  isSmallCash
 } from './helpers.js';
 import { creds } from './creds.js';
 
@@ -239,8 +240,12 @@ test('H3L-03 signed in, every route loads with no console errors and an Online p
     await expect(pill, `${route}: the pill must read Online`).toContainText(/Online/i, { timeout: 30000 });
 
     // The version label: in the dark header everywhere, and in the ☰ menu on
-    // the small cash counter (CLAUDE.md H3 1).
-    if (route === '#/cash') {
+    // the small cash counter (CLAUDE.md H3 1). The ☰ header is the sub-700 px
+    // layout only -- at 700 px and wider the cash counter keeps the ordinary
+    // dark header with the pill (CLAUDE.md H3 preamble: "Tablet and desktop
+    // (700 px and wider) are unchanged"; Phase III part 2, 5). This file used
+    // to run on the small projects alone, so the width guard was missing.
+    if (route === '#/cash' && isSmallCash(page)) {
       await tid(page, 'menu-button').click();
       await expect(tid(page, 'app-menu')).toBeVisible();
       const inMenu = tid(page, 'app-menu').locator('[data-testid="app-version"]');
@@ -252,7 +257,11 @@ test('H3L-03 signed in, every route loads with no console errors and an Online p
       await expect(label, `${route}: CLAUDE.md Phase III part 2, 5`).toBeVisible();
       expect(norm(await label.innerText()), `${route}: the header label`).toBe('v' + PKG_VERSION);
       const title = norm(await label.getAttribute('title'));
-      expect(title, `${route}: the header label needs a title`).toMatch(/^Version 1\.3\.1, build [0-9a-f]{7}, updated /);
+      // Same reasoning as H3L-02: package.json is the single source of truth
+      // (CLAUDE.md Phase III part 2, 1), so the literal version comes from
+      // PKG_VERSION, not a pinned 1.3.1 that goes stale on the next hotfix.
+      expect(title, `${route}: the header label needs a title`)
+        .toMatch(new RegExp(`^Version ${PKG_VERSION.replace(/\./g, '\\.')}, build [0-9a-f]{7}, updated `));
       expect(title, 'the deployed build must not be dirty').not.toContain('-dirty');
     }
     record(`H3L-03 ${info.project.name}: ${route} loaded signed in, pill "${norm(await pill.innerText())}"`);
@@ -303,28 +312,48 @@ test('H3L-04 seven tiles, three columns, all on screen with nothing in the cart'
     };
   });
 
-  const lefts = [...new Set(geo.tiles.map((t) => Math.round(t.left)))].sort((a, b) => a - b);
-  expect(lefts.length, `CLAUDE.md H3 2: "3 columns"; the tiles use ${lefts.length} left edges (${lefts})`).toBe(3);
+  // The tile geometry in CLAUDE.md H3 2 (3 columns, ~112 px tiles, 40 px
+  // icons, everything above the fold at 390x664) describes the small cash
+  // layout. The H3 preamble keeps "Tablet and desktop (700 px and wider)
+  // unchanged", so the tablet keeps its own grid and these numbers do not
+  // apply there. The menu contents above, and the short names below, do.
+  if (isSmallCash(page)) {
+    const lefts = [...new Set(geo.tiles.map((t) => Math.round(t.left)))].sort((a, b) => a - b);
+    expect(lefts.length, `CLAUDE.md H3 2: "3 columns"; the tiles use ${lefts.length} left edges (${lefts})`).toBe(3);
 
-  const offscreen = geo.tiles.filter((t) => t.bottom > geo.viewport.height + 1 || t.top < -1);
-  expect(offscreen.map((t) => `${t.id} ${r2(t.top)}..${r2(t.bottom)}`),
-    `CLAUDE.md H3 2: "All 7 tiles fit without scrolling at 390x664". At ${info.project.name} ` +
-    `(${geo.viewport.width}x${geo.viewport.height}) these fall below the fold`
-  ).toEqual([]);
-  expect(geo.area.scrollHeight,
-    `the menu area scrolls with an empty cart (scrollHeight ${geo.area.scrollHeight} > clientHeight ${geo.area.clientHeight})`
-  ).toBeLessThanOrEqual(geo.area.clientHeight + 2);
+    const offscreen = geo.tiles.filter((t) => t.bottom > geo.viewport.height + 1 || t.top < -1);
+    expect(offscreen.map((t) => `${t.id} ${r2(t.top)}..${r2(t.bottom)}`),
+      `CLAUDE.md H3 2: "All 7 tiles fit without scrolling at 390x664". At ${info.project.name} ` +
+      `(${geo.viewport.width}x${geo.viewport.height}) these fall below the fold`
+    ).toEqual([]);
+    expect(geo.area.scrollHeight,
+      `the menu area scrolls with an empty cart (scrollHeight ${geo.area.scrollHeight} > clientHeight ${geo.area.clientHeight})`
+    ).toBeLessThanOrEqual(geo.area.clientHeight + 2);
 
-  for (const t of geo.tiles) {
-    expect(Math.abs(t.height - 112), `tile-${t.id} is ${r2(t.height)}px tall; H3 2 says about 112`).toBeLessThanOrEqual(16);
-    expect(Math.abs(t.icon - 40), `tile-${t.id} icon is ${r2(t.icon)}px; H3 2 says 40`).toBeLessThanOrEqual(6);
-    expect(t.visible, `tile-${t.id} must read its short name`).toContain(SHORTS[t.id]);
+    for (const t of geo.tiles) {
+      expect(Math.abs(t.height - 112), `tile-${t.id} is ${r2(t.height)}px tall; H3 2 says about 112`).toBeLessThanOrEqual(16);
+      expect(Math.abs(t.icon - 40), `tile-${t.id} icon is ${r2(t.icon)}px; H3 2 says 40`).toBeLessThanOrEqual(6);
+    }
   }
 
-  // The seventh tile: the new short name on screen, the full name as its
+  // CLAUDE.md H3 2 puts the `short` name on the small tile; CLAUDE.md Cash
+  // counter 1 keeps the full `name` on the tablet tile. Assert whichever the
+  // viewport is meant to show.
+  const NAMES = {
+    fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box',
+    samosa_only: 'Samosa', choc_strawberry: 'Chocolate Strawberry',
+    marshmallow: 'Chocolate Marshmallow (V)'
+  };
+  for (const t of geo.tiles) {
+    const want = isSmallCash(page) ? SHORTS[t.id] : NAMES[t.id];
+    expect(t.visible, `tile-${t.id} must read "${want}"`).toContain(want);
+  }
+
+  // The seventh tile: the H3 wording on screen, the full name as its
   // accessible name (CLAUDE.md H3 7).
   const seventh = tid(page, 'tile-marshmallow');
-  expect(norm(await seventh.innerText()), 'the seventh tile reads "Choc Marshmallow"').toContain('Choc Marshmallow');
+  expect(norm(await seventh.innerText()), 'the seventh tile is the renamed marshmallow')
+    .toContain(isSmallCash(page) ? 'Choc Marshmallow' : 'Chocolate Marshmallow (V)');
   const accessible = await seventh.evaluate((el) => {
     const parts = [];
     for (const n of el.querySelectorAll('span')) {
@@ -353,6 +382,10 @@ test('H3L-04 seven tiles, three columns, all on screen with nothing in the cart'
 
 test('H3L-05 the H3 layout works end to end, read-only, and the cart is left empty', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+  // Every assertion below is the sub-700 px cash counter: the one-row ☰
+  // header, the order bar and the Review & send sheet. CLAUDE.md H3 preamble:
+  // "Tablet and desktop (700 px and wider) are unchanged".
+  test.skip(!isSmallCash(page), 'CLAUDE.md H3: the small cash layout only; the tablet panel is unchanged');
   const errors = attachConsole(page);
   await signInLive(page);
   await page.goto(LIVE + '#/cash', { waitUntil: 'domcontentloaded' });

@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**; hotfix H3, rebuilding the cash counter for small phones and cutting the menu to seven items, shipped 19 October 2026 as **v1.3.1**. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**; hotfix H3, rebuilding the cash counter for small phones and cutting the menu to seven items, shipped 19 October 2026 as **v1.3.1**; hotfix H4, starting every order on Card, shipped 19 October 2026 as **v1.3.2**. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -72,13 +72,24 @@ There are three report screens now, with a toggle at the top of each. **One day*
 
 **Orders** lists a single day's orders one by one, which is the screen to open when somebody is standing in front of you asking what was in order A-041. Pick a day, search by order number or by name, and narrow by status or by how it was paid. Tap an order and you get everything about it: till, payment, when it was placed, how long it waited, the full Placed → Started → Ready → Collected timeline with the actual times, and every item with its quantity and price. On a phone the order opens full screen and the usual Back button returns you to the list. It updates itself live, so an order taken at the till appears while the screen is open. It is read-only: nothing on it changes an order, which makes it safe to hand to anyone who needs to look something up. Cancelled orders are listed, so you can see that an order existed and was cancelled, but they are left out of the total. Its CSV export covers whatever the filters are currently showing, named `nba-food-stall_orders_<day>.csv`, and that one does include the cancelled rows, with `cancelled` in the status column.
 
-Every screen now shows the app version. The login card carries a line reading `Version 1.3.1 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.1` pill. On the small-phone cash counter the version is inside the ☰ menu rather than the header. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
+Every screen now shows the app version. The login card carries a line reading `Version 1.3.2 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.2` pill. On the small-phone cash counter the version is inside the ☰ menu rather than the header. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
 
 ---
 
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**19 October 2026, hotfix H4 — the till starts on Card.**
+
+Most people at the stall pay by card, so the cash counter now opens on **Card** instead of Cash. Every new order starts there: on first load, after an order is sent, after Clear order, and whenever the last item comes out of the cart. The choice is not remembered between orders, so a card order followed by a cash one still needs one tap, and a long run of card orders needs none at all.
+
+Tapping **Cash** works exactly as before and brings up the Cash received calculator with its Exact, £5, £10, £20 and £50 buttons. Tapping **Card** again puts the calculator away and clears whatever was keyed into it, so the next volunteer never sees a stale amount from the order before.
+
+This is the same on a tablet and on a phone: the Review & send sheet opens on Card with no calculator showing until you ask for it.
+
+Nothing about the order itself changed. The payment is still saved as cash or card, and reports, the cash-versus-card split and both CSV exports read exactly as they did. The only thing to tell volunteers is that the buttons start the other way round, so anyone taking a cash payment now taps Cash first. Every screen reads `v1.3.2`.
+
 
 **19 October 2026, hotfix H3 — the cash counter fits a phone, and the menu is seven items.**
 
@@ -116,18 +127,20 @@ Nothing changed about how orders are stored, so there is nothing to do on any ti
 
 Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one, for a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Phase IV took none against the app: the only thing the loop caught was the version bump, and four first-round failures that turned out to be defects in the new tests rather than in the screen. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
-Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. The numbers below come from two consecutive clean runs.
+Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. Hotfix H4 took none against the app either: Neo's change was green on its first full run, and the only red test was the version bump itself, which is Trinity's step rather than a defect. The numbers below come from a clean run on the bumped tree, plus a separate read-only live check against the deployed v1.3.2.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
 | Unit (Vitest) | 307 | 307 | 0 |
-| E2E (Playwright), five viewports | 387 | 387 | 0 |
-| Live checks, H3 (against the deployed site) | 22 | 22 | 0 |
-| **Total** | **716** | **716** | **0** |
+| E2E (Playwright), five viewports | 408 | 408 | 0 |
+| Live checks on v1.3.2 (against the deployed site) | 81 | 81 | 0 |
+| **Total** | **796** | **796** | **0** |
 
 The e2e suite now runs five viewports rather than two. The original phone 390×844 and tablet 1280×800 projects still run everything; three new projects model the phones H3 was built for — **iPhone 13 at 390×664, iPhone 17 at 402×694 and a Pro Max at 430×752**, each being the device width less the 180px of Safari chrome that gives the brief's figures. Those three run the H3 cash counter spec only, because the rest of the suite already covers the new layout through the 390×844 phone project and tripling a 286-case suite would make the fix loop unusable.
 
-A further 114 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+A further 172 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+
+The v1.3.2 live check was read-only, as every live check since Phase I has been. It signed in, loaded all six screens on a tablet and an iPhone 13, exercised the cart and the Review & send sheet by adding items and taking them out again, and read the live database before and after to prove nothing was written: `orders` empty both times, `menu` the same seven documents, `settings` untouched. One thing cannot be checked that way — that the panel returns to Card **after an order is sent**, which needs a real order. That case is covered on the emulator and is recorded as untestable live rather than quietly skipped.
 
 Also clean: zero axe accessibility violations on all seven routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
@@ -141,6 +154,15 @@ To run the tests yourself: `npm install`, then `npm test`. Needs Java 21 for the
 ### Live smoke test
 
 Run against the deployed site, not the emulator, after each phase.
+
+**Hotfix H4 (19 October 2026), 81 checks passed, 0 failed, read-only.** On the deployed build `b03fecd` at 1280×800 and 390×664, with zero console errors on any route at either size and the pill reading Online. The cash counter opens with Card selected and `pay-cash` unpressed, and the words "Cash received" appear nowhere on the screen until Cash is tapped. Tapping Cash brings the calculator up with its live change and short wording; tapping Card puts it away and clears both the quick button and the Other amount box. Clear order on the tablet, and taking the last item out with the − stepper on either size, both return the panel to Card. On the phone, the Review & send sheet opens on Card with no calculator.
+
+One case could not be checked live and is recorded rather than skipped: that the panel returns to Card **after an order is sent** needs a real order, so it is covered on the emulator instead. Every screen reads `v1.3.2` and the login card reads `Version 1.3.2 · build b03fecd · updated 19 Oct 2026`, with a clean seven-character build id and no `-dirty`.
+
+The run also re-ran the H2, H3, Phase III and Phase IV live suites against v1.3.2, which turned up seven stale assertions in those older specs — a version number frozen at 1.3.1, geometry that assumed the pre-H3 phone layout, "the menu holds ten documents" after H3 cut it to seven, and a Phase IV precondition requiring at least one live order, which the H3 reset made impossible. All seven were test rot rather than app defects; each was fixed against the brief.
+
+**Nothing was written.** Items were added to the cart to open the sheet and then stepped back out again; Send was never clicked on either viewport. `orders` held 0 documents before and after, `menu` the same 7, `settings` the same 0.
+
 
 **Hotfix H3 (19 October 2026), 22 checks passed, 0 failed, read-only.** On the deployed build `9be6abd` at 390×664 and 402×694, with zero console errors on any route at either size. Seven tiles in three rows, all on screen at once with nothing to scroll, the seventh reading "Choc Marshmallow" and announcing itself to a screen reader as "Add Chocolate Marshmallow (V)". No trace of Chocolate Fountain, Sweets Box or the old combined Strawberry & Marshmallow anywhere in the page. The header holds one row at 52px, the ☰ opens and closes, the order bar appears only once something is in the cart, and the review sheet opens with its lines aligned, its 48px steppers, its Cash received buttons showing "Change £5.00", and closes on Add more, on Escape and on the browser Back button.
 
