@@ -36,6 +36,8 @@ Sign in on each device **before** you leave for the venue, so nobody is typing a
 
 The till letter is remembered on that device. If you reload, you stay on the same letter and the same number sequence.
 
+**The order number counter lives on the device, not in the database.** Clearing the orders in Firestore does not reset it. A tablet that served yesterday and reached A-003 will carry on at A-004 today, even against an empty database. That is deliberate, since it is what lets the till keep numbering with no signal. If you want a device to start again at 001, clear its browser data for the site, which also signs it out.
+
 **A food counter screen (tablet or phone).**
 
 1. Open the live site, sign in, tap **Food counter**.
