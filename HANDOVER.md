@@ -69,7 +69,7 @@ Reports give total sales, order count, items sold, average order, average wait, 
 
 There are two report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
 
-Every screen now shows the app version. The login card carries a line like `Version 1.2.0 · build 4534093 · updated 19 Oct 2026`, and every dark header carries a `v1.2.0` pill. If a volunteer reports something odd, ask them what version their screen says: that tells you whether they are on a stale tab.
+Every screen now shows the app version. The login card carries a line reading `Version 1.2.0 · build <7 characters> · updated <date>`, and every dark header carries a `v1.2.0` pill. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
 
 ---
 
