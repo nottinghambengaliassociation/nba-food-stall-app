@@ -384,3 +384,683 @@ H3L-08 iphone17: PASS - 2026-10-19 orders list is empty, summary "0 orders · £
 H3L-09 iphone17: PASS - downloaded "orders-2026-10-19.csv", 0 data row(s), 13 columns
 H3L-10 iphone17: live orders = 0 document(s) after the check
 H3L-10 iphone17: PASS - orders still empty, menu still the same seven documents
+H4L-00 tablet: live orders = 0 document(s), menu = 7 document(s) before the check
+H4L-01 tablet: published js/version.js -> 1.3.2 / b03fecd / 2026-10-19
+H4L-01 tablet: PASS - v1.3.2, build b03fecd
+H4L-02 tablet: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H4L-03 tablet: #/ loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/cash loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/kitchen loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports/days loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports/orders loaded signed in, pill "Online · synced"
+H4L-03 tablet: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H4L-04 tablet: PASS - live #/cash opens on Card, no Cash received, 0 console error(s)
+H4L-05 tablet: PASS - Cash reveals, Card hides and resets, 0 console error(s)
+H4L-07 tablet: PASS - Clear order resets the live panel to Card
+H4L-08 tablet: PASS - emptying the live cart with the - stepper resets to Card
+H4L-09 tablet: NOT VERIFIABLE LIVE - CLAUDE.md H4 1 "after Send" needs an order write; covered by tests/e2e/cash-h4.spec.js H4-03 (tablet/phone panel) and H4-06 (phone sheet), on the emulator
+H4L-10 tablet: live orders = 0 document(s) after the check (was 0)
+H4L-10 tablet: PASS - orders unchanged, menu unchanged
+H4L-00 iphone13: live orders = 0 document(s), menu = 7 document(s) before the check
+H4L-01 iphone13: published js/version.js -> 1.3.2 / b03fecd / 2026-10-19
+H4L-01 iphone13: PASS - v1.3.2, build b03fecd
+H4L-02 iphone13: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H4L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/cash loaded signed in, pill "Online"
+H4L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+H4L-03 iphone13: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H4L-04 iphone13: PASS - live #/cash opens on Card, no Cash received, 0 console error(s)
+H4L-05 iphone13: PASS - Cash reveals, Card hides and resets, 0 console error(s)
+H4L-06 iphone13: PASS - the live sheet opens on Card, 0 console error(s)
+H4L-08 iphone13: PASS - emptying the live cart with the - stepper resets to Card
+H4L-09 iphone13: NOT VERIFIABLE LIVE - CLAUDE.md H4 1 "after Send" needs an order write; covered by tests/e2e/cash-h4.spec.js H4-03 (tablet/phone panel) and H4-06 (phone sheet), on the emulator
+H4L-10 iphone13: live orders = 0 document(s) after the check (was 0)
+H4L-10 iphone13: PASS - orders unchanged, menu unchanged
+--- H3L (v1.3.2 live check, build b03fecd): 203 superseded lines removed, 19 Oct 2026 ---
+  tests/e2e/live-h3.spec.js was invoked four times against this same deployed build while the
+  tablet project was being added to it. In three of those invocations the tablet project failed
+  part-way (once during H3L-03, twice during H3L-04) and Playwright retried each failure once
+  (retries: 1, test.describe.configure mode: 'serial', so the retry restarts the file at H3L-00).
+  That is why a tablet H3L-00..H3L-03 block appeared twice and why the tablet lines stopped short
+  of H3L-10. The iphone13 project completed in all four invocations; the fourth completed on
+  tablet too. All four are superseded by the final invocation, kept at the end of this file, which
+  is the one the screenshots on disk come from (qa/screenshots/live-h3-tablet-*.png and
+  live-h3-iphone13-*.png, 19 Oct 13:22-13:23). No case result is lost: the removed lines were
+  either identical to the kept run or partial output of an attempt that was retried.
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 phone toggle: One day <-> Sales by day both ways OK
+P3L-05 phone "This event" quick button visible = false; settings/event ABSENT
+P3L-05 phone range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 phone no trading days in the default range, so no "Open day" link to follow
+P3L-07 phone range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 phone toggle: One day <-> Sales by day both ways OK
+P3L-05 phone "This event" quick button visible = false; settings/event ABSENT
+P3L-05 phone range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 phone no trading days in the default range, so no "Open day" link to follow
+P3L-07 phone range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 phone login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 phone console errors signed out: 0
+P4L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 phone login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 phone console errors signed out: 0
+P4L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "371"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "379"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 tablet login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 tablet console errors signed out: 0
+P4L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026 | #/reports/orders=1.3.2/b03fecd/19 Oct 2026
+P4L-04 tablet tabs: One day | Sales by day | Orders, Orders current
+P4L-10 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-11 live orders after the check: 0 document(s); days []; []
+P4L-11 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=minmax(0px, 1fr) 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 0        0       0        0     0     0        0     0    
+momo            Momo                   0        0       0        0     0     0        0     0    
+chat            Papri Chat             0        0       0        0     0     0        0     0    
+sweet_box       Sweet Box              0        0       0        0     0     0        0     0    
+samosa_only     Samosa                 0        0       0        0     0     0        0     0    
+choc_strawberry Choc Strawberry        0        0       0        0     0     0        0     0    
+marshmallow     Choc Marshmallow       0        0       0        0     0     0        0     0    
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "529"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "537"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=156px 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 16       358     178      48    48    266      48    48   
+momo            Momo                   16       358     178      48    48    266      48    48   
+chat            Papri Chat             16       358     178      48    48    266      48    48   
+sweet_box       Sweet Box              16       358     178      48    48    266      48    48   
+samosa_only     Samosa                 16       358     178      48    48    266      48    48   
+choc_strawberry Choc Strawberry        16       358     178      48    48    266      48    48   
+marshmallow     Choc Marshmallow       16       358     178      48    48    266      48    48   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone full-cart capture at 390x1700 (columns=156px 48px 28px 48px 54px): dec.left 178 and inc.left 266 on all eight rows
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=156px 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 16       358     178      48    48    266      48    48   
+momo            Momo                   16       358     178      48    48    266      48    48   
+chat            Papri Chat             16       358     178      48    48    266      48    48   
+sweet_box       Sweet Box              16       358     178      48    48    266      48    48   
+samosa_only     Samosa                 16       358     178      48    48    266      48    48   
+choc_strawberry Choc Strawberry        16       358     178      48    48    266      48    48   
+marshmallow     Choc Marshmallow       16       358     178      48    48    266      48    48   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone full-cart capture at 390x1700 (columns=156px 48px 28px 48px 54px): dec.left 178 and inc.left 266 on all eight rows
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 phone toggle: One day <-> Sales by day both ways OK
+P3L-05 phone "This event" quick button visible = false; settings/event ABSENT
+P3L-05 phone range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 phone no trading days in the default range, so no "Open day" link to follow
+P3L-07 phone range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 phone login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 phone console errors signed out: 0
+P4L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026 | #/reports/orders=1.3.2/b03fecd/19 Oct 2026
+P4L-04 phone tabs: One day | By day | Orders, Orders current
+P4L-10 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-11 live orders after the check: 0 document(s); days []; []
+P4L-11 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "131"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 tablet login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 tablet console errors signed out: 0
+P4L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026 | #/reports/orders=1.3.2/b03fecd/19 Oct 2026
+P4L-04 tablet tabs: One day | Sales by day | Orders, Orders current
+P4L-10 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-11 live orders after the check: 0 document(s); days []; []
+P4L-11 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=156px 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 16       358     178      48    48    266      48    48   
+momo            Momo                   16       358     178      48    48    266      48    48   
+chat            Papri Chat             16       358     178      48    48    266      48    48   
+sweet_box       Sweet Box              16       358     178      48    48    266      48    48   
+samosa_only     Samosa                 16       358     178      48    48    266      48    48   
+choc_strawberry Choc Strawberry        16       358     178      48    48    266      48    48   
+marshmallow     Choc Marshmallow       16       358     178      48    48    266      48    48   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone full-cart capture at 390x1700 (columns=156px 48px 28px 48px 54px): dec.left 178 and inc.left 266 on all eight rows
+H-22.1 phone: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "252"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=156px 48px 28px 48px 54px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "260"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=156px 48px 28px 48px 54px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka                 16       358     178      48    48    266      48    48   
+momo            Momo                   16       358     178      48    48    266      48    48   
+chat            Papri Chat             16       358     178      48    48    266      48    48   
+sweet_box       Sweet Box              16       358     178      48    48    266      48    48   
+samosa_only     Samosa                 16       358     178      48    48    266      48    48   
+choc_strawberry Choc Strawberry        16       358     178      48    48    266      48    48   
+marshmallow     Choc Marshmallow       16       358     178      48    48    266      48    48   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone full-cart capture at 390x1700 (columns=156px 48px 28px 48px 54px): dec.left 178 and inc.left 266 on all eight rows
+H-22.1 phone: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "296"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=156px 48px 28px 48px 54px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 phone toggle: One day <-> Sales by day both ways OK
+P3L-05 phone "This event" quick button visible = false; settings/event ABSENT
+P3L-05 phone range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 phone no trading days in the default range, so no "Open day" link to follow
+P3L-07 phone range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 phone login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 phone console errors signed out: 0
+P4L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 phone rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026 | #/reports/orders=1.3.2/b03fecd/19 Oct 2026
+P4L-04 phone tabs: One day | By day | Orders, Orders current
+P4L-10 phone after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-11 live orders after the check: 0 document(s); days []; []
+P4L-11 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H-22.0 live orders before the check: 0 document(s) []
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Chocolate Marshmallow  899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; committed public/css/app.css: 55054 bytes, sha256 e764197f4dfab312265b0a1d8b65ed291536eb65d8b9a93244d6d298aca49d95; cache-control "max-age=600", age "384"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 0 document(s) []
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+P3L-00 live orders before the check: 0 document(s); days []; status {}; []
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet range 2026-10-13..2026-10-19 is EMPTY and renders "No sales in this range"
+P3L-06 tablet no trading days in the default range, so no "Open day" link to follow
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 0 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P3L-09 live orders after the check: 0 document(s); days []
+P3L-09 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live orders before the check: 0 document(s); days []; status {}; []
+P4L-00 live menu before the check: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+P4L-00 live `orders` is empty (CLAUDE.md H3 7 reset); P4L-05..P4L-09 skip, the empty-state checks still run
+P4L-01 tablet login-version: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-01 tablet console errors signed out: 0
+P4L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days #/reports/orders: 0
+P4L-03 tablet rendered version labels: #/=1.3.2/b03fecd/19 Oct 2026 | #/cash=1.3.2/b03fecd/19 Oct 2026 | #/kitchen=1.3.2/b03fecd/19 Oct 2026 | #/reports=1.3.2/b03fecd/19 Oct 2026 | #/reports/days=1.3.2/b03fecd/19 Oct 2026 | #/reports/orders=1.3.2/b03fecd/19 Oct 2026
+P4L-04 tablet tabs: One day | Sales by day | Orders, Orders current
+P4L-10 tablet after sign out: "Version 1.3.2 · build b03fecd · updated 19 Oct 2026"
+P4L-11 live orders after the check: 0 document(s); days []; []
+P4L-11 live menu untouched: 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H4L-00 tablet: live orders = 0 document(s), menu = 7 document(s) before the check
+H4L-01 tablet: published js/version.js -> 1.3.2 / b03fecd / 2026-10-19
+H4L-01 tablet: PASS - v1.3.2, build b03fecd
+H4L-02 tablet: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H4L-03 tablet: #/ loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/cash loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/kitchen loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports/days loaded signed in, pill "Online · synced"
+H4L-03 tablet: #/reports/orders loaded signed in, pill "Online · synced"
+H4L-03 tablet: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H4L-04 tablet: PASS - live #/cash opens on Card, no Cash received, 0 console error(s)
+H4L-05 tablet: PASS - Cash reveals, Card hides and resets, 0 console error(s)
+H4L-07 tablet: PASS - Clear order resets the live panel to Card
+H4L-08 tablet: PASS - emptying the live cart with the - stepper resets to Card
+H4L-09 tablet: NOT VERIFIABLE LIVE - CLAUDE.md H4 1 "after Send" needs an order write; covered by tests/e2e/cash-h4.spec.js H4-03 (tablet/phone panel) and H4-06 (phone sheet), on the emulator
+H4L-10 tablet: live orders = 0 document(s) after the check (was 0)
+H4L-10 tablet: PASS - orders unchanged, menu unchanged
+H4L-00 iphone13: live orders = 0 document(s), menu = 7 document(s) before the check
+H4L-01 iphone13: published js/version.js -> 1.3.2 / b03fecd / 2026-10-19
+H4L-01 iphone13: PASS - v1.3.2, build b03fecd
+H4L-02 iphone13: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H4L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/cash loaded signed in, pill "Online"
+H4L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+H4L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+H4L-03 iphone13: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H4L-04 iphone13: PASS - live #/cash opens on Card, no Cash received, 0 console error(s)
+H4L-05 iphone13: PASS - Cash reveals, Card hides and resets, 0 console error(s)
+H4L-06 iphone13: PASS - the live sheet opens on Card, 0 console error(s)
+H4L-08 iphone13: PASS - emptying the live cart with the - stepper resets to Card
+H4L-09 iphone13: NOT VERIFIABLE LIVE - CLAUDE.md H4 1 "after Send" needs an order write; covered by tests/e2e/cash-h4.spec.js H4-03 (tablet/phone panel) and H4-06 (phone sheet), on the emulator
+H4L-10 iphone13: live orders = 0 document(s) after the check (was 0)
+H4L-10 iphone13: PASS - orders unchanged, menu unchanged
+--- H3L final run: LIVE_H3=1, tests/e2e/live-h3.spec.js, --project=tablet --project=iphone13,
+    build b03fecd, 19 Oct 2026 13:22-13:23 ---
+H3L-00 tablet: live orders = 0 document(s) before the check
+H3L-01 tablet: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 tablet: live settings = 0 document(s)
+H3L-01 tablet: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-02 tablet: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H3L-03 tablet: #/ loaded signed in, pill "Online · synced"
+H3L-03 tablet: #/cash loaded signed in, pill "Online · synced"
+H3L-03 tablet: #/kitchen loaded signed in, pill "Online · synced"
+H3L-03 tablet: #/reports loaded signed in, pill "Online · synced"
+H3L-03 tablet: #/reports/days loaded signed in, pill "Online · synced"
+H3L-03 tablet: #/reports/orders loaded signed in, pill "Online · synced"
+H3L-03 tablet: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H3L-04 tablet: 7 tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow]
+H3L-04 tablet: seventh tile reads "Add Chocolate Marshmallow (V) £5.00", accessible name "Add Chocolate Marshmallow (V) £5.00"
+H3L-04 tablet: PASS - 7 tiles in 3 columns, all inside 1280x800, menu area does not scroll, 0 console error(s)
+H3L-06 tablet: 2026-10-19 KPIs {"kpi-sales":"£0.00","kpi-orders":"0","kpi-items":"0","kpi-avg-order":"£0.00","kpi-avg-wait":"—"}
+H3L-06 tablet: PASS - the One day report for 2026-10-19 is zero across every KPI, 0 console error(s)
+H3L-07 tablet: "This event" is present but hidden
+H3L-07 tablet: PASS - 2026-10-13..2026-10-19 shows "No sales in this range", This event hidden, 0 console error(s)
+H3L-08 tablet: PASS - 2026-10-19 orders list is empty, summary "0 orders · £0.00", 0 console error(s)
+H3L-09 tablet: PASS - downloaded "orders-2026-10-19.csv", 0 data row(s), 13 columns
+H3L-10 tablet: live orders = 0 document(s) after the check
+H3L-10 tablet: PASS - orders still empty, menu still the same seven documents
+H3L-00 iphone13: live orders = 0 document(s) before the check
+H3L-01 iphone13: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 iphone13: live settings = 0 document(s)
+H3L-01 iphone13: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-02 iphone13: PASS - login card reads "Version 1.3.2 · build b03fecd · updated 19 Oct 2026", 0 console error(s)
+H3L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/cash loaded signed in, pill "Online"
+H3L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+H3L-03 iphone13: PASS - 6 routes signed in, v1.3.2 everywhere, 0 console error(s)
+H3L-04 iphone13: 7 tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow]
+H3L-04 iphone13: seventh tile reads "Add Chocolate Marshmallow (V) Choc Marshmallow", accessible name "Add Chocolate Marshmallow (V)"
+H3L-04 iphone13: PASS - 7 tiles in 3 columns, all inside 390x664, menu area does not scroll, 0 console error(s)
+H3L-05 iphone13: header one row, 52px, reads "Next A-001 Online Till A B C D E F"
+H3L-05 iphone13: order bar reads "3 items · £15.00 Review & send", 60px tall
+H3L-05 iphone13: sheet top 40px, 3 aligned lines, steppers 48x48, marshmallow line reads "Choc Marshmallow"
+H3L-05 iphone13: cash received block reads "Cash received (optional) Exact £5 £10 £20 £50 Other amount Change £5.00"
+H3L-05 iphone13: the sheet closed on Add more, Escape and Back; Send was never clicked
+H3L-05 iphone13: PASS - header, ☰, order bar, sheet, cash received all exercised read-only; cart emptied; 0 console error(s)
+H3L-06 iphone13: 2026-10-19 KPIs {"kpi-sales":"£0.00","kpi-orders":"0","kpi-items":"0","kpi-avg-order":"£0.00","kpi-avg-wait":"—"}
+H3L-06 iphone13: PASS - the One day report for 2026-10-19 is zero across every KPI, 0 console error(s)
+H3L-07 iphone13: "This event" is present but hidden
+H3L-07 iphone13: PASS - 2026-10-13..2026-10-19 shows "No sales in this range", This event hidden, 0 console error(s)
+H3L-08 iphone13: PASS - 2026-10-19 orders list is empty, summary "0 orders · £0.00", 0 console error(s)
+H3L-09 iphone13: PASS - downloaded "orders-2026-10-19.csv", 0 data row(s), 13 columns
+H3L-10 iphone13: live orders = 0 document(s) after the check
+H3L-10 iphone13: PASS - orders still empty, menu still the same seven documents
+H3L RESULT (build b03fecd, projects tablet + iphone13): 21 passed, 1 skipped.
+  tablet: H3L-00..H3L-04 and H3L-06..H3L-10 ran and passed (10 cases).
+  tablet H3L-05 DID NOT RUN. live-h3.spec.js:388 skips it with "CLAUDE.md H3: the small cash
+    layout only; the tablet panel is unchanged" - CLAUDE.md -> Hotfix H3 applies to screens
+    narrower than 700 px. There is no tablet H3L-05 line above and none has been added.
+  iphone13: H3L-00..H3L-10 ran and passed (11 cases).
+  10 + 11 = 21 passed, 1 skipped, which is the figure Playwright reported for live-h3.
+  iphone17 last ran this check on v1.3.1 / build 9be6abd (its blocks earlier in this file, and
+    qa/screenshots/live-h3-iphone17-*.png, 19 Oct 10:55); it was not in this invocation. promax
+    has never run the live H3 check.
+  playwright-report/index.html does not hold this run: it was overwritten at 13:24:44 by a later
+    invocation in which all 613 cases are listed as skipped with no results at all.
