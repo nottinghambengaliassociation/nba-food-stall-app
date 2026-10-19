@@ -55,3 +55,101 @@ S-08 live reports for 2026-10-18: orders=1 sales=£5.00 (cancelled A-002 exclude
 S-09 post-run verification (read-only REST): live orders now 7 total; the two new ones are both day=2026-10-18 name=QA-SMOKE: A-001 collected/cash (startedAtMs, readyAtMs, collectedAtMs all stamped, cancelledAtMs null) and A-002 cancelled/card (cancelledAtMs stamped). Neither document has a tendered or changeGiven key. The 5 pre-existing 2026-10-17 orders are untouched. menu still holds its 6 documents [chat, fountain, fuchka, momo, samosa, straw] with price 500 and active true.
 S-09 note: the four transition timestamps exist as null placeholders at creation (cancelledAtMs is null on the collected order). That matches the data model and the local D-02 case; tendered and changeGiven are different - their keys are absent entirely.
 RESULT: 15 live checks passed, 0 failed, 1 skipped by design (S-08 writes once, on tablet only). 0 console errors on any route, signed out or signed in. Cleanup for Trinity: 2 QA-SMOKE orders on day 2026-10-18 (A-001 collected, A-002 cancelled). Nothing deleted by QA.
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 phone: signed in with the shared account, landed on #/
+H-20.1 phone #/: pill "Online · synced"
+H-20.1 phone #/cash: pill "Online · synced"
+H-20.1 phone #/kitchen: pill "Online · synced"
+H-20.1 phone #/reports: pill "Online · synced"
+H-20.1 phone: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 phone live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 phone: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 phone: signed in with the shared account, landed on #/
+H-20.1 phone #/: pill "Online · synced"
+H-20.1 phone #/cash: pill "Online · synced"
+H-20.1 phone #/kitchen: pill "Online · synced"
+H-20.1 phone #/reports: pill "Online · synced"
+H-20.1 phone: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 phone live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 phone: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 tablet: signed in with the shared account, landed on #/
+H-20.1 tablet #/: pill "Online · synced"
+H-20.1 tablet #/cash: pill "Online · synced"
+H-20.1 tablet #/kitchen: pill "Online · synced"
+H-20.1 tablet #/reports: pill "Online · synced"
+H-20.1 tablet: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 tablet live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 tablet: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 tablet: signed in with the shared account, landed on #/
+H-20.1 tablet #/: pill "Online · synced"
+H-20.1 tablet #/cash: pill "Online · synced"
+H-20.1 tablet #/kitchen: pill "Online · synced"
+H-20.1 tablet #/reports: pill "Online · synced"
+H-20.1 tablet: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 tablet live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 tablet: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 phone: signed in with the shared account, landed on #/
+H-20.1 phone #/: pill "Online · synced"
+H-20.1 phone #/cash: pill "Online · synced"
+H-20.1 phone #/kitchen: pill "Online · synced"
+H-20.1 phone #/reports: pill "Online · synced"
+H-20.1 phone: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 phone live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 phone: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.3 phone: panel cleared, no toast, live orders still 3 document(s) — nothing written
+H-20.4 trading day 2026-10-18: 3 live order(s) [A-001, A-002, A-003], 6 item(s), £30.00; ids chat, samosa, straw; retired ids present: samosa, straw
+H-20.4 phone reports 2026-10-18: sales=£30.00 orders=3 items=6 (expected £30.00, 3 orders, 6 items)
+H-20.4 phone item-row-chat: "Papri Chat" x1 — OK
+H-20.4 phone item-row-samosa: "Sweets Box Samosa / Shingara" x2 — OK
+H-20.4 phone item-row-straw: "Chocolate Strawberry & Marshmallow (V)" x3 — OK
+H-20.5 phone CSV for 2026-10-18: 4 row(s), items [Papri Chat | Sweets Box Samosa / Shingara | Sweets Box Samosa / Shingara | Chocolate Strawberry & Marshmallow (V)]
+H-20.6 live orders after the check: 3 document(s) [A-001/collected, A-002/collected, A-003/collected]
+H-20.6 PASS: orders and menu unchanged. No order placed, nothing cancelled, no document written.
+H-20.0 live orders before the check: 3 document(s) [A-001/collected/2026-10-18, A-002/collected/2026-10-18, A-003/collected/2026-10-18]
+H-20.1 tablet: signed in with the shared account, landed on #/
+H-20.1 tablet #/: pill "Online · synced"
+H-20.1 tablet #/cash: pill "Online · synced"
+H-20.1 tablet #/kitchen: pill "Online · synced"
+H-20.1 tablet #/reports: pill "Online · synced"
+H-20.1 tablet: 0 console error(s) across 4 routes
+H-20.2 live menu: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H-20.2 DIFFERENCE (not a failure): retired menu/samosa has sort 4; the CLAUDE.md table says 90. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.2 DIFFERENCE (not a failure): retired menu/straw has sort 5; the CLAUDE.md table says 91. menu-sync is told not to overwrite an existing value. No effect on the till (inactive) or on reporting (grouped by id).
+H-20.3 tablet live tiles (8): [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]
+H-20.3 tablet: coordinate tap at the centre of tile-fountain moved its badge 0 -> 1 (order bar at full height)
+H-20.3 tablet: panel cleared, no toast, live orders still 3 document(s) — nothing written
+H-20.4 trading day 2026-10-18: 3 live order(s) [A-001, A-002, A-003], 6 item(s), £30.00; ids chat, samosa, straw; retired ids present: samosa, straw
+H-20.4 tablet reports 2026-10-18: sales=£30.00 orders=3 items=6 (expected £30.00, 3 orders, 6 items)
+H-20.4 tablet item-row-chat: "Papri Chat" x1 — OK
+H-20.4 tablet item-row-samosa: "Sweets Box Samosa / Shingara" x2 — OK
+H-20.4 tablet item-row-straw: "Chocolate Strawberry & Marshmallow (V)" x3 — OK
+H-20.5 tablet CSV for 2026-10-18: 4 row(s), items [Papri Chat | Sweets Box Samosa / Shingara | Sweets Box Samosa / Shingara | Chocolate Strawberry & Marshmallow (V)]
+H-20.6 live orders after the check: 3 document(s) [A-001/collected, A-002/collected, A-003/collected]
+H-20.6 PASS: orders and menu unchanged. No order placed, nothing cancelled, no document written.
+H-20 SUMMARY 2026-10-19 — Hotfix H1 live verification, READ-ONLY, deploy 21e45ff / Pages run 39177899282.
+H-20 RESULT: 14/14 passed (7 cases x phone 390x844 and tablet 1280x800). 0 failed, 0 skipped.
+H-20 Checks: routes load + pill Online + login OK; live menu = 10 docs, 8 active in sort order 1-8;
+H-20 till = exactly 8 tiles, no samosa/straw tile; eighth tile (fountain) tapped by coordinate, badge 0->1 on BOTH viewports;
+H-20 reports 2026-10-18 = GBP30.00 / 3 orders / 6 items, legacy ids under ORIGINAL names; CSV 4 rows, original names;
+H-20 live Firestore unchanged: orders 3 -> 3, byte-identical fingerprint; menu 10 -> 10. No order placed, nothing cancelled, nothing written.
+H-20 Only reported difference: retired menu/samosa sort=4 and menu/straw sort=5 (CLAUDE.md table says 90/91). menu-sync is told not to overwrite an existing value, so this is expected and has no functional effect. For Trinity.
+H-20 Credential hygiene: username and password read at run time from the gitignored .secrets/app-login.env; never written to this file, to any test, or to any screenshot; Show/Hide never pressed so the password field is masked in every capture. This file re-scanned for both values and for AIza[0-9A-Za-z_-]{35}: zero hits.

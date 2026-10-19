@@ -349,3 +349,54 @@ All 28 emulator screenshots regenerated in the clean run, both viewports:
 | BUG-5 | major | `#/cash` stored order | withdrawn (requirement change) |
 
 **No new bugs in round 4.**
+
+Round 5 (live) added none either: see below.
+
+---
+
+## Round 5 — H1 live verification (read-only), 2026-10-19
+
+Deploy under test: commit `21e45ff`, Pages run `39177899282`, `LIVE_URL` = https://nottinghambengaliassociation.github.io/nba-food-stall-app/ — after Trinity's single `menu-sync` run.
+
+Command: `LIVE_H1=1 npx playwright test tests/e2e/live-h1.spec.js`. Evidence: `qa/screenshots/live-h1-*.png` (16 files) and `qa/live-smoke-record.txt`.
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| live phone 390×844 (`H-20.0`…`H-20.6`) | 7 | 0 | 0 |
+| live tablet 1280×800 (`H-20.0`…`H-20.6`) | 7 | 0 | 0 |
+| **live total** | **14** | **0** | **0** |
+
+**Open bugs: none.** blocker 0 · major 0 · minor 0.
+
+### Pass/fail per check requested
+
+| Check | Phone | Tablet | Evidence |
+|---|---|---|---|
+| Exactly eight tiles, in sort order, neither retired item shown | **PASS** | **PASS** | `[fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain]`; `tile-samosa`/`tile-straw` absent. `live-h1-<p>-cash-eight-tiles.png` |
+| Eighth tile reachable and tappable with the order bar at its tallest | **PASS** | **PASS** | All eight answer `elementFromPoint` at their own centre; coordinate click on `tile-fountain` moved `qty-fountain` 0 → 1. `live-h1-<p>-cash-eighth-tile-tapped.png` |
+| `#/reports` for 2026-10-18 shows the legacy items under their original names | **PASS** | **PASS** | `item-row-samosa` "Sweets Box Samosa / Shingara" ×2, `item-row-straw` "Chocolate Strawberry & Marshmallow (V)" ×3, `item-row-chat` "Papri Chat" ×1. KPIs £30.00 / 3 orders / 6 items match the live documents exactly. `live-h1-<p>-reports-2026-10-18.png` |
+| CSV for that day carries the original names | **PASS** | **PASS** | 4 rows, 13 columns: `Papri Chat \| Sweets Box Samosa / Shingara \| Sweets Box Samosa / Shingara \| Chocolate Strawberry & Marshmallow (V)` |
+| No console errors on any route, pill Online, login works | **PASS** | **PASS** | 0 console errors across `#/`, `#/cash`, `#/kitchen`, `#/reports`; pill "Online · synced" on all four; shared account signs in and lands on `#/`; no "Storage not configured" and no "Login not configured" banner |
+| Live menu is the ten H1 documents, eight active | **PASS** | **PASS** | ids, names, shorts, stations and active flags all match the brief; active sorts exactly 1–8 |
+| Nothing written to live Firestore | **PASS** | **PASS** | `orders` 3 → 3, byte-identical fingerprint (ids, names, quantities, status, totals); `menu` 10 → 10 |
+
+### Difference from the brief found live (reported, not a failure)
+
+Retired `menu/samosa` has `sort: 4` and `menu/straw` has `sort: 5`; the `CLAUDE.md` Menu table gives them 90 and 91. This is **correct behaviour**: `CLAUDE.md` → H1 4 tells `menu-sync` to "never overwrite a field that already has a different value … report differences instead", and both documents predate the hotfix. Both rows are `active: false`, so they are never tiles, and the reports group by id, not by sort — there is no functional effect. `H-20.2` therefore asserts name/short/station/active hard for all ten and the sort hard for the eight active rows only, and records the retired rows' sort as a difference. **For Trinity**, not for Neo.
+
+### Differences from the emulator results
+
+None of substance. The live run reproduced every emulator finding: eight tiles in the same order, the eighth tile tappable with the bar at full height, legacy ids reporting and exporting under their original names, and no migration of old documents. Two environmental notes:
+
+1. The emulator seeds the retired rows with sorts 90/91 (matching the brief); live kept the pre-hotfix 4/5, as above. The emulator case `H-07` keeps asserting 90/91 because a fresh seed must follow the brief.
+2. The live day under test (2026-10-18, 3 orders, £30.00) is real trading data rather than the synthetic mixed day used by `H-12`; both exercise the same path. Live has no order containing a *new* id yet, so the "old and new side by side" assertion only exists in the emulator case — placing a live order to create one would be a write, so it was **not** done.
+
+### Test-side correction during this round (no app change)
+
+`H-20.3`'s "nothing was sent" guard first asserted `order-toast` had **zero** nodes. That was wrong: the deployed `cash.js` builds the toast `<div>` once at screen construction and only shows/hides it (`public/js/cash.js`, `testid: 'order-toast'`), so its node count is always 1. The guard now asserts the toast is **not visible** and holds no order number, and then re-reads live Firestore to confirm the orders collection is unchanged — a direct check rather than a proxy. Live Firestore was independently queried the moment the guard tripped and held exactly the same 3 documents, all created 2026-10-18T16:55–16:59Z, so **no order was ever written**; the failure was in the assertion, not in the app or in the write discipline.
+
+Tapping a tile is local state only — an order reaches Firestore solely through `send-order`, which this spec never clicks — and the panel is cleared again afterwards.
+
+### Credential hygiene
+
+Username and password were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle is never pressed, so the password field is masked in every capture; the login screenshots are taken before the fields are filled. `qa/live-smoke-record.txt`, `qa/bugs.md`, `qa/test-plan.md` and all three new test files were re-scanned for the literal username, the literal password, `AIza[0-9A-Za-z_-]{35}` and `"private_key"`: **zero hits** (the three `AIza…` strings in `qa/test-plan.md` are the regex pattern quoted in prose, which `U-24`/`U-25` already tolerate).

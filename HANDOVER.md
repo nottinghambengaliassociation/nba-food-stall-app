@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items shipped 19 October 2026. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -56,7 +56,9 @@ Prices are read from Firestore, not hard-coded. To change one, edit it in the Fi
 
 ## What it does
 
-Six menu items at £5 each, seeded automatically on first load if the `menu` collection is empty.
+Eight menu items at £5 each: Fuchka, Momo, Papri Chat, Sweet Box, Samosa, Choc Strawberry, Marshmallow and Choc Fountain. They are seeded automatically on first load if the `menu` collection is empty.
+
+Hotfix H1 split two previously combined items into four, so "Sweets Box Samosa / Shingara" became Sweet Box and Samosa, and "Chocolate Strawberry & Marshmallow (V)" became Choc Strawberry and Marshmallow. The two old items are retired rather than deleted: they stay in the menu as inactive, so they never appear as tiles but orders taken before the split still report under the names they were sold as. **Never reuse a retired id.**
 
 The till builds an order, takes a name to call out, takes cash or card, and sends it. With Cash selected there is an optional **Cash received** calculator: tap Exact, £5, £10, £20 or £50, or type any amount, and it shows the change to give, or how much the order is short by. It is a calculator for the volunteer and nothing more, so it never blocks sending and nothing about it is saved. The order gets a number like `A-043` (till letter plus a daily sequence) and appears on the food counter instantly. Volunteers move it New → Preparing → Ready → Collected with one big button, with an undo for mis-taps. Ready orders show the name in large capitals for calling out. Cards turn amber once an order is six minutes old.
 
@@ -66,14 +68,15 @@ Reports give total sales, order count, items sold, average order, average wait, 
 
 ## Test results
 
-Phase I took two rounds of the fix loop; Phase II took one. Final run green, from a clean run with nothing else driving the emulator.
+Phase I took two rounds of the fix loop, Phase II one, and hotfix H1 none — every H1 case passed first time. Final numbers come from a clean run with nothing else driving the emulator.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
-| Unit (Vitest) | 116 | 116 | 0 |
-| E2E phone 390×844 (Playwright) | 88 | 88 | 0 |
-| E2E tablet 1280×800 (Playwright) | 89 | 89 | 0 |
-| **Total** | **293** | **293** | **0** |
+| Unit (Vitest) | 166 | 166 | 0 |
+| E2E phone 390×844 (Playwright) | 99 | 99 | 0 |
+| E2E tablet 1280×800 (Playwright) | 100 | 100 | 0 |
+| Live checks (against the deployed site) | 14 | 14 | 0 |
+| **Total** | **379** | **379** | **0** |
 
 Also clean: zero axe accessibility violations on all four routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
@@ -93,6 +96,8 @@ Run against the deployed site, not the emulator, after each phase.
 The assertion worth having is this one. A `QA-SMOKE` order was sent on the live site with £20 keyed into Cash received against a £5.00 cash order, and the document written to the real Firestore contains **neither `tendered` nor `changeGiven`** — the fields are absent, not null. The older orders in the same collection all carry `tendered`, so the contrast proves the change actually shipped rather than merely passing in the emulator.
 
 A second `QA-SMOKE` order was cancelled, and live Reports then read one order and £5.00, confirming cancellations are still excluded.
+
+**Hotfix H1 (19 October 2026), 14 checks passed, 0 failed, read-only.** On the deployed site at both viewports: the till shows exactly eight tiles in sort order with neither retired item appearing; the eighth tile is reachable and tappable with the order bar at its tallest, verified by a coordinate click that moved the quantity badge; and Reports for 2026-10-18 renders the pre-split orders under their original names, "Sweets Box Samosa / Shingara" and "Chocolate Strawberry & Marshmallow (V)", with the CSV carrying the same. KPIs read £30.00, 3 orders, 6 items, matching the stored documents exactly. Nothing was written: `orders` and `menu` were byte-identical before and after.
 
 **Phase I (17 October 2026).** All four routes loaded on both viewports with zero console errors and no "Storage not configured" banner. An order was taken through to Collected and a second cancelled, with Reports excluding the cancellation.
 
@@ -181,6 +186,16 @@ No keys are in the repo. `public/js/firebase-config.js` and `public/js/login-con
 The plain login password never leaves this Mac. It lives in `.secrets/app-login.env`, which is gitignored; `scripts/write-login-config.mjs` hashes it in process, and only the SHA-256 is stored as a GitHub secret or shipped to the browser. Tests read the credentials from that same file at run time, so no username or password appears in any test, fixture, screenshot or document in this repo. A unit test fails the build if either value ever does.
 
 Guardrails in place: `.gitignore`, a version-controlled pre-commit hook (`scripts/check-secrets.sh`, installed via `core.hooksPath`) that blocks API keys, service-account keys, GitHub tokens and PEM blocks, a unit test that fails if any tracked file contains an API key, and GitHub secret scanning with push protection enabled. Post-push audit of `git log -p --all` found zero credential matches and secret scanning reports zero alerts.
+
+### Changing the menu
+
+Prices and names are edited in the Firebase console, under the `menu` collection. Prices are in pence, so `500` is £5.00.
+
+To retire an item, set `active: false` rather than deleting it. Deleting it would break how past orders report, because orders store the item id and fall back to the menu for the name. **Never reuse a retired id** for a new item, or old orders will silently start reporting as the new thing.
+
+`scripts/menu-sync.mjs` reconciles the live menu with the table in `CLAUDE.md`. It only ever creates missing documents and applies a short whitelist of known changes; it never deletes, and it refuses to overwrite any field that already holds a different value, reporting the difference instead. Run `node scripts/menu-sync.mjs --dry-run` to see the plan, then without the flag to apply it. It is idempotent, so a second run does nothing.
+
+It will keep reporting two differences on every run: the retired `samosa` and `straw` documents have `sort` 4 and 5 while the brief's table says 90 and 91. That is the script correctly refusing to overwrite, not a fault. Sort only affects the ordering of tiles and both are inactive, so it has no visible effect. If you want the message to stop, set those two sort values in the console.
 
 ### Changing the shared password
 

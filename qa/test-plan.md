@@ -741,17 +741,34 @@ Ids are unique; no id is reused ("Never reuse a retired id").
 ### H-18 Screenshots refreshed
 **Expected** `qa/screenshots/<project>-cash-empty.png` and `<project>-cash-orders.png` regenerated showing eight tiles, both projects, plus `<project>-kitchen-legacy.png` showing a legacy-id card and `<project>-reports-mixed.png` showing old and new item rows side by side.
 
-## 22. H1 live verification (gated, **read-only**)
+## 22. H1 live verification (gated, **read-only**) — `tests/e2e/live-h1.spec.js`
 
-### H-20 Live check after the H1 deploy
-**Gate** Runs only when `LIVE=1` is set, the same way the existing `S-*` smoke is gated. Not run before the hotfix is deployed.
-**Steps** On both projects against `LIVE_URL`: load `#/`, `#/cash`, `#/kitchen`, `#/reports`; sign in with the credentials read at run time from `.secrets/app-login.env`; read the live `menu` as the app renders it; open `#/reports` on the day of the last service.
-**Expected**
-1. Every route renders, `conn-pill` is present and reads Online, zero console errors.
-2. The till shows exactly eight tiles with the new ids; no `tile-samosa`, no `tile-straw`.
-3. The report for the last trading day still lists the legacy items under their **original** names, and its totals are unchanged from the pre-deploy figures recorded in `qa/live-smoke-record.txt`.
-4. Screenshots `qa/screenshots/live-<project>-<screen>.png`, password masked.
-**Write discipline** No order is placed, no document is written, no status is changed, nothing is cancelled. The only permitted live write in this hotfix is Trinity's single `scripts/menu-sync.mjs` run, which is not part of this spec.
+**Gate** `LIVE_H1=1`, the same style as the `S-*` smoke, so `npm run test:e2e` stays offline.
+Run on 2026-10-19 against deploy `21e45ff` (Pages run `39177899282`), after Trinity's single `menu-sync` run. **14/14 passed, both viewports.**
+
+**Write discipline.** Every Firestore call in the spec is a GET. No order is placed, no status changed, nothing cancelled, no menu document written. Tapping a till tile mutates the in-page order panel only — an order reaches Firestore solely through `send-order`, which is never clicked — and the panel is cleared afterwards. `H-20.0` and `H-20.6` bracket the run with a fingerprint of the orders collection to prove it. Apart from Trinity's `menu-sync`, nothing in this hotfix may write to live Firestore.
+
+### H-20.0 Snapshot the live orders collection first
+**Expected** A fingerprint (document id, orderNo, status, total, day, and every line's `id|name|qty|price`) is taken before anything else, for `H-20.6` to compare against.
+
+### H-20.1 Every route loads clean, pill Online, login works
+**Expected** `#/login` renders a real form (no "Login not configured"); the shared account signs in and lands on `#/`; `#/`, `#/cash`, `#/kitchen`, `#/reports` each render with no "Storage not configured" banner, `conn-pill` reading Online, and **zero** console errors across all four. Screenshots `qa/screenshots/live-h1-<project>-<screen>.png`, password masked.
+
+### H-20.2 The live menu is the ten H1 documents, eight active
+**Expected** Ten `menu/{id}` documents. `name`, `short`, `station` and `active` match the brief's table for all ten; the eight active rows in `sort` order are `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain` with sorts exactly 1–8; `samosa` and `straw` are present with `active: false` and are never deleted.
+**Retired rows' `sort` is reported, not enforced.** `CLAUDE.md` → H1 4 tells `menu-sync` to "never overwrite a field that already has a different value … report differences instead", so a retired row that predates the hotfix legitimately keeps the sort it was created with. It is inactive (never a tile) and the reports group by id, so there is no functional effect. Any difference is written to `qa/live-smoke-record.txt` for Trinity.
+
+### H-20.3 Exactly eight live tiles, and the eighth takes a real tap
+**Expected** Exactly eight tiles in sort order; no `tile-samosa`, no `tile-straw`. Then, with items in the panel so the sticky order bar is at its tallest, every tile answers `document.elementFromPoint` at its own centre, and the **eighth** tile is clicked by coordinate with its quantity badge asserted to increment — the same proof as the emulator `H-09`, because visibility alone is not evidence. Finishes by clearing the panel and re-reading live Firestore to show the orders collection is untouched.
+
+### H-20.4 The trading day still reports its legacy items under the original names
+**Expected** On the most recent live trading day: total sales, order count and items sold equal the figures computed from the live documents, so the hotfix changed no past takings. Every id that traded has its own `item-row-<id>` showing the **stored** name and the right units, with no "unknown", "undefined" or blank. Spelled out for `samosa` → "Sweets Box Samosa / Shingara" and `straw` → "Chocolate Strawberry & Marshmallow (V)".
+
+### H-20.5 The CSV for that day carries the original names
+**Expected** The export downloads and parses: the thirteen Phase I columns, one row per order line, every `item` cell equal to the name stored on the live document — the retired ids under their original names — and no blank item cell.
+
+### H-20.6 Nothing was written
+**Expected** The orders collection is the same length and a byte-identical fingerprint to `H-20.0`; the menu still holds its ten documents.
 
 ## 23. H1 deliberate readings of the brief
 
@@ -760,3 +777,4 @@ Ids are unique; no id is reused ("Never reuse a retired id").
 3. **Station of the four new items is `sweets`** per H1 3, even though `samosa_only` is arguably chaat. The brief wins.
 4. **Existing fixtures that carry `samosa`** (the Phase I report day) are kept deliberately: they are now backwards-compatibility fixtures and exercise H-05/H-12 for free.
 5. **Six-tile assertions from Phase I are updated to eight.** That is the hotfix landing, not a defect, and is recorded in `qa/bugs.md` under "Test-side changes".
+6. **Live retired rows keep their pre-hotfix `sort`** (4 and 5 rather than the table's 90 and 91). `menu-sync` is forbidden from overwriting an existing value, both rows are inactive, and reporting groups by id — so the live check records the difference instead of failing on it. A *fresh* seed must still follow the brief, which `H-01` and `H-07` enforce at 90/91.
