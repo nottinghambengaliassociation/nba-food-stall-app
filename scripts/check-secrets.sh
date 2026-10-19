@@ -101,15 +101,28 @@ if [ "${#FILES[@]}" -eq 0 ]; then
   exit 0
 fi
 
-# Read staged content for the pre-commit case, worktree content otherwise, so
-# that what is actually going into the commit is what gets scanned.
-read_file() {
-  if [ "$MODE" = "staged" ]; then
-    git show ":$1" 2>/dev/null
-  else
-    cat "$1" 2>/dev/null
-  fi
-}
+# Every grep below reads a FILE, never `printf "$content" | grep -q` and never a
+# here-string built from a shell variable. Two reasons, both found the hard way:
+#
+#   1. `printf '%s' "$content" | grep -q PAT` is wrong under `set -o pipefail`.
+#      grep -q exits at its first match, printf dies of SIGPIPE (141) before it
+#      has finished writing, and the pipeline reports 141 — indistinguishable
+#      from "no match". Any content bigger than the 64 KiB pipe buffer was
+#      therefore skipped outright: package-lock.json, qa/test-plan.md,
+#      qa/bugs.md and qa/live-smoke-record.txt were never scanned, and a real
+#      key inside one of them would not have been reported.
+#   2. Command substitution strips NUL bytes, so a $content copy of a PNG looks
+#      like text. The binary skip below has to see the real bytes, or every
+#      screenshot gets run through eight regexes for nothing (30 s per run).
+#
+# Staged mode writes the blob to a temp file so that what is scanned is exactly
+# what is going into the commit; other modes scan the working file in place.
+TMP_BLOB=""
+cleanup() { [ -n "$TMP_BLOB" ] && rm -f "$TMP_BLOB"; }
+trap cleanup EXIT
+if [ "$MODE" = "staged" ]; then
+  TMP_BLOB="$(mktemp -t check-secrets)" || { echo "check-secrets: cannot create temp file"; exit 1; }
+fi
 
 found=0
 scanned=0
@@ -120,14 +133,20 @@ for f in "${FILES[@]}"; do
     .secrets/*|node_modules/*|playwright-report/*|test-results/*) continue ;;
     public/js/firebase-config.js|public/js/login-config.js) continue ;;
   esac
-  content="$(read_file "$f")" || continue
-  [ -z "$content" ] && continue
-  # Skip binaries.
-  printf '%s' "$content" | grep -Iq . 2>/dev/null || continue
+  if [ "$MODE" = "staged" ]; then
+    git show ":$f" > "$TMP_BLOB" 2>/dev/null || continue
+    target="$TMP_BLOB"
+  else
+    [ -f "$f" ] && [ -r "$f" ] || continue
+    target="$f"
+  fi
+  [ -s "$target" ] || continue
+  # Skip binaries (screenshots and other assets): grep -I reads the real bytes.
+  grep -Iq . "$target" 2>/dev/null || continue
   scanned=$((scanned + 1))
   i=0
   for pat in "${PATTERNS[@]}"; do
-    if printf '%s' "$content" | grep -Eq -- "$pat"; then
+    if grep -Eq -- "$pat" "$target"; then
       echo "${RED}${BOLD}check-secrets: possible ${DESCRIPTIONS[$i]} in:${RESET} $f"
       found=1
     fi
@@ -136,7 +155,7 @@ for f in "${FILES[@]}"; do
   # Literal match on the real password, if we have it. -f with a process
   # substitution keeps the value out of the argument list.
   if [ -n "$LOGIN_PW" ]; then
-    if printf '%s' "$content" | grep -Fq -f <(printf '%s\n' "$LOGIN_PW"); then
+    if grep -Fq -f <(printf '%s\n' "$LOGIN_PW") "$target"; then
       echo "${RED}${BOLD}check-secrets: app login password in:${RESET} $f"
       found=1
     fi
