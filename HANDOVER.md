@@ -80,6 +80,8 @@ Every screen now shows the app version. The login card carries a line reading `V
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
 
+**19 October 2026 — the leftover QA order was deleted from the live database.** The one document left in live `orders` by the smoke test, order `A-001` on 19 October 2026, £40.00, cash, collected, eight lines of one of each item, was deleted at the organiser's request. It was checked against its record in this handover before it went: it was the only document in the collection and the only one numbered `A-001`, so no real sale was at risk. Live `orders` is now empty and `menu` is untouched, with all ten items present and `samosa` and `straw` still retired. Reports for 19 October now read zero, as they should before trading starts.
+
 **19 October 2026, v1.3.0 — the Orders screen.** Organisers get a third report screen, **Orders**, reached from the One day / Sales by day / Orders toggle at the top of any report. It lists a single day's orders one at a time rather than totalling them, so when a customer asks what was in order A-041 you can answer. Search by order number or name, narrow by status or payment, tap an order for its till, payment, timeline with real times, and every item with quantity and price. On a phone it opens full screen and the Back button returns to the list. It updates live, so an order taken at the till appears while the screen is open.
 
 It is read-only. Nothing on that screen changes an order: cancelling still happens at the cash counter and status changes still happen at the food counter, which makes Orders safe to hand to anyone who needs to look something up mid-service. Cancelled orders are listed so you can see they existed, but they are left out of the total. Its CSV covers whatever the filters are showing and, unlike the other two exports, includes the cancelled rows with `cancelled` in the status column, so filtering to Cancelled and exporting gives you something rather than an empty file.
@@ -190,11 +192,9 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 ## Needs you
 
-**1. Delete the leftover QA order before the next service.** Live `orders` holds one document, `A-001` on 19 October 2026, £40.00, collected, eight lines of one each. It is the smoke-test order from an earlier check, not a real sale, and the stall has not traded since. Left in place it adds £40.00 and eight items to that day in both reports. Delete that one document in the Firebase console, or subtract it when you read the figures. The live check is read-only by design, so QA did not remove it.
+**1. Create `settings/event` if you want the "This event" button.** It does not exist, so the quick button is hidden, which is the specified behaviour rather than a fault. To switch it on, add a document `settings/event` in the Firebase console with `name`, `from` and `to`, the dates as `YYYY-MM-DD` strings. The button appears the next time the screen loads. No deploy needed.
 
-**2. Create `settings/event` if you want the "This event" button.** It does not exist, so the quick button is hidden, which is the specified behaviour rather than a fault. To switch it on, add a document `settings/event` in the Firebase console with `name`, `from` and `to`, the dates as `YYYY-MM-DD` strings. The button appears the next time the screen loads. No deploy needed.
-
-**3. Restrict the Firebase browser API key to the site. Not blocking, worth doing.**
+**2. Restrict the Firebase browser API key to the site. Not blocking, worth doing.**
 
 `gcloud` is not installed on the build machine, so this could not be automated.
 
@@ -208,13 +208,13 @@ http://127.0.0.1:5173/*
 
 For context, a Firebase web API key always ends up in the browser of a deployed web app. That is how every Firebase web app works: the key identifies the project, it is not a password. Keeping it out of the GitHub repo was still the rule here and that rule held. Restricting it by referrer is the extra step.
 
-**4. Tighten the Firestore rules before this is reused.** The rules are `allow read, write: if true`, so the public API key plus the project id is enough for anyone to read or wipe the whole database. Fine for one day with an unadvertised URL, not fine for anything ongoing. If the stall runs again, this is the first thing to fix.
+**3. Tighten the Firestore rules before this is reused.** The rules are `allow read, write: if true`, so the public API key plus the project id is enough for anyone to read or wipe the whole database. Fine for one day with an unadvertised URL, not fine for anything ongoing. If the stall runs again, this is the first thing to fix.
 
-**5. Choose a shared password that is used nowhere else, and tell the volunteers it verbally.** The hash ships in the browser, so a weak or reused password is the weak point. Do not put it in a WhatsApp group that outlives the event.
+**4. Choose a shared password that is used nowhere else, and tell the volunteers it verbally.** The hash ships in the browser, so a weak or reused password is the weak point. Do not put it in a WhatsApp group that outlives the event.
 
-**6. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
+**5. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
 
-**7. Close the screenshot gap in the secret scanner, before the next phase rather than after it.**
+**6. Close the screenshot gap in the secret scanner, before the next phase rather than after it.**
 
 `scripts/check-secrets.sh` skips binary files by design, so the QA screenshots have never been scanned by it — not in this release and not in any earlier one. The scanner reporting clean over 93 text files says nothing at all about the 20 PNGs committed alongside them.
 
@@ -222,7 +222,7 @@ Nothing has leaked. Every capture that renders the login form was opened and che
 
 The problem is that this currently rests on QA's capture discipline plus somebody remembering to look. If a future run ever photographs a filled login form, or a new screen starts showing who is signed in, no automated check would catch it. Either write the rule down so the next run inherits it, or add a cheap check that fails when a `*login*` screenshot's field region is not blank.
 
-**8. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
+**7. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
 
 ---
 
