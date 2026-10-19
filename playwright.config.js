@@ -63,7 +63,8 @@ export default defineConfig({
       { name: "promax", width: 430, height: 752 },
     ].map(({ name, width, height }) => ({
       name,
-      testMatch: /cash-h3\.spec\.js/,
+      // The H3 emulator suite, and the gated read-only H3 live check.
+      testMatch: /(cash-h3|live-h3)\.spec\.js/,
       use: {
         ...devices["Desktop Chrome"],
         browserName: "chromium",

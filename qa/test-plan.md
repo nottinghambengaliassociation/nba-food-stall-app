@@ -1471,3 +1471,36 @@ hand-edited `fuchka` at 600p, and a `settings/event` document.
 | H3-l-5 output hygiene | Counts and document ids only — no document contents, no config value, no secret |
 
 **Result (19 Oct 2026): all five pass.**
+
+## 42. H3 live verification (gated, **read-only, zero writes**) — `tests/e2e/live-h3.spec.js`
+
+`LIVE_H3=1 npx playwright test tests/e2e/live-h3.spec.js --project=iphone13 --project=iphone17`
+
+Run after the v1.3.1 deploy and after `scripts/reset-live.mjs`. **Write
+discipline:** `send-order` is never clicked, no status is changed, nothing is
+cancelled, no menu or settings document is touched. Tapping a tile mutates the
+in-page cart only, and the cart is emptied again before leaving the screen.
+`H3L-00` and `H3L-10` bracket the run with a count and a fingerprint of
+`orders`. Credentials are read at run time from the gitignored
+`.secrets/app-login.env`; the Show/Hide toggle is never pressed.
+
+| id | Case | Expected |
+|---|---|---|
+| H3L-00 | `orders` before | 0 documents |
+| H3L-01 | `menu` and `settings` | exactly the 7 H3 ids, each £5 and active, `marshmallow` = "Chocolate Marshmallow (V)" / "Choc Marshmallow"; no `fountain`, `samosa`, `straw` |
+| H3L-02 | Login card | `Version 1.3.1 · build <7-char sha> · updated <date>`, matching `title` and `aria-label`, build **clean** (no `-dirty`), version equal to `package.json` |
+| H3L-03 | Every route signed in | `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days`, `#/reports/orders` all load, no "Storage not configured", pill reads Online, `v1.3.1` in each dark header and in the ☰ menu on the small cash counter, zero console errors |
+| H3L-04 | The till | 7 tiles in sort order, 3 columns, every tile inside the viewport with an empty cart and the menu area not scrolling, ~112 px tall, 40 px icons; the seventh reads "Choc Marshmallow" with "Chocolate Marshmallow (V)" as its accessible name; no deleted item's wording anywhere on the screen |
+| H3L-05 | H3 layout, read-only | header one row ≤ 56 px with nothing wrapped; ☰ opens (aria-expanded) and closes on Escape; order bar hidden when empty, then "3 items · £15.00 Review & send" at 60 px; sheet is `role="dialog"` at top 40 px with aligned lines and 48 px steppers; Cash received shows the five quick buttons, "Change £5.00" and the Other amount link; the sheet closes on Add more, Escape and Back; **the cart is emptied and Send is never clicked** |
+| H3L-06 | One day report | every KPI zero for today |
+| H3L-07 | Sales by day | default range is the last 7 days ending today, `range-empty` reads "No sales in this range", "This event" not visible (no `settings/event`) |
+| H3L-08 | Orders screen | `orders-empty` reads "No orders match these filters.", summary `0 orders · £0.00` with no "(excludes …)" |
+| H3L-09 | CSV read path | the One day export downloads, parses, has the thirteen Phase I columns and no data rows; no `tendered` |
+| H3L-10 | Nothing was written | `orders` still 0 with a byte-identical fingerprint; `menu` still the same seven ids |
+
+Screenshots: `qa/screenshots/live-h3-<project>-<screen>.png` for `iphone13`
+and `iphone17`: `login`, `cash-empty`, `cash-bar`, `cash-sheet`,
+`reports-zero`, `reports-days-zero`, `reports-orders-zero` — 14 files.
+
+**Result (19 Oct 2026, build `9be6abd`): 22/22 pass, zero console errors,
+nothing written.**

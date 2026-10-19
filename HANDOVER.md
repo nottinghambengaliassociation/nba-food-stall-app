@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**; hotfix H3, rebuilding the cash counter for small phones and cutting the menu to seven items, shipped 19 October 2026 as **v1.3.1**. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -60,9 +60,9 @@ Prices are read from Firestore, not hard-coded. To change one, edit it in the Fi
 
 ## What it does
 
-Eight menu items at £5 each: Fuchka, Momo, Papri Chat, Sweet Box, Samosa, Choc Strawberry, Marshmallow and Choc Fountain. They are seeded automatically on first load if the `menu` collection is empty.
+Seven menu items at £5 each: Fuchka, Momo, Papri Chat, Sweet Box, Samosa, Choc Strawberry and Choc Marshmallow. They are seeded automatically on first load if the `menu` collection is empty.
 
-Hotfix H1 split two previously combined items into four, so "Sweets Box Samosa / Shingara" became Sweet Box and Samosa, and "Chocolate Strawberry & Marshmallow (V)" became Choc Strawberry and Marshmallow. The two old items are retired rather than deleted: they stay in the menu as inactive, so they never appear as tiles but orders taken before the split still report under the names they were sold as. **Never reuse a retired id.**
+Hotfix H1 split two previously combined items into four in October 2026, and hotfix H3 then dropped Chocolate Fountain and renamed Marshmallow to Chocolate Marshmallow (V). The retired ids from the split, `samosa`, `straw` and `fountain`, were deleted outright in the H3 reset, which was safe because the database held no orders at the time. **Never reuse a retired id.** If an order ever does carry an item the menu no longer knows, it still shows under the name stored on that order line, with the plain plate icon.
 
 The till builds an order, takes a name to call out, takes cash or card, and sends it. With Cash selected there is an optional **Cash received** calculator: tap Exact, £5, £10, £20 or £50, or type any amount, and it shows the change to give, or how much the order is short by. It is a calculator for the volunteer and nothing more, so it never blocks sending and nothing about it is saved. The order gets a number like `A-043` (till letter plus a daily sequence) and appears on the food counter instantly. Volunteers move it New → Preparing → Ready → Collected with one big button, with an undo for mis-taps. Ready orders show the name in large capitals for calling out. Cards turn amber once an order is six minutes old.
 
@@ -72,13 +72,27 @@ There are three report screens now, with a toggle at the top of each. **One day*
 
 **Orders** lists a single day's orders one by one, which is the screen to open when somebody is standing in front of you asking what was in order A-041. Pick a day, search by order number or by name, and narrow by status or by how it was paid. Tap an order and you get everything about it: till, payment, when it was placed, how long it waited, the full Placed → Started → Ready → Collected timeline with the actual times, and every item with its quantity and price. On a phone the order opens full screen and the usual Back button returns you to the list. It updates itself live, so an order taken at the till appears while the screen is open. It is read-only: nothing on it changes an order, which makes it safe to hand to anyone who needs to look something up. Cancelled orders are listed, so you can see that an order existed and was cancelled, but they are left out of the total. Its CSV export covers whatever the filters are currently showing, named `nba-food-stall_orders_<day>.csv`, and that one does include the cancelled rows, with `cancelled` in the status column.
 
-Every screen now shows the app version. The login card carries a line reading `Version 1.3.0 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.0` pill. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
+Every screen now shows the app version. The login card carries a line reading `Version 1.3.1 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.1` pill. On the small-phone cash counter the version is inside the ☰ menu rather than the header. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
 
 ---
 
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**19 October 2026, hotfix H3 — the cash counter fits a phone, and the menu is seven items.**
+
+On an iPhone the cash counter used to be close to unusable. The order panel sat open all the time and took over half the screen, so only two menu tiles showed, the dark header wrapped onto three rows and the Cash and Card buttons were squeezed to nothing. It has been rebuilt for any screen narrower than 700px. The tablet and desktop cash counter is unchanged, and so is everything else on every size.
+
+What a till volunteer sees now. The header is one row: the till letter, whether you are online, the next order number, and a ☰ button. Food counter, Reports, Recent orders and Sign out moved into that ☰ menu, which is also where the version now shows. All seven menu tiles fit on the screen at once, three to a row, with no scrolling. Nothing covers the tiles until you add something, and then a single teal bar appears along the bottom reading, for example, "3 items · £15.00 Review & send". Tap it and the order slides up over the menu: the name to call out, the lines with − and +, the total, Cash or Card, the Cash received calculator, and a Send button pinned at the bottom where it is always reachable. **Add more** takes you back to the tiles without losing the order. Escape and the phone's own Back button close it too, and taking the last item out closes it for you.
+
+Nothing about sending an order changed. It writes the same order, clears the cart and shows the same confirmation with the order number for four seconds.
+
+**The menu is now seven items.** Chocolate Fountain has gone, and "Chocolate Marshmallow" is now **Chocolate Marshmallow (V)**, shown on the tiles as "Choc Marshmallow". The three retired items from the H1 split, `samosa`, `straw` and `fountain`, have been deleted rather than left switched off, so the menu in the Firebase console is exactly the seven things you sell.
+
+**Live data was reset as part of this release**, which was safe because the stall has not traded yet and the database held no real orders. Everything in `orders`, `menu` and `settings` was backed up first to `.secrets/backups/live-20261019-094925439Z.json` on the build machine, which is outside the repo and is the only copy of the old menu — keep it until you are happy with the new one. Then `orders` was emptied (it was already empty), the seven menu documents were written in full, and `fountain`, `samosa` and `straw` were deleted. `settings` was not touched, so "This event" stays hidden until somebody creates that document. Reports now read zero, as they should before trading starts, and order numbers will start from 001 on the first trading day. Devices keep their till letter.
+
+Prices and names are still edited in the Firebase console, the same as before. If you add an item the app does not recognise, it still appears on an order under whatever name was stored with it, with the plain plate icon.
 
 **19 October 2026 — the leftover QA order was deleted from the live database.** The one document left in live `orders` by the smoke test, order `A-001` on 19 October 2026, £40.00, cash, collected, eight lines of one of each item, was deleted at the organiser's request. It was checked against its record in this handover before it went: it was the only document in the collection and the only one numbered `A-001`, so no real sale was at risk. Live `orders` is now empty and `menu` is untouched, with all ten items present and `samosa` and `straw` still retired. Reports for 19 October now read zero, as they should before trading starts.
 
@@ -102,14 +116,18 @@ Nothing changed about how orders are stored, so there is nothing to do on any ti
 
 Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one, for a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Phase IV took none against the app: the only thing the loop caught was the version bump, and four first-round failures that turned out to be defects in the new tests rather than in the screen. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
+Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. The numbers below come from two consecutive clean runs.
+
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
 | Unit (Vitest) | 307 | 307 | 0 |
-| E2E, phone 390×844 and tablet 1280×800 (Playwright) | 286 | 286 | 0 |
-| Live checks, Phase IV (against the deployed site) | 23 | 23 | 0 |
-| **Total** | **616** | **616** | **0** |
+| E2E (Playwright), five viewports | 387 | 387 | 0 |
+| Live checks, H3 (against the deployed site) | 22 | 22 | 0 |
+| **Total** | **716** | **716** | **0** |
 
-A further 62 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+The e2e suite now runs five viewports rather than two. The original phone 390×844 and tablet 1280×800 projects still run everything; three new projects model the phones H3 was built for — **iPhone 13 at 390×664, iPhone 17 at 402×694 and a Pro Max at 430×752**, each being the device width less the 180px of Safari chrome that gives the brief's figures. Those three run the H3 cash counter spec only, because the rest of the suite already covers the new layout through the 390×844 phone project and tripling a 286-case suite would make the fix loop unusable.
+
+A further 114 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
 
 Also clean: zero axe accessibility violations on all seven routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
@@ -123,6 +141,12 @@ To run the tests yourself: `npm install`, then `npm test`. Needs Java 21 for the
 ### Live smoke test
 
 Run against the deployed site, not the emulator, after each phase.
+
+**Hotfix H3 (19 October 2026), 22 checks passed, 0 failed, read-only.** On the deployed build `9be6abd` at 390×664 and 402×694, with zero console errors on any route at either size. Seven tiles in three rows, all on screen at once with nothing to scroll, the seventh reading "Choc Marshmallow" and announcing itself to a screen reader as "Add Chocolate Marshmallow (V)". No trace of Chocolate Fountain, Sweets Box or the old combined Strawberry & Marshmallow anywhere in the page. The header holds one row at 52px, the ☰ opens and closes, the order bar appears only once something is in the cart, and the review sheet opens with its lines aligned, its 48px steppers, its Cash received buttons showing "Change £5.00", and closes on Add more, on Escape and on the browser Back button.
+
+All three reports read zero, which is what the reset was for: no sales, no orders, "No sales in this range" and "No orders match these filters." The CSV downloaded with its thirteen columns and no data rows. Every screen reads `v1.3.1` and the login card reads `Version 1.3.1 · build 9be6abd · updated 19 Oct 2026`, with a clean seven-character build id and no `-dirty`, which is how you can tell it came through CI rather than off the build machine.
+
+**Nothing was written.** Items were added to the cart to open the sheet and then stepped back out again; Send was never clicked. `orders` held 0 documents before and after, `menu` the same 7, `settings` the same 0.
 
 **Phase IV (19 October 2026), 23 checks passed, 0 failed, read-only.** On the deployed build `064f0a8` at both viewports, with zero console errors: all seven routes load signed in and all six guarded ones bounce to the login screen signed out; the three report tabs read `One day | Sales by day | Orders` on a tablet and `One day | By day | Orders` on a phone; the Orders screen renders the live order with every field correct, filters by status, by payment and by search in either case, opens the detail with its full timeline and all eight item lines, and on a phone returns from the full-screen detail by both the "All orders" button and the browser Back button.
 
@@ -216,13 +240,15 @@ For context, a Firebase web API key always ends up in the browser of a deployed 
 
 **6. Close the screenshot gap in the secret scanner, before the next phase rather than after it.**
 
-`scripts/check-secrets.sh` skips binary files by design, so the QA screenshots have never been scanned by it — not in this release and not in any earlier one. The scanner reporting clean over 93 text files says nothing at all about the 20 PNGs committed alongside them.
+`scripts/check-secrets.sh` skips binary files by design, so the QA screenshots have never been scanned by it — not in this release and not in any earlier one. The scanner reporting clean over the tracked text files says nothing at all about the PNGs committed alongside them.
 
-Nothing has leaked. Every capture that renders the login form was opened and checked by hand for this release: the Username and Password fields are empty in all of them, the signed-out shots are taken after the session is cleared, and no screen in the app renders the signed-in username anywhere, so no signed-in capture can carry it either. The PNG metadata chunks are clean.
+Nothing has leaked. For the H3 release the check went further than a visual one: every tracked and untracked file in the repo, PNGs included, was scanned byte by byte for the real username and the real password, and neither appears anywhere. No capture carries a `tEXt`, `iTXt` or `zTXt` metadata chunk. The login captures show a test fixture username, confirmed not to be the configured one, with the password field empty; the new cash-counter captures show no username at all, because the small header has nowhere to put one.
 
 The problem is that this currently rests on QA's capture discipline plus somebody remembering to look. If a future run ever photographs a filled login form, or a new screen starts showing who is signed in, no automated check would catch it. Either write the rule down so the next run inherits it, or add a cheap check that fails when a `*login*` screenshot's field region is not blank.
 
 **7. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
+
+**8. Keep or delete the pre-reset backup.** The H3 reset wrote `.secrets/backups/live-20261019-094925439Z.json` on the build machine before it touched anything. It is outside the repo, gitignored, and holds the ten menu documents as they were, which is the only remaining copy of the three retired items. It contains no orders, because there were none. Keep it until you are satisfied the seven-item menu is right, then delete it — there is no reason for a database dump to sit on a laptop indefinitely.
 
 ---
 
@@ -250,7 +276,7 @@ To retire an item, set `active: false` rather than deleting it. Deleting it woul
 
 `scripts/menu-sync.mjs` reconciles the live menu with the table in `CLAUDE.md`. It only ever creates missing documents and applies a short whitelist of known changes; it never deletes, and it refuses to overwrite any field that already holds a different value, reporting the difference instead. Run `node scripts/menu-sync.mjs --dry-run` to see the plan, then without the flag to apply it. It is idempotent, so a second run does nothing.
 
-It will keep reporting two differences on every run: the retired `samosa` and `straw` documents have `sort` 4 and 5 while the brief's table says 90 and 91. That is the script correctly refusing to overwrite, not a fault. Sort only affects the ordering of tiles and both are inactive, so it has no visible effect. If you want the message to stop, set those two sort values in the console.
+Since the H3 reset it reports no differences at all: live `menu` is exactly the seven documents the script expects. It never overwrites a value you have edited in the console and never deletes anything, so if you change a price there it will report the difference rather than undo it. The one script that does delete is `scripts/reset-live.mjs`, which backs everything up first, refuses to run without `--yes`, and is not something to run against a database that has traded.
 
 ### Changing the shared password
 

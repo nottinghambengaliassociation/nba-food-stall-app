@@ -856,3 +856,65 @@ the seeded order still in place. Nothing was run against live Firestore.
 3. The sign-out confirm answers to `signout-confirm` / `signout-confirm-ok` /
    `signout-cancel`; `cash-h3.spec.js` resolves the box and its two buttons by
    role, so either spelling works.
+
+---
+
+## Hotfix H3 live check — 2026-10-19, build `9be6abd` (read-only)
+
+`LIVE_H3=1 npx playwright test tests/e2e/live-h3.spec.js --project=iphone13 --project=iphone17`
+against `https://nottinghambengaliassociation.github.io/nba-food-stall-app/`.
+
+**Result: 22/22 pass at both viewports. No bugs raised. Nothing written.**
+
+| Check | iphone13 390×664 | iphone17 402×694 | Observed |
+|---|---|---|---|
+| Sign in, all six routes, no console errors, pill Online | **PASS** | **PASS** | 0 console errors; pill "Online · synced" everywhere, short "Online" on the small cash header (H3 1) |
+| 7 tiles, 3 columns, all visible without scrolling the menu area | **PASS** | **PASS** | `fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow`; 3 left edges; menu area `scrollHeight == clientHeight` |
+| Seventh tile: "Choc Marshmallow" / "Chocolate Marshmallow (V)" | **PASS** | **PASS** | visible text "Choc Marshmallow", accessible name "Add Chocolate Marshmallow (V)" |
+| No Chocolate Fountain / Sweets Box / Chocolate Strawberry & Marshmallow anywhere | **PASS** | **PASS** | no such tile and no such wording in the page text |
+| 0 orders: One day KPIs | **PASS** | **PASS** | sales £0.00, orders 0, items 0, avg order £0.00, avg wait — |
+| 0 orders: Sales by day | **PASS** | **PASS** | 2026-10-13..2026-10-19 → "No sales in this range"; "This event" present but hidden (no `settings/event`) |
+| 0 orders: Orders screen | **PASS** | **PASS** | "No orders match these filters.", summary `0 orders · £0.00` |
+| Version: `v1.3.1` in headers, login card line | **PASS** | **PASS** | `Version 1.3.1 · build 9be6abd · updated 19 Oct 2026`; build is the clean 7-character form, no `-dirty`; `title`/`aria-label` match |
+| H3 layout read-only: header, ☰, order bar, sheet | **PASS** | **PASS** | header one row 52 px, nothing wrapped; ☰ opens/closes with `aria-expanded`; bar "3 items · £15.00 Review & send" at 60 px; sheet `role="dialog"` top 40 px, lines aligned, steppers 48×48; Cash received "Change £5.00" with the Other amount link; closed on Add more, Escape and Back |
+| CSV export (read path) | **PASS** | **PASS** | `orders-2026-10-19.csv`, 13 Phase I columns, 0 data rows, no `tendered` |
+| **Nothing written** | **PASS** | **PASS** | `orders` 0 before and 0 after with an identical fingerprint; `menu` the same seven ids |
+
+### Live data seen
+
+`orders` **0 documents**. `menu` **7 documents** — `chat, choc_strawberry,
+fuchka, marshmallow, momo, samosa_only, sweet_box` — each £5 and active, with
+`marshmallow` reading "Chocolate Marshmallow (V)" / "Choc Marshmallow".
+`settings` **0 documents**, so "This event" stays hidden. This matches Trinity's
+report of the reset exactly.
+
+### Write discipline
+
+Every Firestore call in `tests/e2e/live-h3.spec.js` is a GET over the REST API.
+`send-order` was never clicked, no status was changed, nothing was cancelled,
+and no menu or settings document was touched. Three tiles were tapped to raise
+the order bar and open the review sheet — in-page cart state that reaches
+Firestore only through Send — and the cart was stepped back to empty before
+leaving the screen (`H3L-05` asserts the order bar is hidden again). `H3L-00`
+and `H3L-10` bracket the run: `orders` is 0 documents before and after with a
+byte-identical fingerprint. Credentials were read at run time from the
+gitignored `.secrets/app-login.env`; the Show/Hide toggle was never pressed, so
+the password is masked in every capture, and no screenshot, log line or entry
+in `qa/live-smoke-record.txt` contains the username, the password or the web
+API key.
+
+### Observations, no bug raised
+
+1. The One day export is named `orders-<day>.csv`. `CLAUDE.md` Reports 6 does
+   not specify a file name for that screen (only Phase III 9 and Phase IV 8 do,
+   for their own exports), so this is not a defect.
+2. The cart line in the small review sheet shows the `short` name
+   ("Choc Marshmallow"), matching `design/CashCounterSmallOpen.dc.html`. The
+   full name "Chocolate Marshmallow (V)" is the tile's accessible name and is
+   what a saved order line, the reports and the CSV carry.
+
+### Screenshots
+
+`qa/screenshots/live-h3-<project>-<screen>.png` for `project` ∈ {iphone13, iphone17}:
+`login`, `cash-empty`, `cash-bar`, `cash-sheet`, `reports-zero`,
+`reports-days-zero`, `reports-orders-zero` — 14 files.

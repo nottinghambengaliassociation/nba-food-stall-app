@@ -299,3 +299,88 @@ P4L-09 tablet axe detail: 0 serious/critical
 P4L-10 tablet after sign out: "Version 1.3.0 · build 064f0a8 · updated 19 Oct 2026"
 P4L-11 live orders after the check: 1 document(s); days [2026-10-19]; [A-001/collected/2026-10-19]
 P4L-11 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+H3L-00 iphone13: live orders = 0 document(s) before the check
+H3L-01 iphone13: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 iphone13: live settings = 0 document(s)
+H3L-01 iphone13: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-00 iphone17: live orders = 0 document(s) before the check
+H3L-01 iphone17: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 iphone17: live settings = 0 document(s)
+H3L-01 iphone17: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-02 iphone17: PASS - login card reads "Version 1.3.1 · build 9be6abd · updated 19 Oct 2026", 0 console error(s)
+H3L-03 iphone17: #/ loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/cash loaded signed in, pill "Online"
+H3L-03 iphone17: #/kitchen loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports/days loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports/orders loaded signed in, pill "Online · synced"
+H3L-03 iphone17: PASS - 6 routes signed in, v1.3.1 everywhere, 0 console error(s)
+H3L-04 iphone17: 7 tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow]
+H3L-04 iphone17: seventh tile reads "Add Chocolate Marshmallow (V) Choc Marshmallow", accessible name "Add Chocolate Marshmallow (V)"
+H3L-04 iphone17: PASS - 7 tiles in 3 columns, all inside 402x694, menu area does not scroll, 0 console error(s)
+H3L-05 iphone17: header one row, 52px, reads "Next A-001 Online Till A B C D E F"
+H3L-05 iphone17: order bar reads "3 items · £15.00 Review & send", 60px tall
+H3L-05 iphone17: sheet top 40px, 3 aligned lines, steppers 48x48, marshmallow line reads "Choc Marshmallow"
+H3L-05 iphone17: cash received block reads "Cash received (optional) Exact £5 £10 £20 £50 Other amount Change £5.00"
+H3L-05 iphone17: the sheet closed on Add more, Escape and Back; Send was never clicked
+H3L-05 iphone17: PASS - header, ☰, order bar, sheet, cash received all exercised read-only; cart emptied; 0 console error(s)
+H3L-06 iphone17: 2026-10-19 KPIs {"kpi-sales":"£0.00","kpi-orders":"0","kpi-items":"0","kpi-avg-order":"£0.00","kpi-avg-wait":"—"}
+H3L-06 iphone17: PASS - the One day report for 2026-10-19 is zero across every KPI, 0 console error(s)
+H3L-00 iphone13: live orders = 0 document(s) before the check
+H3L-01 iphone13: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 iphone13: live settings = 0 document(s)
+H3L-01 iphone13: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-02 iphone13: PASS - login card reads "Version 1.3.1 · build 9be6abd · updated 19 Oct 2026", 0 console error(s)
+H3L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/cash loaded signed in, pill "Online"
+H3L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+H3L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+H3L-03 iphone13: PASS - 6 routes signed in, v1.3.1 everywhere, 0 console error(s)
+H3L-04 iphone13: 7 tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow]
+H3L-04 iphone13: seventh tile reads "Add Chocolate Marshmallow (V) Choc Marshmallow", accessible name "Add Chocolate Marshmallow (V)"
+H3L-04 iphone13: PASS - 7 tiles in 3 columns, all inside 390x664, menu area does not scroll, 0 console error(s)
+H3L-05 iphone13: header one row, 52px, reads "Next A-001 Online Till A B C D E F"
+H3L-05 iphone13: order bar reads "3 items · £15.00 Review & send", 60px tall
+H3L-05 iphone13: sheet top 40px, 3 aligned lines, steppers 48x48, marshmallow line reads "Choc Marshmallow"
+H3L-05 iphone13: cash received block reads "Cash received (optional) Exact £5 £10 £20 £50 Other amount Change £5.00"
+H3L-05 iphone13: the sheet closed on Add more, Escape and Back; Send was never clicked
+H3L-05 iphone13: PASS - header, ☰, order bar, sheet, cash received all exercised read-only; cart emptied; 0 console error(s)
+H3L-06 iphone13: 2026-10-19 KPIs {"kpi-sales":"£0.00","kpi-orders":"0","kpi-items":"0","kpi-avg-order":"£0.00","kpi-avg-wait":"—"}
+H3L-06 iphone13: PASS - the One day report for 2026-10-19 is zero across every KPI, 0 console error(s)
+H3L-07 iphone13: "This event" is present but hidden
+H3L-07 iphone13: PASS - 2026-10-13..2026-10-19 shows "No sales in this range", This event hidden, 0 console error(s)
+H3L-08 iphone13: PASS - 2026-10-19 orders list is empty, summary "0 orders · £0.00", 0 console error(s)
+H3L-09 iphone13: PASS - downloaded "orders-2026-10-19.csv", 0 data row(s), 13 columns
+H3L-10 iphone13: live orders = 0 document(s) after the check
+H3L-10 iphone13: PASS - orders still empty, menu still the same seven documents
+H3L-00 iphone17: live orders = 0 document(s) before the check
+H3L-01 iphone17: live menu = 7 document(s) [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_only, sweet_box]
+H3L-01 iphone17: live settings = 0 document(s)
+H3L-01 iphone17: PASS - seven menu documents, marshmallow renamed, fountain/samosa/straw gone
+H3L-02 iphone17: PASS - login card reads "Version 1.3.1 · build 9be6abd · updated 19 Oct 2026", 0 console error(s)
+H3L-03 iphone17: #/ loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/cash loaded signed in, pill "Online"
+H3L-03 iphone17: #/kitchen loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports/days loaded signed in, pill "Online · synced"
+H3L-03 iphone17: #/reports/orders loaded signed in, pill "Online · synced"
+H3L-03 iphone17: PASS - 6 routes signed in, v1.3.1 everywhere, 0 console error(s)
+H3L-04 iphone17: 7 tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow]
+H3L-04 iphone17: seventh tile reads "Add Chocolate Marshmallow (V) Choc Marshmallow", accessible name "Add Chocolate Marshmallow (V)"
+H3L-04 iphone17: PASS - 7 tiles in 3 columns, all inside 402x694, menu area does not scroll, 0 console error(s)
+H3L-05 iphone17: header one row, 52px, reads "Next A-001 Online Till A B C D E F"
+H3L-05 iphone17: order bar reads "3 items · £15.00 Review & send", 60px tall
+H3L-05 iphone17: sheet top 40px, 3 aligned lines, steppers 48x48, marshmallow line reads "Choc Marshmallow"
+H3L-05 iphone17: cash received block reads "Cash received (optional) Exact £5 £10 £20 £50 Other amount Change £5.00"
+H3L-05 iphone17: the sheet closed on Add more, Escape and Back; Send was never clicked
+H3L-05 iphone17: PASS - header, ☰, order bar, sheet, cash received all exercised read-only; cart emptied; 0 console error(s)
+H3L-06 iphone17: 2026-10-19 KPIs {"kpi-sales":"£0.00","kpi-orders":"0","kpi-items":"0","kpi-avg-order":"£0.00","kpi-avg-wait":"—"}
+H3L-06 iphone17: PASS - the One day report for 2026-10-19 is zero across every KPI, 0 console error(s)
+H3L-07 iphone17: "This event" is present but hidden
+H3L-07 iphone17: PASS - 2026-10-13..2026-10-19 shows "No sales in this range", This event hidden, 0 console error(s)
+H3L-08 iphone17: PASS - 2026-10-19 orders list is empty, summary "0 orders · £0.00", 0 console error(s)
+H3L-09 iphone17: PASS - downloaded "orders-2026-10-19.csv", 0 data row(s), 13 columns
+H3L-10 iphone17: live orders = 0 document(s) after the check
+H3L-10 iphone17: PASS - orders still empty, menu still the same seven documents
