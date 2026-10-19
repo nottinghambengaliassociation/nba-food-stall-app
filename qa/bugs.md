@@ -476,3 +476,55 @@ Skips are the gated live specs (`live-smoke` 8, `live-h1` 7, `live-h2` 4 = 19 pe
 ### Test-side changes
 
 None. No existing test needed updating for H2: the change is pure CSS and no assertion elsewhere depended on the flex layout. `H-17` already asserted `line-inc-*` / `line-dec-*` ≥ 52 px and still passes.
+
+---
+
+## Round H2 live — read-only check against the deployed site (19 Oct 2026)
+
+Deploy under test: commit `bdf8954`, Pages run `39181519382`. `LIVE_H2=1 npx playwright test tests/e2e/live-h2.spec.js` against `https://nottinghambengaliassociation.github.io/nba-food-stall-app/`.
+
+**8/8 passed** (`H-22.0`…`H-22.3` × phone 390×844 and tablet 1280×800). 0 failed, 0 skipped. **Open bugs: none.**
+
+### How the cache was handled
+
+The stylesheet is served with `cache-control: max-age=600`, so a context holding the pre-fix CSS could have measured the old layout against a correct origin. Three independent guards, all used:
+
+1. **Fresh Playwright context per test** — no browser profile or cache is carried in from any earlier run.
+2. **Browser HTTP cache switched off over CDP** — `Network.setCacheDisabled` before the first navigation. Logged per test: `HTTP cache disabled over CDP = true` on both viewports.
+3. **Byte comparison on a cache-busted URL** (`H-22.2`) — `GET css/app.css?cb=<now>` straight to the origin: **29,794 bytes, SHA-256 `6dc050e2…ccfdff5b`**, identical to the committed `public/css/app.css` (same length, same digest). The served file contains `grid-template-columns: minmax(0, 1fr) 52px 28px 52px 58px` and zero occurrences of a `.line { … display: flex }` rule. Independently reproduced with `curl` outside Playwright, same digest.
+
+**Not used: a `Cache-Control: no-cache` request header via `extraHTTPHeaders`.** First attempt did, and both `H-22.1` cases failed with the app stuck on "Loading…". That header is not CORS-safelisted, so Playwright attached it to the Firebase SDK's cross-origin module imports on `gstatic.com`, turning them into preflighted requests the CDN does not answer. **A test-harness fault, not an app or deploy fault** — no `BUG-*` raised. `Network.setCacheDisabled` does the same job at the network stack without touching request headers, and the spec now documents why the header must not be reintroduced.
+
+### Pass/fail per check
+
+| Check | Phone | Tablet | Evidence |
+|---|---|---|---|
+| Computed style on the live site is the five-track grid | **PASS** | **PASS** | `display: grid`; `grid-template-columns: 144px 52px 28px 52px 58px` (phone) / `118.266px 52px 28px 52px 58px` (tablet); `column-gap: 6px` |
+| Served bytes are the committed stylesheet | **PASS** | **PASS** | cache-busted GET, SHA-256 `6dc050e2…ccfdff5b` = committed file; old flex rule absent |
+| `line-dec-*` share one left x (±1 px) across all eight rows | **PASS** | **PASS** | 166 on all 8 (phone), 1024 on all 8 (tablet). Spread **0.00 px** |
+| `line-inc-*` share one left x (±1 px) across all eight rows | **PASS** | **PASS** | 258 on all 8 (phone), 1116 on all 8 (tablet). Spread **0.00 px** |
+| "Chocolate Strawberry" does not push its buttons past "Momo"'s | **PASS** | **PASS** | difference 0.00 px on both `dec` and `inc`, both viewports |
+| No `.line__name` overflows its column | **PASS** | **PASS** | `scrollWidth ≤ clientWidth` on all 8 rows; no name reaches its own `−` |
+| No row wider than the panel; no horizontal scroll | **PASS** | **PASS** | row 16/358 (phone), 899.73/332.27 (tablet) on every row; `scrollWidth ≤ clientWidth` on the document |
+| Steppers still ≥ 52×52 | **PASS** | **PASS** | 52×52 on all 16 buttons, both viewports |
+| No console errors, no "Storage not configured" | **PASS** | **PASS** | 0 console errors on `#/cash`; banner absent |
+| Live data unchanged | **PASS** | **PASS** | `orders` 1 → 1 (`A-001/collected/2026-10-19`), byte-identical fingerprint; `menu` 10 → 10, all ten ids present |
+
+### Measured x positions on the live site
+
+**phone 390×844** — every one of the eight rows: `row.left` 16, `row.width` 358, `dec.left` **166**, `inc.left` **258**, `dec`/`inc` 52×52.
+**tablet 1280×800** — every one of the eight rows: `row.left` 899.73, `row.width` 332.27, `dec.left` **1024**, `inc.left` **1116**, `dec`/`inc` 52×52.
+
+Both spreads are exactly 0.00 px, and both match the emulator figures from the pre-deploy round to the pixel.
+
+### Live data fingerprint
+
+Before: 1 document, `A-001 / collected / 2026-10-19`. After: identical length and identical fingerprint (document id, orderNo, status, total, day and every line's `id|name|qty|price`). Menu: 10 documents before and after — `chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box`. **No order placed, nothing cancelled, no menu document touched. H2 made no live write of any kind** — every Firestore call in the spec is a GET, `send-order` was never clicked, and the panel was cleared with `order-toast` asserted hidden and holding no order number.
+
+### Screenshots
+
+- `qa/screenshots/live-h2-cart-phone.png` — the real 390×844 till with a full cart. The cart lines sit in an internal scroller inside the sticky bottom sheet, so one row is visible; that is the genuine phone rendering.
+- `qa/screenshots/live-h2-cart-phone-all-lines.png` — the same live page at the **same 390 px width** on a taller viewport, where the sheet's line area grows to hold all eight rows. The grid is unchanged (`144px 52px 28px 52px 58px`) and the alignment is re-measured and re-asserted before the capture (`dec.left` 166, `inc.left` 258 on all eight), so the picture is verified rather than illustrative.
+- `qa/screenshots/live-h2-cart-tablet.png` — all eight rows, steppers in one column, long names wrapping.
+
+Credentials were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle was never pressed and no capture includes the login form, so no password appears in any screenshot. `qa/live-smoke-record.txt` holds no credential and no API key.

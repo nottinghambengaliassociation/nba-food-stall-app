@@ -68,17 +68,29 @@ Reports give total sales, order count, items sold, average order, average wait, 
 
 ---
 
+## What changed
+
+Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**19 October 2026, hotfix H2 — cart lines line up.** On the cash counter the `−` and `+` buttons used to sit at a different spot on every row, because each row was sized by the length of its item name. They now sit in fixed columns, so the whole column lines up and the long names wrap instead of shoving the buttons sideways. Cosmetic only, nothing about how orders work has changed.
+
+**19 October 2026, hotfix H1 — menu split into eight.** "Sweets Box Samosa / Shingara" became Sweet Box and Samosa; "Chocolate Strawberry & Marshmallow (V)" became Choc Strawberry and Marshmallow. Orders taken before the split still report under the names they were sold as.
+
+**18 October 2026 — login, sign out and the Cash received calculator.** One shared login in front of every screen, and an optional change calculator on the cash counter.
+
+**Tell volunteers to refresh any till that is already open.** A device sitting on the cash counter screen keeps the stylesheet it loaded with, and the site caches it for ten minutes, so a till that loaded recently can still show the old layout even though the server is serving the new one. Pull down to refresh, or close and reopen the tab. Worth doing on every device before service rather than discovering it mid-queue.
+
 ## Test results
 
-Phase I took two rounds of the fix loop, Phase II one, and hotfix H1 none — every H1 case passed first time. Final numbers come from a clean run with nothing else driving the emulator.
+Phase I took two rounds of the fix loop, Phase II one, and hotfixes H1 and H2 none — every case passed first time. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
 | Unit (Vitest) | 166 | 166 | 0 |
-| E2E phone 390×844 (Playwright) | 99 | 99 | 0 |
-| E2E tablet 1280×800 (Playwright) | 100 | 100 | 0 |
+| E2E phone 390×844 (Playwright) | 102 | 102 | 0 |
+| E2E tablet 1280×800 (Playwright) | 103 | 103 | 0 |
 | Live checks (against the deployed site) | 14 | 14 | 0 |
-| **Total** | **379** | **379** | **0** |
+| **Total** | **385** | **385** | **0** |
 
 Also clean: zero axe accessibility violations on all four routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
@@ -98,6 +110,8 @@ Run against the deployed site, not the emulator, after each phase.
 The assertion worth having is this one. A `QA-SMOKE` order was sent on the live site with £20 keyed into Cash received against a £5.00 cash order, and the document written to the real Firestore contains **neither `tendered` nor `changeGiven`** — the fields are absent, not null. The older orders in the same collection all carry `tendered`, so the contrast proves the change actually shipped rather than merely passing in the emulator.
 
 A second `QA-SMOKE` order was cancelled, and live Reports then read one order and £5.00, confirming cancellations are still excluded.
+
+**Hotfix H2 (19 October 2026), read-only.** The cart alignment was re-checked on the deployed site at both viewports with all eight items in the cart, including reading the deployed stylesheet's computed layout rather than trusting a 200 response, since a stale cache would look healthy and still serve the old layout. No order was placed and nothing was written.
 
 **Hotfix H1 (19 October 2026), 14 checks passed, 0 failed, read-only.** On the deployed site at both viewports: the till shows exactly eight tiles in sort order with neither retired item appearing; the eighth tile is reachable and tappable with the order bar at its tallest, verified by a coordinate click that moved the quantity badge; and Reports for 2026-10-18 renders the pre-split orders under their original names, "Sweets Box Samosa / Shingara" and "Chocolate Strawberry & Marshmallow (V)", with the CSV carrying the same. KPIs read £30.00, 3 orders, 6 items, matching the stored documents exactly. Nothing was written: `orders` and `menu` were byte-identical before and after.
 

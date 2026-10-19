@@ -153,3 +153,88 @@ H-20 reports 2026-10-18 = GBP30.00 / 3 orders / 6 items, legacy ids under ORIGIN
 H-20 live Firestore unchanged: orders 3 -> 3, byte-identical fingerprint; menu 10 -> 10. No order placed, nothing cancelled, nothing written.
 H-20 Only reported difference: retired menu/samosa sort=4 and menu/straw sort=5 (CLAUDE.md table says 90/91). menu-sync is told not to overwrite an existing value, so this is expected and has no functional effect. For Trinity.
 H-20 Credential hygiene: username and password read at run time from the gitignored .secrets/app-login.env; never written to this file, to any test, or to any screenshot; Show/Hide never pressed so the password field is masked in every capture. This file re-scanned for both values and for AIza[0-9A-Za-z_-]{35}: zero hits.
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 phone: fresh context, Cache-Control: no-cache on every request, browser HTTP cache disabled over CDP = true
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 phone: fresh context, Cache-Control: no-cache on every request, browser HTTP cache disabled over CDP = true
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 tablet: fresh context, Cache-Control: no-cache on every request, browser HTTP cache disabled over CDP = true
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 tablet: fresh context, Cache-Control: no-cache on every request, browser HTTP cache disabled over CDP = true
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=144px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     16       358     166      52    52    258      52    52   
+momo            Momo                   16       358     166      52    52    258      52    52   
+chat            Papri Chat             16       358     166      52    52    258      52    52   
+sweet_box       Sweet Box              16       358     166      52    52    258      52    52   
+samosa_only     Samosa                 16       358     166      52    52    258      52    52   
+choc_strawberry Chocolate Strawberry   16       358     166      52    52    258      52    52   
+marshmallow     Marshmallow (V)        16       358     166      52    52    258      52    52   
+fountain        Chocolate Fountain     16       358     166      52    52    258      52    52   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone: 0 console error(s) on #/cash
+H-22.2 served css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; committed public/css/app.css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; cache-control "max-age=600", age "78"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=144px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 1 document(s) [A-001/collected]
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Marshmallow (V)        899.73   332.27  1024     52    52    1116     52    52   
+fountain        Chocolate Fountain     899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; committed public/css/app.css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; cache-control "max-age=600", age "86"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 1 document(s) [A-001/collected]
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 phone: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 phone 390x844 live cart geometry (display=grid, columns=144px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     16       358     166      52    52    258      52    52   
+momo            Momo                   16       358     166      52    52    258      52    52   
+chat            Papri Chat             16       358     166      52    52    258      52    52   
+sweet_box       Sweet Box              16       358     166      52    52    258      52    52   
+samosa_only     Samosa                 16       358     166      52    52    258      52    52   
+choc_strawberry Chocolate Strawberry   16       358     166      52    52    258      52    52   
+marshmallow     Marshmallow (V)        16       358     166      52    52    258      52    52   
+fountain        Chocolate Fountain     16       358     166      52    52    258      52    52   
+H-22.1 phone: screenshot qa/screenshots/live-h2-cart-phone.png
+H-22.1 phone full-cart capture at 390x1700 (columns=144px 52px 28px 52px 58px): dec.left 166 and inc.left 258 on all eight rows
+H-22.1 phone: 0 console error(s) on #/cash
+H-22.2 served css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; committed public/css/app.css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; cache-control "max-age=600", age "149"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=144px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 1 document(s) [A-001/collected]
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]
+H-22.1 tablet: fresh browser context, HTTP cache disabled over CDP = true
+H-22.1 tablet 1280x800 live cart geometry (display=grid, columns=118.266px 52px 28px 52px 58px)
+id              name                   row.left row.w   dec.left dec.w dec.h inc.left inc.w inc.h
+fuchka          Fuchka / Gol Gappa     899.73   332.27  1024     52    52    1116     52    52   
+momo            Momo                   899.73   332.27  1024     52    52    1116     52    52   
+chat            Papri Chat             899.73   332.27  1024     52    52    1116     52    52   
+sweet_box       Sweet Box              899.73   332.27  1024     52    52    1116     52    52   
+samosa_only     Samosa                 899.73   332.27  1024     52    52    1116     52    52   
+choc_strawberry Chocolate Strawberry   899.73   332.27  1024     52    52    1116     52    52   
+marshmallow     Marshmallow (V)        899.73   332.27  1024     52    52    1116     52    52   
+fountain        Chocolate Fountain     899.73   332.27  1024     52    52    1116     52    52   
+H-22.1 tablet: screenshot qa/screenshots/live-h2-cart-tablet.png
+H-22.1 tablet: 0 console error(s) on #/cash
+H-22.2 served css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; committed public/css/app.css: 29794 bytes, sha256 6dc050e24f4c49a6b85b265d2968fd0a9ff105473a5d79b24948e653ccfdff5b; cache-control "max-age=600", age "157"
+H-22.2: browser HTTP cache disabled over CDP = true
+H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
+H-22.3 live orders after the check: 1 document(s) [A-001/collected]
+H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.

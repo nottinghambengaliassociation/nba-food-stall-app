@@ -810,6 +810,9 @@ A full geometry table (row left/width, dec and inc left/width/height, qty left, 
 ## 25. H2 live check (gated, **read-only, zero writes**) — `tests/e2e/live-h2.spec.js`
 
 **Gate** `LIVE_H2=1`. Not run as part of `npm run test:e2e`; run after the deploy with `LIVE_H2=1 npx playwright test tests/e2e/live-h2.spec.js`.
+Run on 2026-10-19 against deploy `bdf8954` (Pages run `39181519382`). **8/8 passed, both viewports.**
+
+**Cache discipline.** The stylesheet is served with `cache-control: max-age=600`, so a context holding the pre-fix CSS could measure the old layout against a correct origin and report a false failure. Three guards: a fresh Playwright context per test; the browser HTTP cache switched off over CDP (`Network.setCacheDisabled`) before the first navigation; and `H-22.2`'s cache-busted byte comparison. A `Cache-Control: no-cache` request header is deliberately **not** used — it is not CORS-safelisted, so Playwright would attach it to the Firebase SDK's cross-origin module imports and preflight them into failure, hanging the app on "Loading…".
 
 **Write discipline — stricter than H1.** H2 permits **no write to live Firestore at all**, not even the single `menu-sync` exception H1 had. Every Firestore call in the spec is a GET. No order is placed (`send-order` is never clicked), no status is changed, nothing is cancelled, no menu document is touched. Tapping a till tile mutates the in-page order panel only — local state that reaches Firestore solely through `send-order` — and the panel is cleared again afterwards. `H-22.0` and `H-22.3` bracket the run with a fingerprint of the orders collection (document id, orderNo, status, total, day and every line's `id|name|qty|price`) to prove it.
 
@@ -820,10 +823,10 @@ A full geometry table (row left/width, dec and inc left/width/height, qty left, 
 
 ### H-22.1 The live cart lines up with every active item in it
 **Steps** Sign in, open `#/cash`, tap each of the eight tiles (local state only), measure the cart. Both viewports.
-**Expected** The same three groups as `H-21`: stepper columns aligned to ±1 px row against row (spelled out for "Chocolate Strawberry" vs "Momo"), no `.line__name` overflow and no row past the panel edge, steppers still ≥ 52×52, no horizontal scroll, no "Storage not configured" banner and zero console errors. Screenshots `qa/screenshots/live-h2-cart-<project>.png`. Finishes by clearing the panel and asserting `order-toast` is hidden and holds no order number.
+**Expected** The same three groups as `H-21`: stepper columns aligned to ±1 px row against row (spelled out for "Chocolate Strawberry" vs "Momo"), no `.line__name` overflow and no row past the panel edge, steppers still ≥ 52×52, no horizontal scroll, no "Storage not configured" banner and zero console errors. Screenshots `qa/screenshots/live-h2-cart-<project>.png`, plus `live-h2-cart-phone-all-lines.png`: on the phone the cart lines sit in an internal scroller inside the sticky sheet, so the 390×844 capture shows one row: a second capture is taken at the **same 390 px width** on a taller viewport, with the grid tracks and the stepper alignment re-measured and re-asserted before the shutter so the picture is verified, not illustrative. Finishes by clearing the panel and asserting `order-toast` is hidden and holds no order number.
 
 ### H-22.2 The deployed stylesheet really carries the fixed-column rule
-**Expected** On the deployed page, the computed style of a cart row is `display: grid` with **five** tracks, the second and fourth ≥ 52 px. Measurement alone could in principle pass on a stale cached bundle that happened to line up; this reads the resolved rule.
+**Expected** Two independent reads. (i) The **served bytes**: a cache-busted `GET css/app.css?cb=<now>` contains `grid-template-columns: minmax(0, 1fr) 52px 28px 52px 58px`, contains no `.line { … display: flex }` rule, and has the same SHA-256 as the committed `public/css/app.css`. (ii) The **resolved computed style** in the browser that just measured the cart: `display: grid` with **five** tracks, the second and fourth ≥ 52 px. Measurement alone could in principle pass on a stale cached bundle that happened to line up; this catches one instead of measuring it.
 
 ### H-22.3 Nothing was written
 **Expected** The orders collection is the same length and a byte-identical fingerprint to `H-22.0`; the menu still holds its ten documents.

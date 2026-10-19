@@ -25,7 +25,8 @@ import {
 } from './helpers.js';
 import { creds } from './creds.js';
 import { resolve } from 'node:path';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const LIVE = process.env.LIVE_URL || 'https://nottinghambengaliassociation.github.io/nba-food-stall-app/';
 const C = creds();
@@ -45,6 +46,42 @@ const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
 
 test.skip(!process.env.LIVE_H2, 'set LIVE_H2=1 to run the read-only H2 live check (after deploy)');
 test.describe.configure({ mode: 'serial' });
+
+// CACHE DISCIPLINE. The deployed stylesheet is served with
+// `cache-control: max-age=600`, so a context that picked up the pre-fix CSS
+// in the last ten minutes could measure the OLD layout against a correctly
+// deployed origin and report a false failure. Three independent guards:
+//   (a) every test runs in a fresh Playwright context (no profile is reused);
+//   (b) the browser HTTP cache is switched off outright over CDP
+//       (`Network.setCacheDisabled`) before the first navigation, so every
+//       request — document, CSS and module — goes to the origin;
+//   (c) H-22.2 additionally fetches the stylesheet on a cache-busted URL and
+//       compares its SHA-256 with the committed file.
+// A stale bundle is therefore caught, never measured.
+//
+// NOT used: a `Cache-Control: no-cache` request header via `extraHTTPHeaders`.
+// That header is not CORS-safelisted, so Playwright would attach it to the
+// cross-origin module imports of the Firebase SDK on gstatic.com and turn them
+// into preflighted requests the CDN does not answer — the app then hangs on
+// "Loading…". `Network.setCacheDisabled` achieves the same thing at the
+// network stack without touching the request headers. (Observed on the first
+// attempt of this run; see qa/bugs.md, round H2 live.)
+
+/** Switch the browser HTTP cache off for this page (Chromium, via CDP). */
+async function disableCache(page) {
+  try {
+    const client = await page.context().newCDPSession(page);
+    await client.send('Network.enable');
+    await client.send('Network.setCacheDisabled', { cacheDisabled: true });
+    return true;
+  } catch {
+    return false;   // non-Chromium: the fresh context and H-22.2's byte check still apply
+  }
+}
+
+/** The committed stylesheet, for the byte comparison in H-22.2. */
+const LOCAL_CSS = resolve(SHOTS, '../../public/css/app.css');
+const sha256 = (s) => createHash('sha256').update(s).digest('hex');
 
 /** Append one line to qa/live-smoke-record.txt. Public file: values must be safe. */
 function record(line) {
@@ -179,6 +216,8 @@ test('H-22.0 snapshot the live orders collection before anything else', async ()
 test('H-22.1 the live cart lines up with every active item in it', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
   const errors = attachConsole(page);
+  const cacheOff = await disableCache(page);
+  record(`H-22.1 ${info.project.name}: fresh browser context, HTTP cache disabled over CDP = ${cacheOff}`);
   await signInLive(page);
 
   await page.goto(LIVE + '#/cash', { waitUntil: 'domcontentloaded' });
@@ -247,6 +286,30 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
   await shot(page, info.project.name);
   record(`H-22.1 ${info.project.name}: screenshot qa/screenshots/live-h2-cart-${info.project.name}.png`);
 
+  // On the phone the cart lines live in an internal scroller inside the sticky
+  // bottom sheet, so a 390x844 capture shows one row and is weak evidence for
+  // an alignment fix. Take a second capture at the SAME 390 px width on a
+  // taller viewport, where the sheet's line area grows to hold all eight rows.
+  // The width — and therefore the grid's 144 px name track — is unchanged, and
+  // the alignment is re-measured and re-asserted before the shutter, so the
+  // picture is verified, not just pretty.
+  if (info.project.name === 'phone') {
+    await page.setViewportSize({ width: 390, height: 1700 });
+    await page.waitForTimeout(600);
+    const tall = await measureCart(page, ACTIVE_IDS);
+    expect(tall.columns, 'the taller capture must use the same 390 px-wide grid').toBe(m.columns);
+    for (const key of ['dec', 'inc']) {
+      const lefts = tall.rows.map((r) => r[key].left);
+      expect(Math.max(...lefts) - Math.min(...lefts),
+        `the ${key} column in the full-cart capture\n\n${table(tall)}`).toBeLessThanOrEqual(TOL);
+    }
+    record(`H-22.1 phone full-cart capture at 390x1700 (columns=${tall.columns}): ` +
+      `dec.left ${r2(tall.rows[0].dec.left)} and inc.left ${r2(tall.rows[0].inc.left)} on all eight rows`);
+    await shot(page, 'phone-all-lines');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(300);
+  }
+
   // Leave the till as we found it. Clearing the panel writes nothing.
   const clear = page.locator('[data-testid="clear-order"], button:has-text("Clear order")').first();
   if (await clear.count()) await clear.click();
@@ -271,6 +334,24 @@ test('H-22.2 the deployed stylesheet really carries the fixed-column .line rule'
   // old bundle that happened to line up. Read the resolved computed style on
   // the deployed page and confirm it is a grid of five tracks.
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
+
+  // (i) the SERVED BYTES, on a cache-busted request straight to the origin.
+  const bust = `${LIVE}css/app.css?cb=${Date.now()}`;
+  const res = await fetch(bust, { headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+  expect(res.ok, `GET ${bust} -> ${res.status}`).toBe(true);
+  const served = await res.text();
+  const local = readFileSync(LOCAL_CSS, 'utf8');
+  record(`H-22.2 served css: ${served.length} bytes, sha256 ${sha256(served)}; ` +
+    `committed public/css/app.css: ${local.length} bytes, sha256 ${sha256(local)}; ` +
+    `cache-control "${res.headers.get('cache-control')}", age "${res.headers.get('age')}"`);
+  expect(served, 'the served stylesheet must carry the H2 fixed-column rule')
+    .toContain('grid-template-columns: minmax(0, 1fr) 52px 28px 52px 58px');
+  expect(served.match(/\.line\s*\{[^}]*display:\s*flex/g) || [], 'the old flex .line rule must be gone').toEqual([]);
+  expect(sha256(served), 'the origin must serve exactly the committed stylesheet').toBe(sha256(local));
+
+  // (ii) the RESOLVED COMPUTED STYLE in the browser that just measured the cart.
+  const cacheOff = await disableCache(page);
+  record(`H-22.2: browser HTTP cache disabled over CDP = ${cacheOff}`);
   await signInLive(page);
   await page.goto(LIVE + '#/cash', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="tile-momo"]')).toBeVisible({ timeout: 30000 });
