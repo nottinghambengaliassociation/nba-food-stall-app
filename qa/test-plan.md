@@ -1030,3 +1030,48 @@ No console errors throughout. Screenshot `qa/screenshots/<project>-header-versio
 7. **One `aria-label` reading is a defect, not a reading.** `CLAUDE.md` Phase III 7 fixes the visible text of "Open day"; WCAG 2.5.3 then requires that text to be inside the accessible name. See `BUG-6` (fixed and verified).
 7a. **The scrolling table cards are named regions.** `CLAUDE.md` Phase III 7 asks for horizontal scroll inside the card; it does not say how the card is exposed, and the mock-up's plain `overflow-x: auto` div has no name. Giving each card `tabindex="0" role="region"` with its own name, and renaming the day `<section>`'s `aria-label` from "Day by day table" to "Day by day" so the two names stay unique, is additive and takes nothing from the brief or the mock-up — the visible heading is still "Day by day". No case here depends on either `aria-label`: the tables are addressed through `days-table` and `items-by-day-table`, the rows through `day-row-<day>`, the note through its visible text. See `BUG-7`.
 8. **`settings/event` is seeded and removed through the emulator**, never in live Firestore, so both the hidden and the visible state of "This event" are proved on the same run.
+
+## 31. Phase III live verification (gated, **read-only, zero writes**) — `tests/e2e/live-p3.spec.js`
+
+**Gate** `LIVE_P3=1`, the same style as the `S-*`, `H-20` and `H-22` live specs, so `npm run test:e2e` stays offline and deterministic. Run after the deploy with
+`LIVE_P3=1 LIVE_BUILD=<short sha> npx playwright test tests/e2e/live-p3.spec.js`.
+Run on 2026-10-19 against deploy `4534093` (Pages run 39189833432). **20/20 passed, both viewports.**
+
+**Write discipline — as strict as H2.** No write to live Firestore of any kind. Every Firestore call in the spec is a GET over the REST API; no till tile is tapped, `send-order` is never clicked, no status is changed, nothing is cancelled, and no menu or `settings` document is touched. Exporting the CSV is a download of data already fetched, not a write. `P3L-00` and `P3L-09` bracket the run with a fingerprint of the orders collection (document id, orderNo, status, total, day and every line's `id|name|qty|price`) to prove it, and also check the menu's ten documents and the presence or absence of `settings/event` are unchanged. Live `orders` may hold real trading records, so every document is treated as real data.
+
+**Cache discipline.** A fresh Playwright context per test and the browser HTTP cache switched off over CDP (`Network.setCacheDisabled`) before the first navigation, because static assets carry `max-age=600` and a ten-minute-old `version.js` would otherwise be read as a deploy failure. A `Cache-Control: no-cache` request header is deliberately **not** used — it is not CORS-safelisted, so Playwright would attach it to the Firebase SDK's cross-origin module imports and preflight them into failure (observed in the H2 live round).
+
+**The expected build is passed in at run time** (`LIVE_BUILD`), never written into the spec: a literal SHA in a committed test is stale the moment the next commit lands. With it set, the rendered build must equal it exactly; without it, the spec still requires a clean 7-character hex SHA with no `-dirty`.
+
+### P3L-00 Snapshot live Firestore first
+**Expected** A fingerprint of `orders`, and the presence or absence of `settings/event`, recorded before anything else for `P3L-09` to compare against.
+
+### P3L-01 Signed out: the guard, and the version line before sign-in
+**Expected** `#/login` renders a real form (not "Login not configured"); `login-version` reads `Version <package.json version> · build <7-char sha> · updated <d MMM yyyy>`; every one of the five guarded routes redirects to `#/login`; zero console errors.
+
+### P3L-02 Signed in: every route, the pill, the console
+**Expected** The shared account signs in and lands on `#/`; `#/`, `#/cash`, `#/kitchen`, `#/reports` and `#/reports/days` each render with no "Storage not configured" banner and `conn-pill` reading `Online · synced`; **zero** console errors across all five.
+
+### P3L-03 V-c — the rendered build equals the pushed commit
+**Expected** On all five signed-in screens, `app-version` reads `v<version>` with `title` and `aria-label` identical and carrying the same version, build and date; the build equals `LIVE_BUILD` with no `-dirty`. Tablet: 13 px bold, `#D6D3D1` on a 1 px `#57534E` border, fully rounded, right after the screen title. Phone: 12 px bold under the title, with every header button and select still at least 44 px. **Read through the app's own UI, never by fetching `version.js`** — the point of V-c is that the labels a volunteer sees match the commit that was pushed.
+
+### P3L-04 The toggle, live
+**Expected** Both pills on both report screens, each at least 48 px, the current one filled ink `#1C1917`, and each navigating to the other route.
+
+### P3L-05 Sales by day, live
+**Expected** Default range is the last 7 days ending today; Today and Last 7 days are present; **"This event" is visible exactly when `settings/event` exists** (the spec reads the document first and asserts the button against it, so either state is a pass and the state is recorded). Then either (a) trading days exist, in which case every tile, the bar count, each bar being a real `<button>` with an `aria-label`, both tables, the totals row and the readout format are checked against figures recomputed from the live documents; or (b) the range is empty, in which case `days-empty` must read "No sales in this range", `days-table` must be hidden and the tiles must read £0.00 with no `NaN`. An empty live range is a pass, not a failure.
+
+### P3L-06 Open day, live
+**Expected** `open-day-<day>`'s `href` is exactly `#/reports?day=<day>`; following it loads the One day report with `report-date` set to that day and `kpi-sales`/`kpi-orders` equal to the figures recomputed from the live documents. Also re-checks `BUG-6` live: the link's accessible name contains its visible text. Skips with a recorded note if the live default range has no trading day.
+
+### P3L-07 The range CSV, live
+**Expected** The download is named `nba-food-stall_<from>_<to>.csv` from the inputs actually on screen; the header is the thirteen One day columns in the One day order; no `tendered` anywhere; every row has 13 fields, `lineTotal = qty × price`, a `day` inside the range, a status that is not `cancelled` and a non-blank item name.
+
+### P3L-08 Sign out, live
+**Expected** Sign out returns to `#/login`, clears `nba.session`, and the version line is still on the card with the same version and build — the "after sign-in" half of `CLAUDE.md` Phase III part 2, 4.
+
+### P3L-09 Nothing was written
+**Expected** `orders` is the same length with a byte-identical fingerprint to `P3L-00`; `menu` still holds its ten documents; `settings/event` is still in the state it was found in.
+
+### P3L screenshots
+`qa/screenshots/live-p3-<project>-<screen>.png` for both projects: `login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-open-day`, `header-version`, `signed-out`.

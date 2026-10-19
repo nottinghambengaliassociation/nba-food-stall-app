@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items shipped 19 October 2026. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -10,7 +10,8 @@ Phase I prototype built 17 October 2026; shared login, sign out and the Cash rec
 | Landing (pick a screen, set till letter) | [`/`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/) | Everyone |
 | Cash counter | [`#/cash`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/cash) | Till volunteer |
 | Food counter | [`#/kitchen`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/kitchen) | Food counter volunteers |
-| Reports | [`#/reports`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports) | Organisers |
+| Reports, one day | [`#/reports`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports) | Organisers |
+| Reports, sales by day | [`#/reports/days`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/days) | Organisers |
 
 Repo: https://github.com/nottinghambengaliassociation/nba-food-stall-app
 Firebase project: `nba-food-stall-9fec6`, Firestore `(default)` in `europe-west2` (London).
@@ -66,11 +67,17 @@ The till builds an order, takes a name to call out, takes cash or card, and send
 
 Reports give total sales, order count, items sold, average order, average wait, sales per item, orders per 30 minutes with the peak highlighted, the cash-versus-card split, and a CSV export with one row per order line. Cancelled orders are excluded from every figure.
 
+There are two report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
+
+Every screen now shows the app version. The login card carries a line like `Version 1.2.0 · build 4534093 · updated 19 Oct 2026`, and every dark header carries a `v1.2.0` pill. If a volunteer reports something odd, ask them what version their screen says: that tells you whether they are on a stale tab.
+
 ---
 
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**19 October 2026, v1.2.0 — Sales by day report, and the version on every screen.** Organisers get a second report screen, **Sales by day**, reached from the One day / Sales by day toggle at the top of either report. It covers a range of dates rather than one: totals across the range, a chart of sales per day with the best day picked out, a day-by-day table that can open any single day's report, and a grid of every item against every day. Only trading days appear and the range is capped at 31 days. It reads existing orders and changes nothing about how they are stored, so there is nothing to do on any till. Every screen also shows the app version now, on the login card and as a pill in each dark header, so you can tell at a glance whether a device is on the current build.
 
 **19 October 2026, hotfix H2 — cart lines line up.** On the cash counter the `−` and `+` buttons used to sit at a different spot on every row, because each row was sized by the length of its item name. They now sit in fixed columns, so the whole column lines up and the long names wrap instead of shoving the buttons sideways. Cosmetic only, nothing about how orders work has changed.
 
@@ -82,17 +89,17 @@ Newest first. The app updates itself when a device loads it, but a till left ope
 
 ## Test results
 
-Phase I took two rounds of the fix loop, Phase II one, and hotfixes H1 and H2 none — every case passed first time. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
+Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one — a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
-| Unit (Vitest) | 166 | 166 | 0 |
-| E2E phone 390×844 (Playwright) | 102 | 102 | 0 |
-| E2E tablet 1280×800 (Playwright) | 103 | 103 | 0 |
-| Live checks (against the deployed site) | 14 | 14 | 0 |
-| **Total** | **385** | **385** | **0** |
+| Unit (Vitest) | 228 | 228 | 0 |
+| E2E phone 390×844 (Playwright) | 124 | 124 | 0 |
+| E2E tablet 1280×800 (Playwright) | 125 | 125 | 0 |
+| Live checks (against the deployed site) | 20 | 20 | 0 |
+| **Total** | **497** | **497** | **0** |
 
-Also clean: zero axe accessibility violations on all four routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
+Also clean: zero axe accessibility violations on all six routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
 - Test plan: [`qa/test-plan.md`](qa/test-plan.md)
 - Bug log with the final status of every bug: [`qa/bugs.md`](qa/bugs.md)
@@ -163,7 +170,11 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 ## Needs you
 
-**1. Restrict the Firebase browser API key to the site. Not blocking, worth doing.**
+**1. Delete the leftover QA order before the next service.** Live `orders` holds one document, `A-001` on 19 October 2026, £40.00, collected, eight lines of one each. It is the smoke-test order from an earlier check, not a real sale, and the stall has not traded since. Left in place it adds £40.00 and eight items to that day in both reports. Delete that one document in the Firebase console, or subtract it when you read the figures. The live check is read-only by design, so QA did not remove it.
+
+**2. Create `settings/event` if you want the "This event" button.** It does not exist, so the quick button is hidden, which is the specified behaviour rather than a fault. To switch it on, add a document `settings/event` in the Firebase console with `name`, `from` and `to`, the dates as `YYYY-MM-DD` strings. The button appears the next time the screen loads. No deploy needed.
+
+**3. Restrict the Firebase browser API key to the site. Not blocking, worth doing.**
 
 `gcloud` is not installed on the build machine, so this could not be automated.
 
@@ -177,13 +188,13 @@ http://127.0.0.1:5173/*
 
 For context, a Firebase web API key always ends up in the browser of a deployed web app. That is how every Firebase web app works: the key identifies the project, it is not a password. Keeping it out of the GitHub repo was still the rule here and that rule held. Restricting it by referrer is the extra step.
 
-**2. Tighten the Firestore rules before this is reused.** The rules are `allow read, write: if true`, so the public API key plus the project id is enough for anyone to read or wipe the whole database. Fine for one day with an unadvertised URL, not fine for anything ongoing. If the stall runs again, this is the first thing to fix.
+**4. Tighten the Firestore rules before this is reused.** The rules are `allow read, write: if true`, so the public API key plus the project id is enough for anyone to read or wipe the whole database. Fine for one day with an unadvertised URL, not fine for anything ongoing. If the stall runs again, this is the first thing to fix.
 
-**3. Choose a shared password that is used nowhere else, and tell the volunteers it verbally.** The hash ships in the browser, so a weak or reused password is the weak point. Do not put it in a WhatsApp group that outlives the event.
+**5. Choose a shared password that is used nowhere else, and tell the volunteers it verbally.** The hash ships in the browser, so a weak or reused password is the weak point. Do not put it in a WhatsApp group that outlives the event.
 
-**4. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
+**6. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
 
-**5. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
+**7. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
 
 ---
 

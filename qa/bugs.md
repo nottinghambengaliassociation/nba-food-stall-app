@@ -636,3 +636,59 @@ Screenshots recaptured after the fix: `{phone,tablet}-reports-days-{orders,empty
 | BUG-7 | major | Sales by day, scrolling table cards had no keyboard access | **verified** |
 
 **No open bugs.** Nothing in this round touched live Firestore; every write was to the emulator, and no `git`, `gh` or real-project `firebase` command was run.
+
+---
+
+## Round P3 live — read-only check against the deployed site (19 Oct 2026)
+
+Run after the v1.2.0 deploy, commit `45340937b6d4e733cc9d35e8c3afe248b922881e` (short `4534093`), Pages run 39189833432.
+Command: `LIVE_P3=1 LIVE_BUILD=4534093 npx playwright test tests/e2e/live-p3.spec.js`.
+**20/20 passed, both viewports (phone 390×844 and tablet 1280×800). No bug raised.**
+
+| Item | phone | tablet | Evidence |
+|---|---|---|---|
+| Every route loads, no console errors (`#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days`) | **PASS** | **PASS** | 0 console errors signed out and signed in; no "Storage not configured" banner |
+| Route guard signed out: all five guarded routes bounce to `#/login` | **PASS** | **PASS** | `P3L-01` |
+| Sign in with the shared account; pill reads `Online · synced` | **PASS** | **PASS** | asserted on all five signed-in routes |
+| **V-c:** `login-version` before sign-in | **PASS** | **PASS** | `Version 1.2.0 · build 4534093 · updated 19 Oct 2026` |
+| **V-c:** `app-version` `v1.2.0` on all five screens, build `4534093`, no `-dirty` | **PASS** | **PASS** | title and `aria-label` identical on every route: `Version 1.2.0, build 4534093, updated 19 Oct 2026` |
+| Outlined pill at tablet width (13 px bold, `#D6D3D1` on a 1 px `#57534E` border, fully rounded, right after the title) | n/a | **PASS** | computed style |
+| 12 px bold line under the title on phone, header buttons still ≥ 44 px | **PASS** | n/a | computed style + header control heights |
+| One day / Sales by day toggle, both ways, ≥ 48 px, current one filled ink | **PASS** | **PASS** | `P3L-04` |
+| Default range: last 7 days ending today | **PASS** | **PASS** | `2026-10-13` → `2026-10-19` |
+| Quick buttons Today and Last 7 days present | **PASS** | **PASS** | `P3L-05` |
+| "This event" hidden because `settings/event` is absent | **PASS** | **PASS** | read `settings/event` → 404; button hidden; `CLAUDE.md` Phase III 2 |
+| Tiles, chart, Day by day table, totals row, Items sold by day matrix | **PASS** | **PASS** | every figure recomputed from the live documents and compared |
+| Open day → `#/reports?day=2026-10-19` with that date loaded and matching KPIs | **PASS** | **PASS** | `kpi-sales £40.00`, `kpi-orders 1` |
+| "Open day" accessible name contains its visible text (BUG-6, live) | **PASS** | **PASS** | `P3L-06` |
+| Range CSV: `nba-food-stall_2026-10-13_2026-10-19.csv`, 13 One day columns, no `tendered` | **PASS** | **PASS** | 8 data rows, every `lineTotal = qty × price`, every row inside the range, none cancelled |
+| Sign out → `#/login`, session cleared, version line still on the card | **PASS** | **PASS** | `P3L-08` |
+| **Nothing written to live Firestore** | **PASS** | **PASS** | `P3L-09` |
+
+### The build string actually rendered
+
+`Version 1.2.0 · build 4534093 · updated 19 Oct 2026` — on the login card before sign-in, on the login card after signing out, and behind the `v1.2.0` pill on all five signed-in headers, on both viewports. **It equals the pushed short SHA `4534093` exactly, with no `-dirty` suffix.** V-c passes. The browser HTTP cache was switched off over CDP before the first navigation and each test ran in a fresh context, so this is the origin's bytes, not a ten-minute-old copy.
+
+### Live data seen
+
+`orders` holds **one document**: `A-001`, `collected`, day `2026-10-19`, total £40.00, eight lines of one each at £5 (`fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain`), peak 30 min `01:00–01:30`.
+
+That is the **same single document, byte-identical fingerprint, that the H2 live check recorded hours earlier** (`H-22.0 live orders before the check: 1 document(s) [A-001/collected/2026-10-19]`). So the stall has not traded on v1.2.0, and this is almost certainly the earlier QA smoke order rather than real service data. The range screen therefore showed one trading day rather than the "No sales in this range" state; that empty state is proved on the emulator instead (`P3-12`), and the live spec asserts it would render correctly if the range were empty.
+
+`menu` holds its ten documents (`chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box`). `settings/event` does not exist.
+
+### Write discipline
+
+Every Firestore call in `tests/e2e/live-p3.spec.js` is a GET over the REST API. No till tile was tapped, `send-order` was never clicked, no status was changed, nothing was cancelled, and no menu or settings document was touched. `P3L-00` and `P3L-09` bracket the run: the orders collection is the same length with a byte-identical fingerprint, the menu still holds ten documents, and `settings/event` is still absent. Exporting the CSV is a download of data already fetched, not a write.
+
+Credentials were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle was never pressed, so the password field is masked in every capture; no screenshot, log line or entry in `qa/live-smoke-record.txt` contains the username, the password or the web API key.
+
+### Screenshots
+
+`qa/screenshots/live-p3-<project>-<screen>.png` for `project` ∈ {phone, tablet}:
+`login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-open-day`, `header-version`, `signed-out` — 18 files.
+
+### Needs you
+
+1. **`orders` still holds the QA smoke order `A-001` (2026-10-19, £40.00, collected).** It will appear in the one-day report for 19 Oct and in any range covering it, so the first real day's takings would be £40.00 over by eight items. QA is read-only and did not delete it: someone should remove that document in the Firebase console before trading, or accept and subtract it.
+2. **`settings/event` does not exist**, so the "This event" quick range is hidden — correct per `CLAUDE.md` Phase III 2, but it means organisers have no one-tap event range. If they want it, create `settings/event` in the Firebase console as `{name, from, to}` with `from`/`to` as `YYYY-MM-DD` strings; the button appears on the next load with no deploy.

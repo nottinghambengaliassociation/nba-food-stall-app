@@ -238,3 +238,31 @@ H-22.2: browser HTTP cache disabled over CDP = true
 H-22.2 deployed .line computed style: display=grid columns=118.266px 52px 28px 52px 58px column-gap=6px
 H-22.3 live orders after the check: 1 document(s) [A-001/collected]
 H-22.3 PASS: orders and menu unchanged [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]. No order placed, nothing cancelled, no document written — H2 made no live write of any kind.
+P3L-00 live orders before the check: 1 document(s); days [2026-10-19]; status {"collected":1}; [A-001/collected/2026-10-19]
+P3L-00 settings/event is ABSENT
+P3L-01 phone login-version before sign-in: "Version 1.2.0 · build 4534093 · updated 19 Oct 2026"
+P3L-01 phone console errors signed out: 0
+P3L-02 phone console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 phone rendered version labels: #/=1.2.0/4534093/19 Oct 2026 | #/cash=1.2.0/4534093/19 Oct 2026 | #/kitchen=1.2.0/4534093/19 Oct 2026 | #/reports=1.2.0/4534093/19 Oct 2026 | #/reports/days=1.2.0/4534093/19 Oct 2026
+P3L-04 phone toggle: One day <-> Sales by day both ways OK
+P3L-05 phone "This event" quick button visible = false; settings/event ABSENT
+P3L-05 phone trading days in range [2026-10-19]; tiles sales=£40.00 orders=1 items=8; readout "Mon 19 Oct · £40.00 · 1 order"
+P3L-06 phone Open day -> #/reports?day=2026-10-19; sales £40.00 over 1 order(s)
+P3L-07 phone range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 8 data row(s), 13 columns, no tendered column
+P3L-08 phone after sign out: "Version 1.2.0 · build 4534093 · updated 19 Oct 2026"
+P3L-09 live orders after the check: 1 document(s); days [2026-10-19]
+P3L-09 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
+P3L-00 live orders before the check: 1 document(s); days [2026-10-19]; status {"collected":1}; [A-001/collected/2026-10-19]
+P3L-00 settings/event is ABSENT
+P3L-01 tablet login-version before sign-in: "Version 1.2.0 · build 4534093 · updated 19 Oct 2026"
+P3L-01 tablet console errors signed out: 0
+P3L-02 tablet console errors across #/ #/cash #/kitchen #/reports #/reports/days: 0
+P3L-03 tablet rendered version labels: #/=1.2.0/4534093/19 Oct 2026 | #/cash=1.2.0/4534093/19 Oct 2026 | #/kitchen=1.2.0/4534093/19 Oct 2026 | #/reports=1.2.0/4534093/19 Oct 2026 | #/reports/days=1.2.0/4534093/19 Oct 2026
+P3L-04 tablet toggle: One day <-> Sales by day both ways OK
+P3L-05 tablet "This event" quick button visible = false; settings/event ABSENT
+P3L-05 tablet trading days in range [2026-10-19]; tiles sales=£40.00 orders=1 items=8; readout "Mon 19 Oct · £40.00 · 1 order"
+P3L-06 tablet Open day -> #/reports?day=2026-10-19; sales £40.00 over 1 order(s)
+P3L-07 tablet range CSV "nba-food-stall_2026-10-13_2026-10-19.csv": 8 data row(s), 13 columns, no tendered column
+P3L-08 tablet after sign out: "Version 1.2.0 · build 4534093 · updated 19 Oct 2026"
+P3L-09 live orders after the check: 1 document(s); days [2026-10-19]
+P3L-09 live menu untouched: 10 document(s) [chat, choc_strawberry, fountain, fuchka, marshmallow, momo, samosa, samosa_only, straw, sweet_box]
