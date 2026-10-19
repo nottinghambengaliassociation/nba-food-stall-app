@@ -214,7 +214,15 @@ For context, a Firebase web API key always ends up in the browser of a deployed 
 
 **6. Sign the Firebase CLI back in on this Mac, if you want console-free access.** The credentials expired during the build, so `firebase` commands against the real project fail. Nothing currently depends on it: the site is deployed, the database is in its correct starting state, and the Pages workflow uses Actions secrets rather than this login. To restore it: `firebase login --reauth`, then `firebase projects:list` to confirm.
 
-**7. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
+**7. Close the screenshot gap in the secret scanner, before the next phase rather than after it.**
+
+`scripts/check-secrets.sh` skips binary files by design, so the QA screenshots have never been scanned by it — not in this release and not in any earlier one. The scanner reporting clean over 93 text files says nothing at all about the 20 PNGs committed alongside them.
+
+Nothing has leaked. Every capture that renders the login form was opened and checked by hand for this release: the Username and Password fields are empty in all of them, the signed-out shots are taken after the session is cleared, and no screen in the app renders the signed-in username anywhere, so no signed-in capture can carry it either. The PNG metadata chunks are clean.
+
+The problem is that this currently rests on QA's capture discipline plus somebody remembering to look. If a future run ever photographs a filled login form, or a new screen starts showing who is signed in, no automated check would catch it. Either write the rule down so the next run inherits it, or add a cheap check that fails when a `*login*` screenshot's field region is not blank.
+
+**8. Decide what happens to the data after the event.** Export the CSV from the Reports screen, then decide whether the orders stay in Firestore or get cleared.
 
 ---
 
