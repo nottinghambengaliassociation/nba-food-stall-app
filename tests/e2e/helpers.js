@@ -325,10 +325,11 @@ export async function placeOrder(page, { items = {}, name = '', payment = 'cash'
   for (const [id, qty] of Object.entries(items)) await addItem(page, id, qty);
   await openCashPanel(page);
   if (name) await tid(page, 'customer-name').fill(name);
-  if (payment === 'card') await tid(page, 'pay-card').click();
+  // Hotfix H4 (v1.3.2): Card is the default, so the cash path is chosen
+  // explicitly here. `selectPayment` is a no-op when it is already selected.
+  if (payment === 'card') await selectPayment(page, 'card');
   else {
-    const cash = tid(page, 'pay-cash');
-    if (await cash.count()) await cash.click();
+    await selectPayment(page, 'cash');
     // Phase II: `tender` is a pence amount or 'exact' for a quick button, or
     // a string like '17.50' typed into the Other amount box.
     if (tender !== null && tender !== undefined && tender !== '') {
@@ -668,6 +669,44 @@ export async function tenderText(page) {
   });
   const text = await scope.evaluate((el) => (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim());
   return text;
+}
+
+/* --- payment toggle (CLAUDE.md -> Hotfix H4: "Card is the default payment") */
+
+/** Every selector the Cash received block can be found by. */
+export const CASH_BLOCK_SEL = [
+  '[data-testid="cash-received"]',
+  '[role="group"][aria-label="Quick cash amounts"]',
+  '[data-testid="tender-exact"]',
+  '[data-testid="tender-2000"]',
+  '[data-testid="tender-other-toggle"]',
+  '[data-testid="tender-other"]'
+];
+
+/** True when any part of the Cash received block is on screen. */
+export async function cashReceivedVisible(page) {
+  for (const sel of CASH_BLOCK_SEL) {
+    const loc = page.locator(sel).first();
+    if (!(await loc.count())) continue;
+    if (await loc.isVisible().catch(() => false)) return true;
+  }
+  return false;
+}
+
+/**
+ * Choose Cash or Card in the order panel (tablet) or the Review & send sheet.
+ *
+ * Hotfix H4 (v1.3.2) makes Card the selected payment on every new order, so a
+ * test that means to exercise the cash path now has to say so. Tapping an
+ * already-selected button would deselect the quick cash amount (CLAUDE.md
+ * Cash 3), so this only taps when the button is not already pressed.
+ */
+export async function selectPayment(page, which) {
+  const btn = tid(page, which === 'cash' ? 'pay-cash' : 'pay-card');
+  await expect(btn, `the ${which} payment button must be on screen`).toBeVisible({ timeout: 10000 });
+  if ((await btn.getAttribute('aria-pressed')) !== 'true') await btn.click();
+  await expect(btn, `${which} must end up selected`).toHaveAttribute('aria-pressed', 'true', { timeout: 5000 });
+  await page.waitForTimeout(150);
 }
 
 /* -------------------------------------------- Phase III: range fixture ----

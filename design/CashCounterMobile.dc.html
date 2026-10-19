@@ -85,7 +85,7 @@ button{font-family:inherit;cursor:pointer}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { cart: { chat: 1, choc_strawberry: 2 }, name: 'Josh', pay: 'cash', tendered: 2000, other: '', seq: 44, toast: '' };
+    this.state = { cart: { chat: 1, choc_strawberry: 2 }, name: 'Josh', pay: 'card', tendered: null, other: '', seq: 44, toast: '' };
   }
   renderVals() {
     const MENU = [
@@ -156,7 +156,7 @@ class Component extends DCLogic {
         if (empty) return;
         const no = 'A-' + String(this.state.seq).padStart(3, '0');
         const who = this.state.name.trim() || 'Guest';
-        this.setState({ cart: {}, name: '', tendered: null, other: '', seq: this.state.seq + 1, toast: no + ' sent for ' + who });
+        this.setState({ cart: {}, name: '', pay: 'card', tendered: null, other: '', seq: this.state.seq + 1, toast: no + ' sent for ' + who });
       }
     };
   }

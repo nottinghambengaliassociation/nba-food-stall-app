@@ -133,9 +133,9 @@ class Component extends DCLogic {
     this.state = {
       cart: { fuchka: 2, momo: 1 },
       name: 'Priya',
-      pay: 'cash',
+      pay: 'card',
       tendered: null,
-      other: '17.50',
+      other: '',
       seq: 43,
       toast: '',
       recent: [
@@ -225,13 +225,13 @@ class Component extends DCLogic {
         no: r.no, name: r.name, status: r.status,
         bg: statusColours[r.status][0], fg: statusColours[r.status][1]
       })),
-      clear: () => this.setState({ cart: {}, name: '', tendered: null, other: '', toast: '' }),
+      clear: () => this.setState({ cart: {}, name: '', pay: 'card', tendered: null, other: '', toast: '' }),
       place: () => {
         if (empty) return;
         const no = 'A-' + String(this.state.seq).padStart(3, '0');
         const who = this.state.name.trim() || 'Guest';
         this.setState({
-          cart: {}, name: '', tendered: null, other: '', seq: this.state.seq + 1,
+          cart: {}, name: '', pay: 'card', tendered: null, other: '', seq: this.state.seq + 1,
           toast: no + ' sent to the food counter for ' + who,
           recent: [{ no: no, name: who, status: 'New' }].concat(this.state.recent).slice(0, 5)
         });

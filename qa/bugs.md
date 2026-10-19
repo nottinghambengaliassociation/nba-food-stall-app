@@ -918,3 +918,147 @@ API key.
 `qa/screenshots/live-h3-<project>-<screen>.png` for `project` ∈ {iphone13, iphone17}:
 `login`, `cash-empty`, `cash-bar`, `cash-sheet`, `reports-zero`,
 `reports-days-zero`, `reports-orders-zero` — 14 files.
+
+---
+
+## Hotfix H4 round 1 — 2026-10-19 (v1.3.2, Card is the default payment)
+
+Spec: `CLAUDE.md` → "Hotfix H4: Card is the default payment (v1.3.2)".
+Tests: `tests/e2e/cash-h4.spec.js` (new, plan section 43) on `tablet`, `phone`
+and `iphone13`; `tests/unit/orders.test.js` `P4-U-09` for the version.
+
+### Totals
+
+| Suite | Result |
+|---|---|
+| unit (`npx vitest run`) | **306 pass, 1 fail** of 307 — the failure is BUG-9 below |
+| e2e (`npm run test:e2e`, 5 projects) | **408 pass, 0 fail, 0 flaky**, 172 skipped by design (gated live suites, and the layout-specific skips) |
+| of which H4 | **21 pass, 0 fail**, 3 skipped by design (H4-04 below 700 px, H4-06 on tablet) |
+
+Every H4 behaviour in the brief passes on all three layouts: Card selected on
+first load, after Send, after Clear order and when the cart empties; Cash
+reveals the calculator; Card hides **and resets** it; an order sent without
+touching either button is written `payment: "card"`; cash orders are still
+written `payment: "cash"` with no `tendered` field.
+
+### BUG-9 | minor | every screen's header and the login card | status: **verified**
+
+**Steps** `npx vitest run`, or load any signed-in route and read the version pill.
+**Expected** `CLAUDE.md` → Hotfix H4 4: *"`package.json` version 1.3.2"*, and the
+version table lists **1.3.2** as "Hotfix H4: Card is the default payment".
+`package.json` is the single source of truth (Phase III part 2, 1), so the
+header pill and the login version line follow it.
+**Actual** `package.json` is still `1.3.1`, so `public/js/version.js` is stamped
+`APP_VERSION = "1.3.1"` and every header pill and the login card read **v1.3.1**
+on a build that contains H4.
+**Screenshot** `qa/screenshots/iphone13-cash-sheet-card-default.png` (☰ menu
+version line is generated from the same value; the pill is in every
+`*-cash-*.png` from this round).
+**Caught by** `P4-U-09` in `tests/unit/orders.test.js`. The `V-*` suite cannot
+catch it: it reads the expected version out of `package.json`, so it agrees
+with whatever is there.
+**Fix** One line: `version` to `1.3.2` in `package.json`.
+
+### Test changes made for H4 (no assertion weakened)
+
+The Card default changes the till's **starting** state, so tests that used to
+land on the cash path for free now ask for it. Full table in
+`qa/test-plan.md` section 44. In short:
+
+| File | Change | Why |
+|---|---|---|
+| `tests/e2e/helpers.js` | new `selectPayment()` / `cashReceivedVisible()`; `placeOrder()` picks the payment through `selectPayment` | one place says "mean cash"; `selectPayment` only taps an unpressed button (so it never trips "tapping a selected button deselects it") and asserts the button ends up pressed |
+| `tests/e2e/tender.spec.js` | `cashWithOrder()` plus T-09 (b)(c)(d), T-10 (b)(c), T-11 choose the payment explicitly | those legs re-open Cash received on a **new** order, which H4 1 now starts on Card |
+| `tests/e2e/cash-h3.spec.js` | H3-e now asserts the sheet opens with Cash received hidden, then taps Cash; H3-f taps Cash before keying £20 | same reason in the H3 sheet; H3-e gained an assertion rather than losing one |
+| `tests/unit/orders.test.js` | `P4-U-09` expects `1.3.2` | CLAUDE.md H4 4 — this is BUG-9 |
+| `playwright.config.js` | `iphone13` also matches `cash-h4.spec.js` | H4 1 "on every layout" |
+
+### Noted, not a bug
+
+1. **No Clear order control below 700 px.** H4 1 lists "after Clear order"
+   among the resets, but `CLAUDE.md` H3 4 gives the Review & send sheet an
+   Add more header, a scrolling body and a pinned Send footer only — the
+   `clear-order` button is rendered but kept hidden there. H4-04 is therefore
+   a tablet case and H4-05 (the cart emptied with the − stepper) covers the
+   same reset on the phone.
+2. **The Cash received block stays in the DOM when Card is selected**, with
+   `hidden` set. The brief says Card "hides" it, not that it is removed, so
+   H4-01 asserts it is not visible and that "Cash received" is absent from the
+   page's `innerText`.
+3. **Emulator contention.** The first H4 run overlapped another agent's
+   `firebase emulators:exec` on port 8080; its `clearFirestore` deleted orders
+   under this run and produced two phantom failures. Re-run alone: green. Only
+   one emulator run at a time on this machine.
+
+### Open bugs after this round
+
+| Id | Severity | Screen | Status |
+|---|---|---|---|
+| BUG-9 | minor | version label (package.json) | **verified** (round 2 below) |
+
+---
+
+## Hotfix H4 round 2 — 2026-10-19 (full clean run on v1.3.2)
+
+Trinity set `package.json` to `1.3.2` and regenerated `public/js/version.js`
+(`APP_VERSION 1.3.2`, `APP_BUILD 5c863a0-dirty`). Full `npm test` re-run with
+the emulator to this run alone (port 8080 confirmed free before starting; a
+stale `http-server` on 5173 from the previous round was stopped so Playwright
+started its own `webServer`).
+
+### Totals
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| unit (`npx vitest run`, 11 files) | **307** | **0** | 0 |
+| e2e (`npm run test:e2e`, 5 projects) | **408** | **0** | 172 (by design) |
+| — `phone` | 175 | 0 | 57 |
+| — `tablet` | 154 | 0 | 78 |
+| — `iphone13` | 31 | 0 | 13 |
+| — `iphone17` | 24 | 0 | 12 |
+| — `promax` | 24 | 0 | 12 |
+| of which H4 (`cash-h4.spec.js`) | **21** | **0** | 3 (by design) |
+
+e2e duration **19.6 min**, 0 flaky, no retries consumed. The 172 skips are the
+gated live suites (`live-*.spec.js`, which need `LIVE_*=1`) plus the
+layout-specific skips already documented in round 1. All five Playwright
+projects ran as configured, and `cash-h4.spec.js` ran on `tablet`, `phone` and
+`iphone13` (8 cases each; H4-04 skips below 700 px and H4-06 skips on tablet,
+as recorded in round 1 "Noted, not a bug" 1).
+
+### BUG-9 — closed
+
+**Status: verified.** `package.json` reads `1.3.2`; `P4-U-09` in
+`tests/unit/orders.test.js` passes, and the `V-*` version suite passes on both
+projects, so the header pill and the login card now read **v1.3.2** on a build
+that contains H4. No other bug was reopened and no new bug was found.
+
+### Test fixed this round (not an app bug)
+
+`tests/e2e/live-h3.spec.js` carried a hardcoded `1.3.1`, which the version bump
+turned into an unsatisfiable test — two contradictory assertions on the same
+value:
+
+```js
+expect(version, 'package.json is the single source of truth').toBe(PKG_VERSION);  // 1.3.2
+expect(version, 'CLAUDE.md H3 8: package.json version 1.3.1').toBe('1.3.1');      // 1.3.1
+```
+
+`CLAUDE.md` → Phase III part 2, 1 makes `package.json` the single source of
+truth and says every hotfix bumps the patch number, so the literal is the wrong
+half. The H3 live suite is gated (skipped in this emulator run), so it did not
+fail here — it would have failed on the next live check once v1.3.2 deploys.
+
+Fixed to test the brief rather than a frozen number: the exact value comes from
+`PKG_VERSION`, plus a floor assertion `atLeast(version, '1.3.1')` that still
+proves the deployed build is the H3 release or later. Three places changed —
+the login-card assertion (line ~199), the ☰ menu version line (`.toContain('v'
++ PKG_VERSION)`), and the H3L-03 record string. The stale test title "shows
+Version 1.3.1" became "shows the package.json version". No assertion was
+weakened or removed. `live-p4.spec.js` was checked for the same problem: it
+already asserts `'v' + PKG_VERSION`, only its message string names v1.3.0, so
+it was left alone.
+
+### Open bugs after this round
+
+**None.** All bugs BUG-1 … BUG-9 are fixed and verified.

@@ -25,7 +25,8 @@ import {
   clearFirestore, openApp, gotoRoute, setTill, tid, boxOf, heightOf,
   addItem, placeOrder, openCashPanel, closeCashPanel, otherAmount,
   revealOtherAmount, quickTenderButtons, quickTender, tenderText,
-  expectNoConsoleErrors, waitForOrders, readCollection, shot, londonDay
+  expectNoConsoleErrors, waitForOrders, readCollection, shot, londonDay,
+  selectPayment, cashReceivedVisible
 } from './helpers.js';
 
 /** CLAUDE.md -> Menu after H3: exactly seven items, in sort order. */
@@ -736,7 +737,10 @@ test.describe('H3 the small cash counter', () => {
     const errors = await openCash(page);
     await addItem(page, 'fuchka', 3); // £15.00
     await openCashPanel(page);
-    await tid(page, 'pay-cash').click();
+    // H4 1: the sheet starts on Card and hides the block, so Cash is tapped.
+    expect(await cashReceivedVisible(page),
+      'CLAUDE.md H4 1: a new order starts on Card, which hides Cash received').toBe(false);
+    await selectPayment(page, 'cash');
     await page.waitForTimeout(200);
 
     expect(norm(await tenderText(page)), 'CLAUDE.md H3 4: "Cash received (optional)"').toMatch(/Cash received/i);
@@ -802,6 +806,9 @@ test.describe('H3 the small cash counter', () => {
     await addItem(page, 'momo', 1);
     await openCashPanel(page);
     await tid(page, 'customer-name').fill('Priya');
+    // Hotfix H4 (v1.3.2): the sheet opens on Card, so this cash order picks
+    // Cash before keying £20 into the calculator.
+    await selectPayment(page, 'cash');
     await (await quickTender(page, 2000)).click();
     await page.waitForTimeout(200);
 

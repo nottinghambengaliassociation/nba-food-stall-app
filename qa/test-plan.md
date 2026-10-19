@@ -1504,3 +1504,79 @@ and `iphone17`: `login`, `cash-empty`, `cash-bar`, `cash-sheet`,
 
 **Result (19 Oct 2026, build `9be6abd`): 22/22 pass, zero console errors,
 nothing written.**
+
+---
+
+# Hotfix H4 — Card is the default payment (v1.3.2)
+
+Spec: `CLAUDE.md` → "Hotfix H4: Card is the default payment (v1.3.2)", items
+1–4. Read-only change to the till's opening state: no change to the data model,
+the reports or the CSV (`payment` is still `"cash"` or `"card"`).
+
+## 43. H4 end-to-end cases — `tests/e2e/cash-h4.spec.js`
+
+Projects: `tablet` (1280×800, the always-open order panel), `phone` (390×844)
+and `iphone13` (390×664, the small phone from H3 — `cash-h4.spec.js` is added
+to that project's `testMatch` in `playwright.config.js`). "Every layout" in H4 1
+means both the panel and the Review & send sheet, which is exactly these three.
+
+| id | Case | Expected (CLAUDE.md) |
+|---|---|---|
+| H4-01 | First load of `#/cash` | Tablet, empty cart: `pay-card` `aria-pressed="true"`, `pay-cash` `"false"`. With items in the cart, both layouts: same pair, and no part of the Cash received block on screen, nor the words "Cash received" (H4 1, H4 2) |
+| H4-02 | Cash shows it, Card hides and resets it | Tapping Cash → `cash true / card false` and the calculator appears; £20 reads "Change £5.00" / "Change to give: £5.00"; tapping Card → `cash false / card true` and the block is hidden; tapping Cash again → a **cleared** calculator (no quick button pressed, no message). Repeated for a typed Other amount: the box comes back empty (H4 2) |
+| H4-03 | After Send | The sent order is still `payment: "cash"` (H4 3); the next order opens on Card with Cash received hidden — "The choice is not remembered between orders" (H4 1) |
+| H4-04 | After Clear order (**tablet only**) | `clear-order` with Cash selected and £50 keyed in; the next order is on Card with Cash received hidden (H4 1). Skipped below 700 px: CLAUDE.md H3 4 gives the sheet an Add more header, a scrolling body and a pinned Send footer — no Clear order control — so the phone form of this reset is H4-05 |
+| H4-05 | Cart emptied by the − stepper | The last `line-dec-*` tap empties the cart (and closes the sheet below 700 px); tablet shows Card immediately; the next order is on Card either way (H4 1, "when the cart empties") |
+| H4-06 | Phone Review & send sheet (`phone`, `iphone13`) | The sheet opens on Card with no Cash received; a cash sale from the sheet still writes `payment: "cash"`; reopening the sheet for the next customer is back on Card. Screenshot `qa/screenshots/<project>-cash-sheet-card-default.png` |
+| H4-07 | No payment tap at all | Add two items, name, Send without touching either button → Firestore holds `payment: "card"`, total correct, still no `tendered` field (H4 1, H4 3) |
+| H4-08 | Card survives panel open/close | Card stays selected while items are added to the same order; once **Cash** is chosen for the order in hand it stays chosen while the cart still has items (H4 1 resets "for every new order", not on every re-render) |
+
+Zero console errors on `#/cash` in H4-01, H4-02, H4-03, H4-06 and H4-07.
+
+**Deliberate readings of the brief.** (a) H4 1 lists "after Clear order" among
+the resets; the small layout has no such control (H3 4), so H4-04 is a tablet
+case and H4-05 covers the same reset on the phone. (b) "Starts with Card
+selected" is read as the state of a **new** order: H4-08 pins that Cash, once
+chosen, stays chosen while the cart still holds items, otherwise the toggle
+would be unusable. (c) The Cash received block stays in the DOM `hidden` with
+Card selected; H4-01 asserts it is not *visible* (and that "Cash received" is
+not in the page's `innerText`), not that the node is absent — the brief says
+"hides", not "removes".
+
+## 44. Existing tests changed for H4, and why
+
+The Card default changes the **starting state** of the till, so tests that used
+to land on the cash path for free now have to ask for it. No assertion was
+weakened; each change makes an implicit assumption explicit.
+
+| File | Change | Why |
+|---|---|---|
+| `tests/e2e/helpers.js` | new `selectPayment(page, 'cash'\|'card')` and `cashReceivedVisible(page)`; `placeOrder()` now chooses the payment through `selectPayment` | One place says "mean cash". `selectPayment` only taps when the button is not already pressed, so it never trips the "tapping a selected button deselects it" rule, and it asserts the button ends up pressed — a silently-ignored tap now fails loudly |
+| `tests/e2e/tender.spec.js` | `cashWithOrder()` uses `selectPayment`; T-09 (b)(c)(d) and T-10 (b)(c) choose Cash again after Send / Clear order / the cart emptying; T-11's card leg says `selectPayment(page, 'card')` | Those legs re-open the Cash received box on a **new** order, which H4 1 now starts on Card. Without the extra tap the box is not rendered at all and the case would fail for the wrong reason |
+| `tests/e2e/cash-h3.spec.js` | H3-e asserts the sheet opens with Cash received hidden, then taps Cash; H3-f taps Cash before keying £20 and still asserts `payment: "cash"` | Same reason in the H3 sheet. H3-e gains a real H4 assertion rather than losing one |
+| `tests/unit/orders.test.js` | `P4-U-09` now expects `package.json` version `1.3.2` | CLAUDE.md H4 4 and the version table ("1.3.2 — Hotfix H4") |
+| `playwright.config.js` | `iphone13` also matches `cash-h4.spec.js` | H4 1 "on every layout"; `iphone17` and `promax` stay on the H3 suite only, to keep the fix loop short |
+
+Unchanged on purpose: `cash.spec.js` C-07 and C-16 already tap `pay-cash`
+first, and every `placeOrder({ payment: 'cash' })` call goes through the helper
+above, so those cases keep testing what they always tested.
+
+## 45. Version literals in the gated live suites (fixed round 2)
+
+`tests/e2e/live-h3.spec.js` pinned the literal `1.3.1` next to an assertion
+that the same value equals `PKG_VERSION` (read from `package.json`). Once H4
+bumped the version to 1.3.2 the two could never both hold, so the H3 live
+check became unsatisfiable. It is gated behind `LIVE_H3=1`, so it skips in
+`npm run test:e2e` and the contradiction only surfaces on a live check.
+
+`CLAUDE.md` → Phase III part 2, 1 is explicit that `package.json` is the single
+source of truth and that every hotfix bumps the patch number, so the frozen
+literal is what was wrong, not the app. The exact value now comes from
+`PKG_VERSION` everywhere (login card, ☰ menu line, header pill, record string),
+with a floor check `atLeast(version, '1.3.1')` that still proves the deployed
+build is the H3 release or later. The stale test title was updated to match.
+
+Rule for later phases: a live spec asserts `PKG_VERSION` for the exact value
+and a floor for "this release or later". Never a bare version literal — it
+rots at the next bump. `live-p4.spec.js` already follows this (only its
+message string names a version) and was left alone.

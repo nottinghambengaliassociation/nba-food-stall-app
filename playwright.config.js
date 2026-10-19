@@ -57,14 +57,19 @@ export default defineConfig({
     // 390x664 and 402x694 are the visible areas named in CLAUDE.md -> Hotfix
     // H3. 430x752 is the iPhone Pro Max device width (430x932) less the same
     // 180 px of Safari chrome that turns 844 into 664 and 874 into 694.
+    //
+    // Hotfix H4 (v1.3.2) adds `cash-h4.spec.js` to `iphone13` only: CLAUDE.md
+    // H4 1 asks for the Card default "on every layout", and iphone13 is the
+    // small phone named in the H4 brief. `phone` and `tablet` run it as well,
+    // so all three layouts are covered without a fourth full pass.
     ...[
-      { name: "iphone13", width: 390, height: 664 },
-      { name: "iphone17", width: 402, height: 694 },
-      { name: "promax", width: 430, height: 752 },
-    ].map(({ name, width, height }) => ({
+      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|live-h3)\.spec\.js/ },
+      { name: "iphone17", width: 402, height: 694, match: /(cash-h3|live-h3)\.spec\.js/ },
+      { name: "promax", width: 430, height: 752, match: /(cash-h3|live-h3)\.spec\.js/ },
+    ].map(({ name, width, height, match }) => ({
       name,
       // The H3 emulator suite, and the gated read-only H3 live check.
-      testMatch: /(cash-h3|live-h3)\.spec\.js/,
+      testMatch: match,
       use: {
         ...devices["Desktop Chrome"],
         browserName: "chromium",

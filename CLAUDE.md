@@ -181,7 +181,8 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 | 1.1.2 | Hotfix H2: cart line alignment (19 Oct) |
 | 1.2.0 | Phase III: Sales by day report and app version (19 Oct, live) |
 | 1.3.0 | Phase IV: Orders list and order detail in Reports (19 Oct, live) |
-| **1.3.1** | **Hotfix H3: phone cash counter layout (next run)** |
+| 1.3.1 | Hotfix H3: phone cash counter layout, 7-item menu, live reset (19 Oct, live) |
+| **1.3.2** | **Hotfix H4: Card is the default payment (next run)** |
 
 1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
 2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
@@ -204,7 +205,7 @@ Mock-ups: `design/ReportsOrders.dc.html` (tablet/desktop), `design/ReportsOrders
 9. Retired items (`samosa`, `straw`) in older orders show under their original names and icons.
 10. `package.json` version 1.3.0; the version label shows v1.3.0 after deploy.
 
-### Hotfix H3: phone cash counter layout (v1.3.1)
+### Hotfix H3: phone cash counter layout (v1.3.1, shipped 19 Oct, don't rebuild)
 Problem: on an iPhone 13 in Safari (about 390×664 visible) the always-open order panel takes over half the screen, only two menu tiles show, the header wraps to three rows and the payment buttons get squeezed.
 
 Mock-ups: `design/CashCounterSmall.dc.html` (menu and order bar, iPhone 13), `design/CashCounterSmallOpen.dc.html` (Review & send sheet open), `design/CashCounterSmall17.dc.html` (iPhone 17, 402×694). Applies to the cash counter on **every screen narrower than 700 px**, replacing the current phone cash layout. Tablet and desktop (700 px and wider) are unchanged. No data change.
@@ -227,6 +228,14 @@ Mock-ups: `design/CashCounterSmall.dc.html` (menu and order bar, iPhone 13), `de
    - `scripts/menu-sync.mjs` stays for future menu edits, but drop its H1 whitelist.
    - After the reset, reports start empty, order numbers restart naturally the next trading day, and devices keep their till letter.
 8. `package.json` version 1.3.1.
+
+### Hotfix H4: Card is the default payment (v1.3.2)
+Most customers pay by card, so the till should start on Card.
+
+1. Every new order starts with **Card** selected, on every layout (tablet/desktop panel and the phone Review & send sheet): on first load, after Send, after Clear order, and when the cart empties. The choice is not remembered between orders.
+2. Tapping **Cash** works as today and shows Cash received (optional). Tapping Card again hides and resets it.
+3. Nothing else changes: order data, reports and CSV are unaffected (`payment` is still "cash" or "card").
+4. `package.json` version 1.3.2.
 
 ## Design
 

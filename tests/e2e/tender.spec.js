@@ -13,8 +13,16 @@ import {
   clearFirestore, openApp, tid, addItem, heightOf, expectNoConsoleErrors,
   quickTender, quickTenderButtons, otherAmount, tenderText, firstOf, anyOf,
   waitForOrders, readCollection, shot, londonDay,
-  isSmallCash, openCashPanel, closeCashPanel
+  isSmallCash, openCashPanel, closeCashPanel, selectPayment
 } from './helpers.js';
+
+/**
+ * Hotfix H4 (v1.3.2): "Every new order starts with Card selected ... on first
+ * load, after Send, after Clear order, and when the cart empties." Cash
+ * received belongs to the cash path, so every case below chooses Cash first,
+ * and chooses it again after anything that starts a new order. Choosing it is
+ * now part of what the test means, not scenery.
+ */
 
 /**
  * Hotfix H3 (v1.3.1): below 700 px the cash-received block moved into the
@@ -37,8 +45,8 @@ async function cashWithOrder(page, qty = 3) {
   await addItem(page, 'fuchka', qty);
   await openCashPanel(page);
   await expect(tid(page, 'order-total')).toContainText(`£${(qty * 5).toFixed(2)}`);
-  const cash = tid(page, 'pay-cash');
-  if (await cash.count()) await cash.click();
+  // H4: the panel opens on Card, so the cash path is chosen explicitly.
+  await selectPayment(page, 'cash');
   await page.waitForTimeout(200);
   return errors;
 }
@@ -265,6 +273,9 @@ test('T-09 it resets on Card, on send and on clearing the order', async ({ page 
   await waitForOrders((o) => o.length === 1, { label: 'the sent order' });
   await addItem(page, 'momo', 1);
   await openCashPanel(page);
+  // H4 1: the next order starts on Card, so Cash is chosen again before the
+  // calculator is read. It must come back empty.
+  await selectPayment(page, 'cash');
   await page.waitForTimeout(300);
   expect(await (await otherAmount(page)).inputValue(), 'a new order must start with no cash received').toBe('');
   expect(await message(page)).not.toMatch(/Change|Short|Enter an amount|Check amount/);
@@ -285,6 +296,7 @@ test('T-09 it resets on Card, on send and on clearing the order', async ({ page 
   await page.waitForTimeout(300);
   await addItem(page, 'momo', 1);
   await openCashPanel(page);
+  await selectPayment(page, 'cash');   // H4 1: clearing the order returns it to Card
   await page.waitForTimeout(300);
   expect(await (await otherAmount(page)).inputValue(), 'CLAUDE.md Cash 3: "clearing the order resets it"').toBe('');
   expect(await message(page), 'CLAUDE.md Cash 3: "clearing the order resets it"').not.toMatch(/Change|Short|Enter an amount|Check amount/);
@@ -297,6 +309,7 @@ test('T-09 it resets on Card, on send and on clearing the order', async ({ page 
   await page.waitForTimeout(300);
   await addItem(page, 'momo', 1);
   await openCashPanel(page);
+  await selectPayment(page, 'cash');   // H4 1: emptying the cart returns it to Card
   await page.waitForTimeout(300);
   expect(
     await message(page),
@@ -320,6 +333,7 @@ test('T-10 it never blocks sending: no amount, short amount, unparseable amount'
   // (b) short amount
   await addItem(page, 'fuchka', 3);
   await openCashPanel(page);
+  await selectPayment(page, 'cash');   // H4 1: the panel went back to Card after Send
   await tid(page, 'customer-name').fill('Short');
   await (await otherAmount(page)).fill('10');
   await page.waitForTimeout(250);
@@ -336,6 +350,7 @@ test('T-10 it never blocks sending: no amount, short amount, unparseable amount'
   // (c) unparseable amount
   await addItem(page, 'fuchka', 3);
   await openCashPanel(page);
+  await selectPayment(page, 'cash');   // H4 1: the panel went back to Card after Send
   await tid(page, 'customer-name').fill('Junk');
   await (await otherAmount(page)).fill('abc');
   await page.waitForTimeout(250);
@@ -361,7 +376,9 @@ test('T-11 nothing about cash received is persisted', async ({ page }) => {
 
   await addItem(page, 'fuchka', 3);
   await openCashPanel(page);
-  await tid(page, 'pay-card').click();
+  // H4 1: this order already starts on Card; say so anyway, so the case still
+  // reads as "a card order stores no cash fields".
+  await selectPayment(page, 'card');
   await tid(page, 'customer-name').fill('Carded');
   await tid(page, 'send-order').click();
   await expect(tid(page, 'order-toast')).toBeVisible({ timeout: 10000 });

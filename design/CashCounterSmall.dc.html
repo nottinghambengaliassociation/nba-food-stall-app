@@ -117,7 +117,7 @@ button{cursor:pointer}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { cart: { fuchka: 2, momo: 1, marshmallow: 1 }, name: 'Priya', pay: 'cash', tendered: 2000, sheet: !!props.startOpen, menu: false, seq: 45, toast: '' };
+    this.state = { cart: { fuchka: 2, momo: 1, marshmallow: 1 }, name: 'Priya', pay: 'card', tendered: null, sheet: !!props.startOpen, menu: false, seq: 45, toast: '' };
   }
   renderVals() {
     const MENU = [
@@ -178,7 +178,7 @@ class Component extends DCLogic {
       hasToast: !!s.toast, toast: s.toast,
       send: () => {
         const no = 'A-' + String(this.state.seq).padStart(3, '0');
-        this.setState({ cart: {}, name: '', tendered: null, sheet: false, seq: this.state.seq + 1, toast: no + ' sent for ' + (this.state.name.trim() || 'Guest') });
+        this.setState({ cart: {}, name: '', pay: 'card', tendered: null, sheet: false, seq: this.state.seq + 1, toast: no + ' sent for ' + (this.state.name.trim() || 'Guest') });
       }
     };
   }

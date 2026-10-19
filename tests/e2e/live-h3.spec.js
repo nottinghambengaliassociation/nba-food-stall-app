@@ -34,6 +34,18 @@ const LIVE = process.env.LIVE_URL || 'https://nottinghambengaliassociation.githu
 const C = creds();
 const PKG_VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version;
 
+/** True when semver string `a` is the same as or newer than `b`. */
+function atLeast(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i += 1) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+
 /** CLAUDE.md -> Menu after H3: seven items, in sort order. */
 const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
 const SHORTS = {
@@ -166,7 +178,7 @@ test('H3L-01 the live menu is exactly the seven H3 documents', async ({}, info) 
 
 /* ------------------------------------------------------------- H3L-02 */
 
-test('H3L-02 the login card shows Version 1.3.1 and a clean build', async ({ page }, info) => {
+test('H3L-02 the login card shows the package.json version and a clean build', async ({ page }, info) => {
   const errors = attachConsole(page);
   await page.goto(LIVE + '#/login', { waitUntil: 'domcontentloaded' });
   const line = tid(page, 'login-version');
@@ -185,7 +197,13 @@ test('H3L-02 the login card shows Version 1.3.1 and a clean build', async ({ pag
   expect(m, `the login version line must read "Version x.y.z · build <sha> · updated <date>"; got "${text}"`).toBeTruthy();
   const [, version, build, date] = m;
   expect(version, 'package.json is the single source of truth').toBe(PKG_VERSION);
-  expect(version, 'CLAUDE.md H3 8: package.json version 1.3.1').toBe('1.3.1');
+  // CLAUDE.md H3 8 set package.json to 1.3.1, but Phase III part 2, 1 makes
+  // package.json the single source of truth and every later hotfix bumps the
+  // patch number (H4 -> 1.3.2). Pinning the literal 1.3.1 here contradicted
+  // the line above the moment the version moved on, so this asserts the floor
+  // -- the deployed build is at least the H3 release -- and lets PKG_VERSION
+  // carry the exact value.
+  expect(atLeast(version, '1.3.1'), `CLAUDE.md H3 8: the live build must be 1.3.1 or later; got "${version}"`).toBe(true);
   expect(build, `the deployed build must be a clean 7-character SHA, never "-dirty"; got "${build}"`).toMatch(CLEAN_BUILD);
   expect(build).not.toContain('-dirty');
   expect(date).toMatch(DATE_SHAPE);
@@ -227,7 +245,7 @@ test('H3L-03 signed in, every route loads with no console errors and an Online p
       await expect(tid(page, 'app-menu')).toBeVisible();
       const inMenu = tid(page, 'app-menu').locator('[data-testid="app-version"]');
       await expect(inMenu).toBeVisible();
-      expect(norm(await inMenu.innerText()), `${route}: the ☰ version line`).toContain('v1.3.1');
+      expect(norm(await inMenu.innerText()), `${route}: the ☰ version line`).toContain('v' + PKG_VERSION);
       await page.keyboard.press('Escape');
     } else {
       const label = tid(page, 'app-version');
@@ -241,7 +259,7 @@ test('H3L-03 signed in, every route loads with no console errors and an Online p
   }
 
   const real = realErrors(errors);
-  record(`H3L-03 ${info.project.name}: ${real.length ? 'FAIL' : 'PASS'} - ${ROUTES.length} routes signed in, v1.3.1 everywhere, ${real.length} console error(s)${real.length ? ': ' + real.join(' | ') : ''}`);
+  record(`H3L-03 ${info.project.name}: ${real.length ? 'FAIL' : 'PASS'} - ${ROUTES.length} routes signed in, v${PKG_VERSION} everywhere, ${real.length} console error(s)${real.length ? ': ' + real.join(' | ') : ''}`);
   expect(real, `console errors across the signed-in routes:\n${real.join('\n')}`).toEqual([]);
 });
 

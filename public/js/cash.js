@@ -29,7 +29,8 @@ export function mountCash(outlet, ctx) {
   const state = {
     menu: ACTIVE_MENU.slice(),
     cart: {},
-    payment: 'cash',
+    // Hotfix H4: every new order starts on Card. Not remembered between orders.
+    payment: 'card',
     // Cash received (optional): either a quick button ('exact' | pence) or
     // free text in the "Other amount" box. Never both.
     quick: null,
@@ -76,14 +77,16 @@ export function mountCash(outlet, ctx) {
   const linesBox = el('div', { class: 'lines', testid: 'order-lines' });
   const totalValue = el('span', { class: 'total-row__value', testid: 'order-total', text: '£0.00' });
 
+  // Hotfix H4: Card is the default, so it is the pressed one on first paint,
+  // before update() has run.
   const payCash = el('button', {
     type: 'button', class: 'pay-btn', testid: 'pay-cash', text: 'Cash',
-    'aria-pressed': 'true',
+    'aria-pressed': 'false',
     onclick: () => { state.payment = 'cash'; update(); }
   });
   const payCard = el('button', {
     type: 'button', class: 'pay-btn', testid: 'pay-card', text: 'Card',
-    'aria-pressed': 'false',
+    'aria-pressed': 'true',
     onclick: () => { state.payment = 'card'; resetTender(); update(); }
   });
 
@@ -369,7 +372,7 @@ export function mountCash(outlet, ctx) {
 
   function resetOrder() {
     state.cart = {};
-    state.payment = 'cash';
+    state.payment = 'card';
     resetTender();
     nameInput.value = '';
   }
@@ -707,11 +710,16 @@ export function mountCash(outlet, ctx) {
     sendButton.disabled = empty;
     setText(sendButton, empty ? 'Send to food counter' : `Send to food counter · ${formatPence(total)}`);
 
+    // An empty panel is a cleared order, however it emptied: Send, Clear order
+    // or the last - stepper tap. The next one starts on Card with no cash
+    // received (hotfix H4 1), on the tablet panel and in the phone sheet alike.
+    if (empty) {
+      state.payment = 'card';
+      if (state.quick !== null || state.other !== '' || state.otherOpen) resetTender();
+    }
+
     payCash.setAttribute('aria-pressed', state.payment === 'cash' ? 'true' : 'false');
     payCard.setAttribute('aria-pressed', state.payment === 'card' ? 'true' : 'false');
-
-    // An empty panel is a cleared order: the next one starts with no cash received.
-    if (empty && (state.quick !== null || state.other !== '')) resetTender();
 
     tenderBlock.hidden = state.payment !== 'cash' || empty;
     tenderButtons.forEach((btn, i) => {
