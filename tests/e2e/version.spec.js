@@ -28,6 +28,23 @@ const SIGNED_IN_ROUTES = ['#/', '#/cash', '#/kitchen', '#/reports', '#/reports/d
 
 const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
 
+/**
+ * Hotfix H3 (v1.3.1) rebuilds the cash counter below 700 px as a single 52 px
+ * header row (till picker, connection, next number, ☰). CLAUDE.md H3 1 moves
+ * the version line out of that header and into the ☰ dropdown, so on the small
+ * cash counter the label is read there instead of in the header band.
+ */
+const smallCash = (page, route) => route === '#/cash' && (page.viewportSize()?.width ?? 1280) < 700;
+
+/** Open the ☰ menu so the version line inside it can be read. */
+async function openAppMenu(page) {
+  const button = tid(page, 'menu-button');
+  await expect(button, 'CLAUDE.md H3 1: the small cash counter has a ☰ button').toBeVisible({ timeout: 15000 });
+  if ((await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+  await expect(tid(page, 'app-menu')).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(200);
+}
+
 /** Open signed out, with localStorage cleared once per tab. */
 async function freshPage(page, route) {
   const errors = attachConsole(page);
@@ -146,6 +163,26 @@ test.describe('Phase III part 2 — app version', () => {
       await expect(page.locator('header').first()).toBeVisible({ timeout: 20000 });
       await page.waitForTimeout(500);
 
+      // H3: on the small cash counter the version lives in the ☰ dropdown.
+      if (smallCash(page, route)) {
+        await openAppMenu(page);
+        const inMenu = tid(page, 'app-menu').locator('[data-testid="app-version"]');
+        await expect(inMenu,
+          'CLAUDE.md H3 1 puts the version line in the ☰ menu and Phase III part 2, 6 names its ' +
+          'test id "app-version"; the ☰ line must carry that id so the label can still be found ' +
+          'on the cash counter below 700 px'
+        ).toBeVisible();
+        const menuText = norm(await inMenu.innerText());
+        expect(menuText, 'the ☰ version line names the build').toContain('v' + PKG_VERSION);
+        const menuTitle = parseTitle(await inMenu.getAttribute('title'));
+        expect(menuTitle, 'the ☰ version line needs a title "Version …, build …, updated …"').toBeTruthy();
+        expect(menuTitle.version).toBe(PKG_VERSION);
+        expect(menuTitle.build).toMatch(BUILD_SHAPE);
+        expect(menuTitle.date).toMatch(DATE_SHAPE);
+        await page.keyboard.press('Escape');
+        continue;
+      }
+
       const label = tid(page, 'app-version');
       await expect(label, `${route}: CLAUDE.md Phase III part 2, 5 puts a version label in every dark header`).toBeVisible();
 
@@ -225,7 +262,11 @@ test.describe('Phase III part 2 — app version', () => {
   });
 
   test('V-04 app-version is at least 48px clear of the header buttons and never wraps them off screen', async ({ page, context }) => {
-    await signedInPage(page, context, '#/cash');
+    // H3 moves the cash counter's version line into the ☰ menu below 700 px,
+    // so the "pill versus header buttons" geometry is read on the landing page
+    // there instead; the small cash header itself is covered by cash-h3.spec.js.
+    const route = (page.viewportSize()?.width ?? 1280) < 700 ? '#/' : '#/cash';
+    await signedInPage(page, context, route);
     await page.waitForTimeout(600);
     const overlap = await page.evaluate(() => {
       const v = document.querySelector('[data-testid="app-version"]');
@@ -276,11 +317,15 @@ test.describe('Phase III part 2 — app version', () => {
       await page.goto('/' + route);
       await expect(page.locator('header').first()).toBeVisible({ timeout: 20000 });
       await page.waitForTimeout(400);
-      const pill = tid(page, 'app-version');
+      if (smallCash(page, route)) await openAppMenu(page);
+      const pill = smallCash(page, route)
+        ? tid(page, 'app-menu').locator('[data-testid="app-version"]')
+        : tid(page, 'app-version');
       await expect(pill, `${route}: the header label is still rendered without version.js`).toBeVisible();
       expect(norm(await pill.innerText()), `${route}: falls back to dev`).toContain('dev');
       expect(norm(await pill.innerText()), `${route}: must not show a stale version`).not.toContain(PKG_VERSION);
       expect(norm(await pill.getAttribute('title'))).toBe('Version dev, build dev, updated dev');
+      if (smallCash(page, route)) await page.keyboard.press('Escape');
     }
 
     expect(pageErrors, `a missing version.js must not throw:\n${pageErrors.join('\n')}`).toEqual([]);

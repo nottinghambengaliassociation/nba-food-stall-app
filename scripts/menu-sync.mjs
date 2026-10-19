@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 // menu-sync.mjs — bring the Firestore `menu` collection in line with the menu
-// table in CLAUDE.md (Hotfix H1, 18 Oct 2026: split two combined items into four).
+// table in CLAUDE.md. General-purpose and idempotent: run it after any menu edit
+// in the table to create documents that are missing.
 //
 // Uses the Firebase web SDK and the generated public/js/firebase-config.js, the
 // same config the deployed app uses. It never prints a config value.
 //
 // What it does
 //   * creates any menu document from the table that is missing
-//   * applies the three H1 field changes: samosa.active=false, straw.active=false,
-//     fountain.sort=8
 //   * fills in a field that is absent from an existing document
 //   * NEVER overwrites a field that already holds a different value — a price or a
 //     colour may have been edited in the Firebase console on purpose. It reports
 //     the difference and leaves the stored value alone.
-//   * NEVER deletes or renames a document. Retired ids (samosa, straw) stay so
-//     that older orders keep reporting under their original names.
+//   * NEVER deletes or renames a document. A document that is not in the table is
+//     reported as "extra" and left exactly as it is. (The one-off H3 clean-out of
+//     retired ids is scripts/reset-live.mjs, not this script.)
 //   * is idempotent: a second run writes nothing.
 //
 // Usage
@@ -53,28 +53,16 @@ const EMULATOR_DEFAULT = '127.0.0.1:8080';
 
 const FIELDS = ['name', 'short', 'price', 'colour', 'station', 'active', 'sort'];
 
-// The menu table from CLAUDE.md. Ids are permanent and never reused.
+// The menu table from CLAUDE.md (v1.3.1: 7 items, the whole menu).
+// Ids are permanent and never reused — don't reuse samosa, straw or fountain.
 const MENU = [
-  { id: 'fuchka',          name: 'Fuchka / Gol Gappa',                     short: 'Fuchka',          price: 500, colour: '#FDE68A', station: 'chaat',  active: true,  sort: 1 },
-  { id: 'momo',            name: 'Momo',                                   short: 'Momo',            price: 500, colour: '#BFDBFE', station: 'momo',   active: true,  sort: 2 },
-  { id: 'chat',            name: 'Papri Chat',                             short: 'Papri Chat',      price: 500, colour: '#FECACA', station: 'chaat',  active: true,  sort: 3 },
-  { id: 'sweet_box',       name: 'Sweet Box',                              short: 'Sweet Box',       price: 500, colour: '#FED7AA', station: 'sweets', active: true,  sort: 4 },
-  { id: 'samosa_only',     name: 'Samosa',                                 short: 'Samosa',          price: 500, colour: '#D9F99D', station: 'sweets', active: true,  sort: 5 },
-  { id: 'choc_strawberry', name: 'Chocolate Strawberry',                   short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true,  sort: 6 },
-  { id: 'marshmallow',     name: 'Marshmallow (V)',                        short: 'Marshmallow',     price: 500, colour: '#FBCFE8', station: 'sweets', active: true,  sort: 7 },
-  { id: 'fountain',        name: 'Chocolate Fountain',                     short: 'Choc Fountain',   price: 500, colour: '#E7D3BF', station: 'sweets', active: true,  sort: 8 },
-  // Retired 18 Oct 2026. Kept with active:false so old orders still report.
-  { id: 'samosa',          name: 'Sweets Box Samosa / Shingara',           short: 'Sweets Box',      price: 500, colour: '#FED7AA', station: 'sweets', active: false, sort: 90 },
-  { id: 'straw',           name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: false, sort: 91 }
-];
-
-// The only changes H1 is allowed to make to a document that already exists.
-// `from` is the known pre-hotfix value; anything else is treated as a deliberate
-// console edit and reported instead of overwritten.
-const MANDATED = [
-  { id: 'samosa',   field: 'active', from: true, to: false },
-  { id: 'straw',    field: 'active', from: true, to: false },
-  { id: 'fountain', field: 'sort',   from: 6,    to: 8 }
+  { id: 'fuchka',          name: 'Fuchka / Gol Gappa',        short: 'Fuchka',           price: 500, colour: '#FDE68A', station: 'chaat',  active: true, sort: 1 },
+  { id: 'momo',            name: 'Momo',                      short: 'Momo',             price: 500, colour: '#BFDBFE', station: 'momo',   active: true, sort: 2 },
+  { id: 'chat',            name: 'Papri Chat',                short: 'Papri Chat',       price: 500, colour: '#FECACA', station: 'chaat',  active: true, sort: 3 },
+  { id: 'sweet_box',       name: 'Sweet Box',                 short: 'Sweet Box',        price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
+  { id: 'samosa_only',     name: 'Samosa',                    short: 'Samosa',           price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
+  { id: 'choc_strawberry', name: 'Chocolate Strawberry',      short: 'Choc Strawberry',  price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
+  { id: 'marshmallow',     name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
 ];
 
 const argv = process.argv.slice(2);
@@ -89,10 +77,6 @@ const unknown = argv.filter((a) => a.startsWith('--') && a !== '--dry-run' && a 
 if (unknown.length) {
   console.error(`Unknown flag: ${unknown.join(' ')}. Use --dry-run and/or --emulator [host:port].`);
   process.exit(2);
-}
-
-function mandatedFor(id, field) {
-  return MANDATED.find((m) => m.id === id && m.field === field) || null;
 }
 
 function same(field, stored, wanted) {
@@ -146,7 +130,7 @@ async function readMenu(db) {
 // Work out everything to do without writing anything.
 function buildPlan(stored) {
   const creates = [];
-  const updates = [];   // mandated H1 changes, and fields absent from a document
+  const updates = [];   // fields absent from an existing document
   const differs = [];   // present, different, not ours to change
   const matches = [];
   const extras = [];
@@ -169,20 +153,9 @@ function buildPlan(stored) {
         continue;
       }
       if (same(field, current, wanted)) continue;
-      const m = mandatedFor(want.id, field);
-      if (m && (current === m.from || current === m.to)) {
-        updates.push({ id: want.id, field, from: current, to: m.to, reason: 'H1 change' });
-        touched = true;
-        continue;
-      }
-      differs.push({
-        id: want.id,
-        field,
-        stored: current,
-        table: wanted,
-        mandated: Boolean(m),
-        retired: want.active === false
-      });
+      // Present and different: a deliberate console edit as far as this script
+      // knows. Report it, never clobber it.
+      differs.push({ id: want.id, field, stored: current, table: wanted });
       touched = true;
     }
     if (!touched) matches.push(want.id);
@@ -304,10 +277,7 @@ async function main() {
     console.log('');
     console.log('Differences left alone — change them in the Firebase console if they are wrong:');
     for (const d of plan.differs) {
-      let note = '';
-      if (d.mandated) note = ' (H1 wanted to set this, stored value is neither the old nor the new one)';
-      else if (d.retired && d.field === 'sort') note = ' (retired item: ordering only, nothing shows it — cosmetic)';
-      console.log(`  ${d.id}.${d.field}: stored ${show(d.stored)}, table says ${show(d.table)}${note}`);
+      console.log(`  ${d.id}.${d.field}: stored ${show(d.stored)}, table says ${show(d.table)}`);
     }
   }
   if (problems.length) {

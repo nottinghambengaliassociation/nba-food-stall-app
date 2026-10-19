@@ -139,16 +139,34 @@ function renderPill(state) {
   const online = state.online;
   nodes.pill.className = 'pill' + (online ? '' : ' pill--offline');
   clear(nodes.pill);
+  // "Online · synced" everywhere; the small cash counter drops the suffix and
+  // shows the dot plus "Online" (hotfix H3 1). "Offline · N queued" is
+  // already the short form, so it stays whole.
   nodes.pill.append(
     el('span', { class: 'pill__dot' }),
-    document.createTextNode(online ? 'Online · synced' : `Offline · ${state.queued} queued`)
+    online
+      ? el('span', { class: 'pill__state' }, [
+        'Online',
+        el('span', { class: 'pill__suffix', text: ' · synced' })
+      ])
+      : el('span', { class: 'pill__state', text: `Offline · ${state.queued} queued` })
   );
+}
+
+/** True while the H3 small-screen cash layout is the one on screen. */
+function smallCash() {
+  return currentRoute() === '/cash'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 699px)').matches;
 }
 
 function refreshHeaderSub() {
   const route = currentRoute();
   if (route === '/cash') {
-    setText(nodes.sub, `Till ${settings.till} · next ${peekOrderNo(settings.till, dayString())}`);
+    const next = peekOrderNo(settings.till, dayString());
+    // The small till header is one 52px row: till picker, connection, next
+    // number, ☰ (hotfix H3 1), so the till letter is not repeated here.
+    setText(nodes.sub, smallCash() ? `Next ${next}` : `Till ${settings.till} · next ${next}`);
     nodes.sub.hidden = false;
   } else if (route === '/kitchen') {
     setText(nodes.sub, dayString());
@@ -164,13 +182,16 @@ function renderTillSelect(route) {
   // The till letter only changes behaviour at the till, and the landing page
   // owns the setting itself, so the header control lives on /cash alone.
   if (route !== '/cash') return;
+  // Hotfix H3 1: the same stored till letter as the landing page, picked from
+  // the till header itself. One key, one setting, two places to change it.
   const select = el('select', {
-    id: 'till-letter',
-    testid: 'till-letter',
+    id: 'till-select',
+    testid: 'till-select',
+    'aria-label': 'Till letter',
     onchange: (e) => ctx.setTill(e.target.value)
   }, TILL_LETTERS.map((l) => el('option', { value: l, text: l, selected: l === settings.till })));
   select.value = settings.till;
-  nodes.tillWrap.append(el('label', { for: 'till-letter', text: 'Till' }), select);
+  nodes.tillWrap.append(el('label', { for: 'till-select', text: 'Till' }), select);
 }
 
 function renderNav(route) {
@@ -228,6 +249,9 @@ function mountRoute(route) {
     ...ctx,
     headerLeft: nodes.slotLeft,
     headerRight: nodes.slotRight,
+    // Hotfix H3 1: the small cash counter borrows the version pill for its ☰
+    // menu. The screen puts it back where it found it when it unmounts.
+    headerVersion: nodes.version,
     onSignedIn: () => { location.hash = '#/'; },
     onQueryChange: (fn) => { queryChangeHandler = typeof fn === 'function' ? fn : null; }
   };
@@ -270,6 +294,16 @@ async function boot() {
   }
 
   startRouter(handleRoute);
+
+  // The till header reads differently either side of 700px (hotfix H3 1), so
+  // a resize across the breakpoint rewrites it.
+  if (typeof window.matchMedia === 'function') {
+    const small = window.matchMedia('(max-width: 699px)');
+    if (typeof small.addEventListener === 'function') {
+      small.addEventListener('change', () => refreshHeaderSub());
+    }
+  }
+
   document.body.setAttribute('data-app-ready', 'true');
 }
 

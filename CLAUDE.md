@@ -58,12 +58,9 @@ One static single-page app, a shared login, three working screens, shared data i
 | sweet_box | Sweet Box | Sweet Box | 500 | #FED7AA | sweets | true | 4 |
 | samosa_only | Samosa | Samosa | 500 | #D9F99D | sweets | true | 5 |
 | choc_strawberry | Chocolate Strawberry | Choc Strawberry | 500 | #E9D5FF | sweets | true | 6 |
-| marshmallow | Marshmallow (V) | Marshmallow | 500 | #FBCFE8 | sweets | true | 7 |
-| fountain | Chocolate Fountain | Choc Fountain | 500 | #E7D3BF | sweets | true | 8 |
-| samosa | Sweets Box Samosa / Shingara | Sweets Box | 500 | #FED7AA | sweets | **false** (retired 18 Oct) | 90 |
-| straw | Chocolate Strawberry & Marshmallow (V) | Choc Strawberry | 500 | #E9D5FF | sweets | **false** (retired 18 Oct) | 91 |
+| marshmallow | Chocolate Marshmallow (V) | Choc Marshmallow | 500 | #FBCFE8 | sweets | true | 7 |
 
-Hotfix H1 (18 Oct 2026) split the two combined items into four. The retired ids stay in `menu` with `active: false` so older orders keep reporting under their original names. Never reuse a retired id.
+This is the whole menu from v1.3.1: 7 items. Hotfix H3 resets the live database (no real orders exist yet), so the retired ids `samosa`, `straw` and `fountain` are deleted rather than kept inactive. Don't reuse those ids. Any item id the app doesn't know still renders with the name stored on the order line and the plate icon.
 
 Prices are edited in the Firebase console in Phase I; the app reads them from `menu`, never hard-codes them outside the seed.
 
@@ -183,7 +180,8 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 | 1.1.1 | Hotfix H1: menu split into eight items (19 Oct) |
 | 1.1.2 | Hotfix H2: cart line alignment (19 Oct) |
 | 1.2.0 | Phase III: Sales by day report and app version (19 Oct, live) |
-| **1.3.0** | **Phase IV: Orders list and order detail in Reports (next run)** |
+| 1.3.0 | Phase IV: Orders list and order detail in Reports (19 Oct, live) |
+| **1.3.1** | **Hotfix H3: phone cash counter layout (next run)** |
 
 1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
 2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
@@ -192,7 +190,7 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 5. Every dark header (landing, cash counter, food counter, both reports), 700 px and wider: an outlined pill right after the screen title, text `v1.2.0`, 13 px bold, #D6D3D1 text, 1 px #57534E border, fully rounded. Below 700 px: `v1.2.0` in 12 px bold #A8A29E under the title, so it never squeezes the header buttons.
 6. Both carry `title` and `aria-label` "Version 1.2.0, build a1b2c3d, updated 19 Oct 2026". Test ids: `login-version`, `app-version`.
 
-### Phase IV: Orders list and order detail (v1.3.0)
+### Phase IV: Orders list and order detail (v1.3.0, shipped 19 Oct, don't rebuild)
 Mock-ups: `design/ReportsOrders.dc.html` (tablet/desktop), `design/ReportsOrdersMobile.dc.html` (phone), and the third "Orders" tab added to `design/Reports.dc.html` and `design/ReportsByDay.dc.html`. Read-only: no change to how orders are stored, no writes.
 
 1. Third tab on every report screen: One day | Sales by day | **Orders** (`#/reports/orders`). Same pill style; current tab filled ink. On phone the labels are One day | By day | Orders.
@@ -205,6 +203,30 @@ Mock-ups: `design/ReportsOrders.dc.html` (tablet/desktop), `design/ReportsOrders
 8. "Export these orders (CSV)" exports the orders currently shown (after filters), same columns as the One day CSV, file `nba-food-stall_orders_<day>.csv`.
 9. Retired items (`samosa`, `straw`) in older orders show under their original names and icons.
 10. `package.json` version 1.3.0; the version label shows v1.3.0 after deploy.
+
+### Hotfix H3: phone cash counter layout (v1.3.1)
+Problem: on an iPhone 13 in Safari (about 390×664 visible) the always-open order panel takes over half the screen, only two menu tiles show, the header wraps to three rows and the payment buttons get squeezed.
+
+Mock-ups: `design/CashCounterSmall.dc.html` (menu and order bar, iPhone 13), `design/CashCounterSmallOpen.dc.html` (Review & send sheet open), `design/CashCounterSmall17.dc.html` (iPhone 17, 402×694). Applies to the cash counter on **every screen narrower than 700 px**, replacing the current phone cash layout. Tablet and desktop (700 px and wider) are unchanged. No data change.
+
+1. **Header, one row, 52 px:** till picker ("Till A", same stored till letter as the landing page), connection dot with a short label ("Online", "Offline · 2 queued"), "Next A-045", and a ☰ button (44 px, `aria-expanded`). The ☰ button opens a dropdown with Food counter, Reports, Recent orders, Sign out (red; keeps the unsent-order confirm) and the version line. It closes on outside tap, Escape or choosing an item.
+2. **Menu tiles:** 3 columns, about 112 px tall, icon 40 px, `short` name 14 px bold, quantity badge top right. All 7 tiles fit without scrolling at 390×664 (8 would too); the area scrolls if the menu grows. Bottom padding keeps the last row clear of the order bar.
+3. **Order bar:** hidden while the cart is empty. With items: fixed to the bottom, one 60 px teal button "<n> items · £x.xx  Review & send ›". Honour `env(safe-area-inset-bottom)`.
+4. **Review & send sheet:** slides up over the menu (top offset 40 px, dimmed backdrop, `role="dialog"`). Header "Order · <n> items" with an **Add more** button that closes it. Scrolling body: Name to call out, cart lines (the H2 aligned grid, steppers 48 px), Total, Cash / Card, and with Cash: Cash received (optional) quick buttons Exact, £5, £10, £20, £50 with "Change £x.xx" or "Short £x.xx" beside the label, and an **Other amount** link that reveals the existing Other amount box (same parsing and messages). Footer pinned: "Send to food counter · £x.xx", 60 px, always visible. Removing the last item closes the sheet. Escape and the browser Back button close it. Focus moves into the sheet on open and back to the order bar on close.
+5. **Send:** unchanged behaviour (writes the order, clears the cart, closes the sheet). The confirmation toast with the order number shows for 4 s above the order bar.
+6. **Recent orders:** the phone recent-orders strip moves to ☰ → Recent orders, which opens a small sheet with the last 5 orders from this till, their live status and Cancel while New. Not in the mock-ups; same styling as the review sheet.
+7. **Menu changes and live clean-up (same release).** The system isn't in use and holds no real orders, so H3 resets live data completely:
+   - Menu becomes exactly the 7-item table above: `marshmallow` renamed "Chocolate Marshmallow (V)" / short "Choc Marshmallow"; Chocolate Fountain removed.
+   - Code: the `MENU` seed in `public/js/logic.js` equals the table (no retired rows). Remove the retired-id special cases from the code (station lists, name maps, the old H1 sync whitelist). Keep the generic fallback: an unknown item id shows its stored line name and the plate icon.
+   - `scripts/reset-live.mjs` (Trinity), run once against live after the H3 deploy:
+     1. Back up every document in `orders`, `menu` and `settings` to `.secrets/backups/live-<timestamp>.json` (gitignored). Stop if the backup fails.
+     2. Delete every document in `orders`.
+     3. Make `menu` exactly the 7-item table: write all 7 documents in full, delete any other menu document (`samosa`, `straw`, `fountain` and anything else).
+     4. Leave `settings` alone.
+     5. Requires `--yes`; without it, prints the plan (counts per collection, ids to delete) and changes nothing. Print counts only, never document contents.
+   - `scripts/menu-sync.mjs` stays for future menu edits, but drop its H1 whitelist.
+   - After the reset, reports start empty, order numbers restart naturally the next trading day, and devices keep their till letter.
+8. `package.json` version 1.3.1.
 
 ## Design
 

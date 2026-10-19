@@ -1,15 +1,25 @@
-// H-01..H-06 — Hotfix H1 (18 Oct 2026): the ten-row menu, the four new icons,
-// stationOf over retired ids, and backwards compatibility of orders that hold
-// the retired ids `samosa` and `straw`.
+// H-01..H-06 — the menu seed, the icons, stationOf, and what happens to an
+// order line whose item id the app no longer knows.
 //
-// Spec: CLAUDE.md -> "Menu" (the ten-row table) and "Hotfix H1: split menu
-// items (18 Oct 2026)" 1-6. Plan: qa/test-plan.md sections 20 and 23.
+// Spec: CLAUDE.md -> "Menu" (the seven-row table, "This is the whole menu from
+// v1.3.1: 7 items") and "Hotfix H3: phone cash counter layout (v1.3.1)" 7,
+// which supersedes hotfix H1's ten-row menu:
+//   * Chocolate Fountain is removed;
+//   * `marshmallow` is renamed "Chocolate Marshmallow (V)" / "Choc Marshmallow";
+//   * `samosa` and `straw` are deleted, not retired — the code keeps no
+//     retired-id special cases at all;
+//   * "Any item id the app doesn't know still renders with the name stored on
+//     the order line and the plate icon."
+// Plan: qa/test-plan.md sections 20, 23 and 28.
 //
 // This file tests the brief. Where the app disagrees with the table below,
 // the app is wrong.
 import { describe, it, expect } from 'vitest';
 import * as logic from '../../public/js/logic.js';
-import { MENU, stationOf, inStation, buildReport, ordersToCsv } from '../../public/js/logic.js';
+import {
+  MENU, stationOf, inStation, buildReport, ordersToCsv,
+  lineShortName, lineFullName
+} from '../../public/js/logic.js';
 import { itemIcon } from '../../public/js/icons.js';
 import { parseCsv } from './fixtures.js';
 
@@ -21,30 +31,31 @@ const BRIEF_MENU = [
   { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
   { id: 'samosa_only', name: 'Samosa', short: 'Samosa', price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
   { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow', name: 'Marshmallow (V)', short: 'Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
-  { id: 'fountain', name: 'Chocolate Fountain', short: 'Choc Fountain', price: 500, colour: '#E7D3BF', station: 'sweets', active: true, sort: 8 },
-  { id: 'samosa', name: 'Sweets Box Samosa / Shingara', short: 'Sweets Box', price: 500, colour: '#FED7AA', station: 'sweets', active: false, sort: 90 },
-  { id: 'straw', name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: false, sort: 91 }
+  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
 ];
 
 export const NEW_IDS = ['sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
-export const RETIRED_IDS = ['samosa', 'straw'];
-const ACTIVE_IDS = BRIEF_MENU.filter((m) => m.active).map((m) => m.id);
+/** Deleted by H3. "Don't reuse those ids." */
+export const GONE_IDS = ['samosa', 'straw', 'fountain'];
+const ALL_IDS = BRIEF_MENU.map((m) => m.id);
 
 const byId = (id) => MENU.find((m) => m.id === id);
 
 /* ------------------------------------------------------------------ H-01 */
 
 describe('H-01 the MENU seed is exactly the brief table', () => {
-  it('has exactly ten rows', () => {
+  it('has exactly seven rows', () => {
     expect(Array.isArray(MENU)).toBe(true);
-    expect(MENU.map((m) => m.id).sort()).toEqual(BRIEF_MENU.map((m) => m.id).sort());
-    expect(MENU).toHaveLength(10);
+    expect(MENU.map((m) => m.id).sort()).toEqual([...ALL_IDS].sort());
+    expect(MENU).toHaveLength(7);
   });
 
-  it('has unique ids — a retired id is never reused', () => {
+  it('has unique ids — a deleted id is never reused', () => {
     const ids = MENU.map((m) => m.id);
     expect(new Set(ids).size).toBe(ids.length);
+    for (const id of GONE_IDS) {
+      expect(ids, `CLAUDE.md H3 7: "${id}" is deleted and must not be in the seed`).not.toContain(id);
+    }
   });
 
   for (const want of BRIEF_MENU) {
@@ -65,49 +76,46 @@ describe('H-01 the MENU seed is exactly the brief table', () => {
   it('prices are £5 everywhere', () => {
     expect(MENU.every((m) => m.price === 500)).toBe(true);
   });
+
+  it('renames marshmallow (CLAUDE.md H3 7)', () => {
+    expect(byId('marshmallow').name).toBe('Chocolate Marshmallow (V)');
+    expect(byId('marshmallow').short).toBe('Choc Marshmallow');
+  });
 });
 
 /* ------------------------------------------------------------------ H-02 */
 
-describe('H-02 eight active items with sorts 1-8, two retired', () => {
-  it('eight rows are active', () => {
-    expect(MENU.filter((m) => m.active === true).map((m) => m.id)).toEqual(ACTIVE_IDS);
+describe('H-02 seven active items with sorts 1-7 and no retired rows', () => {
+  it('every row is active', () => {
+    expect(MENU.filter((m) => m.active === true).map((m) => m.id)).toEqual(ALL_IDS);
+    expect(MENU.filter((m) => m.active === false),
+      'CLAUDE.md H3 7 removes the retired rows from the seed entirely').toEqual([]);
   });
 
-  it('their sorts are 1..8 with no gaps or duplicates', () => {
-    const sorts = MENU.filter((m) => m.active === true).map((m) => m.sort).sort((a, b) => a - b);
-    expect(sorts).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  it('their sorts are 1..7 with no gaps or duplicates', () => {
+    const sorts = MENU.map((m) => m.sort).sort((a, b) => a - b);
+    expect(sorts).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
-  it('in sort order the till reads fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, fountain', () => {
-    const order = MENU.filter((m) => m.active === true)
-      .slice()
-      .sort((a, b) => a.sort - b.sort)
-      .map((m) => m.id);
-    expect(order).toEqual(ACTIVE_IDS);
+  it('in sort order the till reads fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow', () => {
+    const order = MENU.slice().sort((a, b) => a.sort - b.sort).map((m) => m.id);
+    expect(order).toEqual(ALL_IDS);
   });
 
-  it('exactly samosa (90) and straw (91) are retired', () => {
-    const retired = MENU.filter((m) => m.active === false);
-    expect(retired.map((m) => m.id).sort()).toEqual([...RETIRED_IDS].sort());
-    expect(byId('samosa').sort).toBe(90);
-    expect(byId('straw').sort).toBe(91);
-  });
-
-  it('ACTIVE_MENU holds the eight active items and neither retired id', () => {
+  it('ACTIVE_MENU holds the same seven items and none of the deleted ids', () => {
     expect(Array.isArray(logic.ACTIVE_MENU), 'logic.js must export ACTIVE_MENU for the till').toBe(true);
     const ids = logic.ACTIVE_MENU.slice().sort((a, b) => a.sort - b.sort).map((m) => m.id);
-    expect(ids).toEqual(ACTIVE_IDS);
-    for (const id of RETIRED_IDS) {
-      expect(ids, `retired "${id}" must not be a till tile`).not.toContain(id);
+    expect(ids).toEqual(ALL_IDS);
+    for (const id of GONE_IDS) {
+      expect(ids, `deleted "${id}" must not be a till tile`).not.toContain(id);
     }
   });
 });
 
 /* ------------------------------------------------------------------ H-03 */
 
-describe('H-03 stationOf knows every id, old and new', () => {
-  it('all four new ids are sweets (CLAUDE.md H1 3)', () => {
+describe('H-03 stationOf knows every current id and nothing else', () => {
+  it('all four sweets ids are sweets (CLAUDE.md Menu)', () => {
     for (const id of NEW_IDS) expect(stationOf(id), `stationOf("${id}")`).toBe('sweets');
   });
 
@@ -115,13 +123,14 @@ describe('H-03 stationOf knows every id, old and new', () => {
     expect(stationOf('fuchka')).toBe('chaat');
     expect(stationOf('chat')).toBe('chaat');
     expect(stationOf('momo')).toBe('momo');
-    expect(stationOf('fountain')).toBe('sweets');
   });
 
-  it('still resolves the retired ids rather than throwing or defaulting', () => {
-    for (const id of RETIRED_IDS) {
+  it('a deleted id is unknown now, and still does not throw', () => {
+    for (const id of GONE_IDS) {
       expect(() => stationOf(id)).not.toThrow();
-      expect(stationOf(id), `retired "${id}" must still resolve to sweets`).toBe('sweets');
+      expect(stationOf(id),
+        `CLAUDE.md H3 7: "Remove the retired-id special cases from the code (station lists ...)"`
+      ).toBeFalsy();
     }
   });
 
@@ -130,19 +139,28 @@ describe('H-03 stationOf knows every id, old and new', () => {
     expect(stationOf('nope')).toBeFalsy();
   });
 
-  it('inStation filters retired and new lines the same way', () => {
-    for (const id of [...RETIRED_IDS, ...NEW_IDS]) {
+  it('inStation keeps every current sweets line in the sweets filter', () => {
+    for (const id of NEW_IDS) {
       expect(inStation(id, 'sweets'), `${id} in sweets`).toBe(true);
       expect(inStation(id, 'chaat'), `${id} in chaat`).toBe(false);
       expect(inStation(id, 'momo'), `${id} in momo`).toBe(false);
       expect(inStation(id, 'all')).toBe(true);
     }
   });
+
+  it('an unknown id belongs to no station but is never filtered out of "All"', () => {
+    for (const id of [...GONE_IDS, 'mystery_item']) {
+      expect(inStation(id, 'all'), `${id} must survive the All filter`).toBe(true);
+      for (const station of ['chaat', 'momo', 'sweets']) {
+        expect(inStation(id, station), `${id} in ${station}`).toBe(false);
+      }
+    }
+  });
 });
 
 /* ------------------------------------------------------------------ H-04 */
 
-describe('H-04 icons for the four new ids, retired icons kept', () => {
+describe('H-04 an icon for every menu id, and a plate for anything else', () => {
   const fallback = itemIcon('definitely-not-a-menu-id');
 
   const bodyOf = (svg) => String(svg).replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
@@ -160,9 +178,11 @@ describe('H-04 icons for the four new ids, retired icons kept', () => {
     });
   }
 
-  it('keeps the samosa and straw icons for old orders (CLAUDE.md H1 2)', () => {
-    for (const id of RETIRED_IDS) {
-      expect(bodyOf(itemIcon(id)), `the "${id}" icon was removed; old orders still need it`).not.toBe(bodyOf(fallback));
+  it('an unknown id gets the plate icon and never throws (CLAUDE.md Menu)', () => {
+    for (const id of ['mystery_item', '', null, undefined]) {
+      expect(() => itemIcon(id)).not.toThrow();
+      expect(bodyOf(itemIcon(id)), `itemIcon(${JSON.stringify(id)}) must be the plate fallback`)
+        .toBe(bodyOf(fallback));
     }
   });
 
@@ -192,10 +212,9 @@ const DAY = '2026-10-18';
 const t = (h, m) => Date.UTC(2026, 9, 18, h - 1, m); // BST
 
 /**
- * A day that mixes real 17-Oct orders (retired ids) with 18-Oct orders
- * (new ids). Nothing is migrated: the legacy lines keep the names they were
- * written with, and one legacy line has no stored name at all so the seed has
- * to supply it.
+ * A day that mixes orders written before the H3 reset (ids the app no longer
+ * knows) with orders on the current menu. Nothing is migrated: the older lines
+ * keep the names they were written with.
  */
 const MIXED_ORDERS = [
   {
@@ -212,9 +231,7 @@ const MIXED_ORDERS = [
   },
   {
     orderNo: 'A-003', name: 'Nadia', till: 'A', day: DAY,
-    // A legacy line written without a `name` field: the retired MENU row is
-    // the only thing that can name it.
-    items: [line('straw', null, 1), line('marshmallow', 'Marshmallow (V)', 2), line('sweet_box', 'Sweet Box', 1)],
+    items: [line('fountain', 'Chocolate Fountain', 1), line('marshmallow', 'Chocolate Marshmallow (V)', 2), line('sweet_box', 'Sweet Box', 1)],
     total: 2000, payment: 'cash', status: 'ready',
     createdAtMs: t(12, 40), readyAtMs: t(12, 45)
   },
@@ -228,33 +245,31 @@ const MIXED_ORDERS = [
 
 /* ------------------------------------------------------------------ H-05 */
 
-describe('H-05 reports name legacy lines by their original name', () => {
+describe('H-05 reports name older lines by the name stored on the line', () => {
   const report = buildReport(MIXED_ORDERS);
   const row = (id) => report.byItem.find((x) => x.id === id);
 
   it('keeps old and new ids as separate rows — nothing is merged', () => {
     expect(report.byItem.map((x) => x.id).sort()).toEqual(
-      ['choc_strawberry', 'marshmallow', 'samosa', 'samosa_only', 'straw', 'sweet_box']
+      ['choc_strawberry', 'fountain', 'marshmallow', 'samosa', 'samosa_only', 'straw', 'sweet_box']
     );
   });
 
-  it('a legacy samosa line reports as "Sweets Box Samosa / Shingara"', () => {
+  it('an older samosa line reports as "Sweets Box Samosa / Shingara"', () => {
     expect(row('samosa')).toMatchObject({ name: 'Sweets Box Samosa / Shingara', units: 2, revenue: 1000 });
   });
 
-  it('a new samosa_only line reports as "Samosa", separately', () => {
+  it('a current samosa_only line reports as "Samosa", separately', () => {
     expect(row('samosa_only')).toMatchObject({ name: 'Samosa', units: 3, revenue: 1500 });
   });
 
-  it('a legacy straw line with no stored name falls back to the retired seed row', () => {
-    expect(row('straw')).toMatchObject({
-      name: 'Chocolate Strawberry & Marshmallow (V)', units: 2, revenue: 1000
-    });
+  it('a deleted fountain line still reports under its stored name', () => {
+    expect(row('fountain')).toMatchObject({ name: 'Chocolate Fountain', units: 1, revenue: 500 });
   });
 
-  it('the new split items report under their new names', () => {
+  it('the current items report under their current names', () => {
     expect(row('choc_strawberry')).toMatchObject({ name: 'Chocolate Strawberry', units: 2, revenue: 1000 });
-    expect(row('marshmallow')).toMatchObject({ name: 'Marshmallow (V)', units: 2, revenue: 1000 });
+    expect(row('marshmallow')).toMatchObject({ name: 'Chocolate Marshmallow (V)', units: 2, revenue: 1000 });
     expect(row('sweet_box')).toMatchObject({ name: 'Sweet Box', units: 1, revenue: 500 });
   });
 
@@ -267,9 +282,44 @@ describe('H-05 reports name legacy lines by their original name', () => {
   });
 });
 
+/* ------------------------------------------- H-05b the unknown-id fallback */
+
+describe('H-05b an unknown item id falls back to the stored line name', () => {
+  it('lineShortName and lineFullName use the stored name', () => {
+    const l = { id: 'mystery_item', name: 'Mystery Item', qty: 1, price: 500 };
+    expect(lineShortName(l)).toBe('Mystery Item');
+    expect(lineFullName(l)).toBe('Mystery Item');
+  });
+
+  it('a deleted id is named from the order line, not from a leftover seed row', () => {
+    for (const [id, name] of [
+      ['samosa', 'Sweets Box Samosa / Shingara'],
+      ['straw', 'Chocolate Strawberry & Marshmallow (V)'],
+      ['fountain', 'Chocolate Fountain']
+    ]) {
+      const l = { id, name, qty: 1, price: 500 };
+      expect(lineShortName(l), `lineShortName for the deleted id "${id}"`).toBe(name);
+      expect(lineFullName(l), `lineFullName for the deleted id "${id}"`).toBe(name);
+    }
+  });
+
+  it('a current id still uses the menu wording', () => {
+    const l = { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', qty: 1, price: 500 };
+    expect(lineShortName(l)).toBe('Choc Marshmallow');
+    expect(lineFullName(l)).toBe('Chocolate Marshmallow (V)');
+  });
+
+  it('a line with neither a known id nor a stored name degrades to the id, never to a crash', () => {
+    expect(() => lineShortName({ id: 'ghost_item' })).not.toThrow();
+    expect(lineShortName({ id: 'ghost_item' })).toBe('ghost_item');
+    expect(() => lineFullName({})).not.toThrow();
+    expect(lineFullName({})).toBe('');
+  });
+});
+
 /* ------------------------------------------------------------------ H-06 */
 
-describe('H-06 CSV exports legacy lines under their original names', () => {
+describe('H-06 CSV exports older lines under their stored names', () => {
   const rows = parseCsv(ordersToCsv(MIXED_ORDERS));
   const header = rows[0];
   const col = (r, name) => r[header.indexOf(name)];
@@ -286,28 +336,28 @@ describe('H-06 CSV exports legacy lines under their original names', () => {
     expect(body).toHaveLength(MIXED_ORDERS.reduce((n, o) => n + o.items.length, 0));
   });
 
-  it('a legacy samosa line exports as "Sweets Box Samosa / Shingara"', () => {
+  it('an older samosa line exports as "Sweets Box Samosa / Shingara"', () => {
     const r = body.find((x) => col(x, 'orderNo') === 'A-001');
     expect(col(r, 'item')).toBe('Sweets Box Samosa / Shingara');
     expect(col(r, 'qty')).toBe('2');
     expect(col(r, 'lineTotal')).toBe('1000');
   });
 
-  it('a legacy straw line exports as "Chocolate Strawberry & Marshmallow (V)"', () => {
+  it('an older straw line exports as "Chocolate Strawberry & Marshmallow (V)"', () => {
     const names = body.filter((x) => col(x, 'orderNo') === 'A-002' || col(x, 'orderNo') === 'A-003')
       .map((x) => col(x, 'item'));
     expect(names).toContain('Chocolate Strawberry & Marshmallow (V)');
   });
 
-  it('new lines export under their new names', () => {
+  it('current lines export under their current names', () => {
     const names = body.map((x) => col(x, 'item'));
     expect(names).toContain('Samosa');
     expect(names).toContain('Chocolate Strawberry');
-    expect(names).toContain('Marshmallow (V)');
+    expect(names).toContain('Chocolate Marshmallow (V)');
     expect(names).toContain('Sweet Box');
   });
 
-  it('never rewrites a legacy name into a new one', () => {
+  it('never rewrites an older name into a current one', () => {
     const a001 = body.filter((x) => col(x, 'orderNo') === 'A-001').map((x) => col(x, 'item'));
     expect(a001).toEqual(['Sweets Box Samosa / Shingara']);
     expect(a001).not.toContain('Samosa');
@@ -317,6 +367,7 @@ describe('H-06 CSV exports legacy lines under their original names', () => {
     const raw = ordersToCsv(MIXED_ORDERS);
     expect(raw).toContain('Sweets Box Samosa / Shingara');
     expect(raw).toContain('Chocolate Strawberry & Marshmallow (V)');
-    expect(raw).toContain('Marshmallow (V)');
+    expect(raw).toContain('Chocolate Marshmallow (V)');
+    expect(raw).toContain('Chocolate Fountain');
   });
 });

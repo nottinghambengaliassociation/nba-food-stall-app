@@ -2,8 +2,22 @@
 // "Firestore with persistentLocalCache and persistentMultipleTabManager for offline writes".
 import { test, expect } from './session.js';
 import {
-  clearFirestore, openApp, tid, placeOrder, waitForOrders, addItem, readCollection
+  clearFirestore, openApp, tid, placeOrder, waitForOrders, addItem, readCollection,
+  isSmallCash, closeCashPanel
 } from './helpers.js';
+
+/**
+ * Hotfix H3 (v1.3.1): below 700 px the recent-orders strip moved to
+ * ☰ -> Recent orders (CLAUDE.md H3 6). Open it where it lives.
+ */
+async function openRecent(page) {
+  if (!isSmallCash(page)) return;
+  await closeCashPanel(page);
+  if (await tid(page, 'recent-sheet').isVisible().catch(() => false)) return;
+  await tid(page, 'menu-button').click();
+  await tid(page, 'menu-recent').click();
+  await expect(tid(page, 'recent-sheet')).toBeVisible({ timeout: 10000 });
+}
 
 test.beforeEach(async () => { await clearFirestore(); });
 
@@ -65,7 +79,13 @@ test('O-03 the app keeps working offline, serving the menu from the local cache'
     'persistentLocalCache must serve the menu while offline'
   ).toBeVisible({ timeout: 25000 });
   await expect(page.locator('body')).not.toContainText('Storage not configured');
-  await expect(page.locator('[data-testid="order-total"]')).toContainText('£0.00');
+  // CLAUDE.md H3 3 hides the order bar (and with it the total) on an empty
+  // small cart, so the empty-state check is the tile grid at that size.
+  if ((page.viewportSize()?.width ?? 1280) < 700) {
+    await expect(page.locator('[data-testid="order-bar"]')).toBeHidden();
+  } else {
+    await expect(page.locator('[data-testid="order-total"]')).toContainText('£0.00');
+  }
 
   await ctx.setOffline(false);
   await ctx.close();
@@ -77,8 +97,10 @@ test('P-01 cash, kitchen and reports all survive a reload with data in place', a
   await placeOrder(page, { items: { momo: 1, chat: 1 }, name: 'Persist', payment: 'cash', tender: 2000 });
   await waitForOrders((o) => o.length === 1, { label: 'the order to be written' });
 
-  // Cash: the recent strip comes back.
+  // Cash: the recent list comes back.
   await page.reload();
+  await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 20000 });
+  await openRecent(page);
   await expect(tid(page, 'recent-A-001')).toBeVisible({ timeout: 20000 });
 
   // Kitchen.

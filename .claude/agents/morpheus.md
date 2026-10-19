@@ -55,6 +55,19 @@ H1-d. `scripts/menu-sync.mjs` against the emulator: first run creates and retire
 V-a. Version: `login-version` on the login screen and `app-version` in the header of every signed-in route, both projects, shows the `version` from package.json; the title/aria-label contains the build and date; below 700 px it sits under the title and the header buttons keep 48 px.
 V-b. Intercept `**/version.js` with a 404: every label shows `dev`, no console errors.
 V-c. Live check: the build shown on the live site equals the short SHA of the commit Trinity pushed.
+H3 setup: add Playwright projects `iphone13` (390×664, hasTouch, isMobile), `iphone17` (402×694) and `promax` (440×776) for the H3 suite; keep `phone` and `tablet` for everything else.
+H3-a. Header is one row, at most 56 px tall; ☰ opens and closes the menu (outside tap, Escape); every menu item works; Sign out keeps the unsent-order confirm.
+H3-b. At 390×664 all 7 tiles are fully inside the viewport with nothing in the cart, and no tile is covered by the order bar after adding items.
+H3-c. Order bar hidden when empty; shows the right count and total; opens the sheet.
+H3-d. Sheet: with 5 different items the Send button is fully visible without scrolling; steppers at least 48 px and aligned; Add more, Escape and browser Back close it; removing the last item closes it; focus moves in and back out.
+H3-e. Cash received in the sheet: quick buttons, change and short messages, Other amount link and box; Card hides it.
+H3-f. Send from the sheet writes the order, clears the cart, closes the sheet, shows the toast.
+H3-g. Recent orders sheet: last 5 orders with live status; Cancel while New works.
+H3-h. Tablet (1280×800) cash counter unchanged: existing tablet tests pass untouched.
+H3-j. Menu: the till shows exactly 7 tiles on phone and tablet, no Chocolate Fountain; Marshmallow reads "Choc Marshmallow" on the tile and "Chocolate Marshmallow (V)" in the cart, food counter, reports and CSV.
+H3-k. Unknown id fallback: an order line with an id not in the menu shows its stored name and the plate icon on the food counter, all three reports and the CSV, with no console errors.
+H3-l. `reset-live.mjs` against the emulator: without `--yes` changes nothing and prints the plan; with `--yes` writes the backup first, empties `orders`, leaves exactly the 7 menu documents with the right fields, leaves `settings` untouched; a failed backup stops it before any delete; a second run is harmless.
+H3-i. No horizontal scroll at 360 px; axe zero serious or critical on menu, open menu, sheet and recent sheet.
 P4-a. Tabs: One day / Sales by day / Orders on all three report screens, both directions; `#/reports/orders` and `#/reports/orders?day=…` load directly.
 P4-b. List: seed a day with every status incl. cancelled and one old `samosa` order; rows newest first; summary count and total match hand-calculated values and exclude cancelled; items text, wait and status pill correct per row.
 P4-c. Filters: each status, each payment, search by order number and by name (case-insensitive), combinations, and the empty message.

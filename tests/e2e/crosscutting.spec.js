@@ -4,7 +4,7 @@ import { test, expect } from './session.js';
 import AxeBuilder from '@axe-core/playwright';
 import {
   clearFirestore, openApp, tid, attachConsole, expectNoConsoleErrors,
-  placeOrder, seedReportDay, realErrors
+  placeOrder, seedReportDay, realErrors, addItem, openCashPanel, isSmallCash
 } from './helpers.js';
 
 // Phase III adds #/reports/days to every cross-cutting check.
@@ -62,7 +62,16 @@ test('X-02 every visible control is at least 48px tall', async ({ page }) => {
           /^tender-/.test(el.dataset.testid || '');
         const isClearLink = /^(tender-clear|clear-tender)$/.test(el.dataset.testid || '') ||
           /^clear$/i.test((el.textContent || '').trim());
-        const floor = (isSignOut || inQuickCash || isClearLink) ? 43.5 : 47.5;
+        // Hotfix H3 (v1.3.1) draws the small cash header as a single 52 px row:
+        // the ☰ button is "44 px" (CLAUDE.md H3 1) and the till picker is drawn
+        // 40 px in design/CashCounterSmall.dc.html, which is the more specific
+        // instruction for that header.
+        const smallCashHeader = window.innerWidth < 700 && !!el.closest('header');
+        const isMenuButton = smallCashHeader && el.dataset.testid === 'menu-button';
+        const isTillPicker = smallCashHeader && el.dataset.testid === 'till-select';
+        let floor = 47.5;
+        if (isSignOut || inQuickCash || isClearLink || isMenuButton) floor = 43.5;
+        if (isTillPicker) floor = 39.5;
         if (r.height < floor) {
           out.push(`${el.tagName.toLowerCase()}[${el.dataset.testid || el.getAttribute('aria-label') || (el.textContent || '').trim().slice(0, 20)}] = ${Math.round(r.height)}px`);
         }
@@ -118,13 +127,22 @@ test('X-05 layout follows the 700px breakpoint', async ({ page }, info) => {
 
   await page.goto('/#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
+  // Columns = how many tiles share the first row's top edge. (Counting
+  // tiles/rows would mis-read a 7-item grid whose last row is short.)
   const columns = await page.evaluate(() => {
     const tiles = [...document.querySelectorAll('[data-testid^="tile-"]')];
-    const tops = new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().top)));
-    return tiles.length / tops.size;
+    if (!tiles.length) return 0;
+    const counts = new Map();
+    for (const t of tiles) {
+      const top = Math.round(t.getBoundingClientRect().top);
+      counts.set(top, (counts.get(top) || 0) + 1);
+    }
+    return Math.max(...counts.values());
   });
-  if (info.project.name === 'phone') {
-    expect(Math.round(columns), 'CLAUDE.md Design: 2-column tiles below 700px').toBe(2);
+  if (isSmallCash(page)) {
+    // Hotfix H3 (v1.3.1) replaces the 2-column phone grid with 3 columns
+    // (CLAUDE.md H3 2: "Menu tiles: 3 columns").
+    expect(columns, 'CLAUDE.md H3 2: 3-column tiles below 700px').toBe(3);
   } else {
     expect(columns, 'tablet shows more than 2 tiles per row').toBeGreaterThan(2);
   }
@@ -140,7 +158,7 @@ test('X-06 item icons are inline SVG, never emoji', async ({ page }) => {
       .map((t) => t.dataset.testid);
   });
   expect(emoji, 'CLAUDE.md Design: "Icons: inline stroke SVG per item. No emoji."').toEqual([]);
-  for (const id of ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain']) {
+  for (const id of ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow']) {
     expect(await tid(page, `tile-${id}`).locator('svg').count(), `tile-${id} needs an inline SVG`).toBeGreaterThan(0);
   }
 });
@@ -187,6 +205,11 @@ test('X-08 no console errors on any route, empty or with orders', async ({ page 
 
 test('X-09 real form semantics and labels', async ({ page }) => {
   await openApp(page, '#/cash');
+  await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 20000 });
+  // H3: below 700 px the name, payment toggle and Send live in the
+  // Review & send sheet, which opens once the cart has something in it.
+  await addItem(page, 'momo', 1);
+  await openCashPanel(page);
   await expect(tid(page, 'customer-name')).toBeVisible({ timeout: 20000 });
 
   const nameOk = await tid(page, 'customer-name').evaluate((el) => {

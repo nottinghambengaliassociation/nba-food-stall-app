@@ -493,13 +493,13 @@ describe('P4-U-08 the screen is read-only (CLAUDE.md Phase IV, heading)', () => 
 
 /* ------------------------------------------------------------- version */
 
-describe('P4-U-09 the Phase IV version (CLAUDE.md Phase IV 10)', () => {
-  it('package.json is on 1.3.0', async () => {
+describe('P4-U-09 the version in package.json', () => {
+  it('is on 1.3.1, the hotfix H3 release', async () => {
     const { readFileSync } = await import('node:fs');
     const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
     expect(pkg.version,
-      'CLAUDE.md Phase IV 10: "package.json version 1.3.0; the version label shows v1.3.0 after deploy". ' +
-      'package.json is the single source of truth (Phase III part 2, 1), so the header pill and the login ' +
-      'version line follow it.').toBe('1.3.0');
+      'CLAUDE.md -> Hotfix H3 8: "package.json version 1.3.1", and the version table lists ' +
+      '1.3.1 as hotfix H3. package.json is the single source of truth (Phase III part 2, 1), ' +
+      'so the header pill and the login version line follow it.').toBe('1.3.1');
   });
 });

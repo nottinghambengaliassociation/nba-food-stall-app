@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cash counter, small phone proposal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1C1917}a:hover{color:#B5050F}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+</style>
+</helmet>
+<div style="position: relative; width: {{wpx}}; height: {{hpx}}; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 10px 0 12px; background: #1C1917; color: #FFFFFF">
+<label style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 10px; border-radius: 10px; border: 1.5px solid #57534E; font-size: 17px; font-weight: 700">Till
+<select aria-label="Till letter" style="height: 32px; border: none; background: transparent; color: #FFFFFF; font-size: 18px; font-weight: 800"><option>A</option><option>B</option><option>C</option></select>
+</label>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #D6D3D1"><span style="width: 9px; height: 9px; border-radius: 50%; background: #5EEAD4"></span>Online</span>
+<span style="display: flex; align-items: center; gap: 6px">
+<span style="font-size: 14px; color: #D6D3D1">Next {{nextNo}}</span>
+<button onClick="{{toggleMenu}}" aria-expanded="{{menuOpen}}" aria-label="Menu" style="width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid #57534E; background: transparent; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+</span>
+</header>
+
+<sc-if value="{{menuOpen}}" hint-placeholder-val="{{ false }}">
+<nav aria-label="App menu" style="position: absolute; top: 56px; right: 10px; z-index: 5; width: 220px; background: #FFFFFF; border-radius: 14px; box-shadow: 0 8px 24px rgba(28,25,23,0.2); padding: 8px; display: flex; flex-direction: column">
+<a href="FoodCounterMobile.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 12px; border-radius: 10px; font-size: 17px; font-weight: 700; text-decoration: none">Food counter</a>
+<a href="ReportsOrdersMobile.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 12px; border-radius: 10px; font-size: 17px; font-weight: 700; text-decoration: none">Reports</a>
+<a href="LoginMobile.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 12px; border-radius: 10px; font-size: 17px; font-weight: 700; text-decoration: none; color: #B5050F">Sign out</a>
+<span style="padding: 6px 12px 4px; font-size: 12px; color: #78716C">v1.3.0 · build a1b2c3d</span>
+</nav>
+</sc-if>
+
+<main aria-label="Menu" style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 10px 96px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{tiles}}" as="item" hint-placeholder-count="8">
+<div style="position: relative; height: 112px">
+<button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="width: 100%; height: 100%; padding: 8px 4px; border-radius: 16px; border: 3px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center">
+<dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 40 }}" hint-size="40px,40px"></dc-import>
+<span style="font-size: 14px; line-height: 16px; font-weight: 700">{{item.short}}</span>
+</button>
+<sc-if value="{{item.hasQty}}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; top: 6px; right: 6px; min-width: 30px; height: 30px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none">{{item.qty}}</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #CCFBF1; color: #134E4A; font-size: 16px; font-weight: 700">{{toast}}</div>
+</sc-if>
+</main>
+
+<sc-if value="{{showBar}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px 14px; background: #FFFFFF; border-top: 1px solid #E7E5E4; box-shadow: 0 -4px 16px rgba(28,25,23,0.1)">
+<button onClick="{{openSheet}}" style="width: 100%; height: 60px; border: none; border-radius: 14px; background: #0F766E; color: #FFFFFF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 18px; font-weight: 700">
+<span>{{countText}} · {{totalText}}</span><span style="display: flex; align-items: center; gap: 6px">Review &amp; send<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></span>
+</button>
+</div>
+</sc-if>
+
+<sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 4; background: rgba(28,25,23,0.45)"></div>
+<section role="dialog" aria-label="Review order" style="position: absolute; left: 0; right: 0; bottom: 0; top: 40px; z-index: 6; background: #FFFFFF; border-radius: 18px 18px 0 0; display: flex; flex-direction: column">
+<div style="flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px 16px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Order · {{countText}}</span>
+<button onClick="{{closeSheet}}" aria-label="Back to menu" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 15px; font-weight: 700">Add more</button>
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="sname" style="font-size: 14px; font-weight: 700; color: #44403C">Name to call out</label>
+<input id="sname" value="{{name}}" onChange="{{onName}}" placeholder="e.g. Priya" autocomplete="off" style="height: 48px; box-sizing: border-box; padding: 0 14px; font-size: 20px; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 48px 28px 48px 54px; align-items: center; column-gap: 6px">
+<span style="font-size: 16px; line-height: 19px; font-weight: 700">{{l.name}}</span>
+<button onClick="{{l.dec}}" aria-label="Remove one {{l.name}}" style="width: 48px; height: 48px; border-radius: 12px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 24px; line-height: 1; color: #1C1917">−</button>
+<span style="text-align: center; font-size: 20px; font-weight: 700">{{l.qty}}</span>
+<button onClick="{{l.inc}}" aria-label="Add one {{l.name}}" style="width: 48px; height: 48px; border-radius: 12px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 24px; line-height: 1; color: #1C1917">+</button>
+<span style="text-align: right; font-size: 16px; white-space: nowrap">{{l.amount}}</span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding-top: 8px; border-top: 2px solid #E7E5E4">
+<b style="font-size: 18px">Total</b><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px">{{totalText}}</span>
+</div>
+<div role="group" aria-label="Payment method" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{payCash}}" aria-pressed="{{isCash}}" style="height: 48px; border-radius: 12px; font-size: 18px; font-weight: 700; border: 3px solid {{cashBorder}}; background: {{cashBg}}; color: #1C1917">Cash</button>
+<button onClick="{{payCard}}" aria-pressed="{{isCard}}" style="height: 48px; border-radius: 12px; font-size: 18px; font-weight: 700; border: 3px solid {{cardBorder}}; background: {{cardBg}}; color: #1C1917">Card</button>
+</div>
+<sc-if value="{{isCash}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-size: 14px; font-weight: 700; color: #44403C">Cash received <span style="font-weight: 400; color: #57534E">(optional)</span></span><span role="status" style="font-size: 16px; font-weight: 700; color: {{msgColour}}">{{msg}}</span></div>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+<sc-for list="{{tenders}}" as="t" hint-placeholder-count="5">
+<button onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 44px; padding: 0; border-radius: 10px; font-size: 15px; font-weight: 700; border: 2px solid {{t.border}}; background: {{t.bg}}; color: #1C1917">{{t.label}}</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+<div style="flex: none; padding: 10px 12px 14px; border-top: 1px solid #E7E5E4">
+<button onClick="{{send}}" style="width: 100%; height: 60px; border: none; border-radius: 14px; background: #0F766E; color: #FFFFFF; font-size: 20px; font-weight: 700">Send to food counter · {{totalText}}</button>
+</div>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"startOpen":{"editor":"boolean","default":false},"width":{"editor":"int","default":390,"min":320,"max":480,"unit":"px"},"height":{"editor":"int","default":664,"min":560,"max":960,"unit":"px"},"$preview":{"width":390,"height":664}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cart: { fuchka: 2, momo: 1, marshmallow: 1 }, name: 'Priya', pay: 'cash', tendered: 2000, sheet: !!props.startOpen, menu: false, seq: 45, toast: '' };
+  }
+  renderVals() {
+    const MENU = [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa', short: 'Fuchka', bg: '#FDE68A' },
+      { id: 'momo', name: 'Momo', short: 'Momo', bg: '#BFDBFE' },
+      { id: 'chat', name: 'Papri Chat', short: 'Papri Chat', bg: '#FECACA' },
+      { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', bg: '#FED7AA' },
+      { id: 'samosa_only', name: 'Samosa', short: 'Samosa', bg: '#D9F99D' },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', bg: '#E9D5FF' },
+      { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', bg: '#FBCFE8' }
+    ];
+    const P = 500;
+    const s = this.state;
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const qtyOf = (id) => this.state.cart[id] || 0;
+    const setQty = (id, q) => {
+      const cart = Object.assign({}, this.state.cart);
+      if (q <= 0) delete cart[id]; else cart[id] = q;
+      const empty = Object.keys(cart).length === 0;
+      this.setState({ cart: cart, toast: '', sheet: empty ? false : this.state.sheet });
+    };
+    const count = Object.keys(s.cart).reduce((a, k) => a + s.cart[k], 0);
+    const total = count * P;
+    const isCash = s.pay === 'cash';
+    const received = s.tendered === 'exact' ? total : s.tendered;
+    const change = received == null ? null : received - total;
+    let msg = '', msgColour = '#134E4A';
+    if (change != null && change >= 0) msg = 'Change ' + gbp(change);
+    else if (change != null) { msg = 'Short ' + gbp(-change); msgColour = '#B45309'; }
+    return {
+      wpx: (this.props.width ?? 390) + 'px', hpx: (this.props.height ?? 664) + 'px',
+      nextNo: 'A-' + String(s.seq).padStart(3, '0'),
+      menuOpen: s.menu, toggleMenu: () => this.setState({ menu: !this.state.menu }),
+      tiles: MENU.map((m) => ({
+        id: m.id, name: m.name, short: m.short, bg: m.bg,
+        qty: s.cart[m.id] || 0, hasQty: !!s.cart[m.id], border: s.cart[m.id] ? '#1C1917' : 'transparent',
+        add: () => setQty(m.id, qtyOf(m.id) + 1)
+      })),
+      showBar: count > 0 && !s.sheet,
+      countText: count + (count === 1 ? ' item' : ' items'), totalText: gbp(total),
+      sheetOpen: s.sheet,
+      openSheet: () => this.setState({ sheet: true, menu: false }),
+      closeSheet: () => this.setState({ sheet: false }),
+      name: s.name, onName: (e) => this.setState({ name: e.target.value }),
+      lines: MENU.filter((m) => s.cart[m.id]).map((m) => ({
+        name: m.short, qty: s.cart[m.id], amount: gbp(P * s.cart[m.id]),
+        inc: () => setQty(m.id, qtyOf(m.id) + 1), dec: () => setQty(m.id, qtyOf(m.id) - 1)
+      })),
+      isCash: isCash, isCard: !isCash,
+      cashBg: isCash ? '#FDE68A' : '#FFFFFF', cashBorder: isCash ? '#1C1917' : '#A8A29E',
+      cardBg: !isCash ? '#FDE68A' : '#FFFFFF', cardBorder: !isCash ? '#1C1917' : '#A8A29E',
+      payCash: () => this.setState({ pay: 'cash' }), payCard: () => this.setState({ pay: 'card', tendered: null }),
+      tenders: ['exact', 500, 1000, 2000, 5000].map((v) => {
+        const on = s.tendered === v;
+        return { label: v === 'exact' ? 'Exact' : '£' + v / 100, on: on, bg: on ? '#FDE68A' : '#FFFFFF', border: on ? '#1C1917' : '#A8A29E', pick: () => this.setState({ tendered: on ? null : v }) };
+      }),
+      msg: msg, msgColour: msgColour,
+      hasToast: !!s.toast, toast: s.toast,
+      send: () => {
+        const no = 'A-' + String(this.state.seq).padStart(3, '0');
+        this.setState({ cart: {}, name: '', tendered: null, sheet: false, seq: this.state.seq + 1, toast: no + ' sent for ' + (this.state.name.trim() || 'Guest') });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

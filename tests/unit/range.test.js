@@ -315,9 +315,21 @@ describe('P3-U-11 the totals row of the day table (CLAUDE.md Phase III 7)', () =
   });
 });
 
-describe('P3-U-12 items sold by day (CLAUDE.md Phase III 8, Hotfix H1 6)', () => {
-  it('has a row per item that sold, in menu order, retired ids last', () => {
-    expect(report.items.map((i) => i.id)).toEqual(EXPECTED_ITEMS.map((i) => i.id));
+describe('P3-U-12 items sold by day (CLAUDE.md Phase III 8)', () => {
+  it('has a row per item that sold, in menu order, unknown ids last', () => {
+    // Hotfix H3 deleted `samosa`, `straw` and `fountain` from the menu, so the
+    // app no longer has a sort key for them: all it can promise is that the
+    // ids it knows come first, in menu order, and the rest follow. Their order
+    // among themselves is not specified anywhere in the brief, so it is read
+    // as a set.
+    const KNOWN = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+    const got = report.items.map((i) => i.id);
+    const want = EXPECTED_ITEMS.map((i) => i.id);
+    expect(got.slice().sort(), 'the same rows, however they are ordered').toEqual(want.slice().sort());
+    const knownGot = got.filter((id) => KNOWN.includes(id));
+    expect(knownGot, 'the ids the menu knows come first, in menu order')
+      .toEqual(want.filter((id) => KNOWN.includes(id)));
+    expect(got.slice(0, knownGot.length), 'unknown ids sort after every known one').toEqual(knownGot);
     // samosa_only never sold in this range, so it has no row at all
     expect(report.items.some((i) => i.id === 'samosa_only')).toBe(false);
   });

@@ -31,11 +31,12 @@ import { createHash } from 'node:crypto';
 const LIVE = process.env.LIVE_URL || 'https://nottinghambengaliassociation.github.io/nba-food-stall-app/';
 const C = creds();
 
+// Hotfix H3 (v1.3.1) resets the live menu to exactly these seven ids.
 const ACTIVE_IDS = [
   'fuchka', 'momo', 'chat', 'sweet_box',
-  'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain'
+  'samosa_only', 'choc_strawberry', 'marshmallow'
 ];
-const LONGEST = 'choc_strawberry';
+const LONGEST = 'marshmallow';
 const SHORTEST = 'momo';
 const MIN_STEPPER = 52;
 const TOL = 1;
@@ -222,7 +223,7 @@ test('H-22.1 the live cart lines up with every active item in it', async ({ page
 
   await page.goto(LIVE + '#/cash', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="tile-fuchka"]')).toBeVisible({ timeout: 30000 });
-  await expect(page.locator('[data-testid="tile-fountain"]')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('[data-testid="tile-marshmallow"]')).toBeVisible({ timeout: 30000 });
   await page.waitForTimeout(2500);
 
   await expect(page.getByText(/storage not configured/i), '#/cash must be configured live').toHaveCount(0);

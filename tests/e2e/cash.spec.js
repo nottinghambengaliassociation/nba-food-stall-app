@@ -1,57 +1,79 @@
 // C-01..C-14 and D-01..D-03 — cash counter. Spec: CLAUDE.md "Cash counter" FR 1..6
 // and the Data model block.
+//
+// Hotfix H3 (v1.3.1) does two things this file has to follow:
+//   * the menu is exactly SEVEN items (CLAUDE.md -> Menu). `fountain` is
+//     deleted and `samosa` / `straw` are gone from the seed entirely; those
+//     ids are never reused.
+//   * below 700 px the order panel is replaced by an order bar and a
+//     "Review & send" sheet, so the panel controls are reached through
+//     `openCashPanel()`. Tablet (700 px and wider) is unchanged, and the
+//     tablet-only sizes below are asserted there only.
+// Those are deliberate spec changes, not defects.
 import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, boxOf, expectNoConsoleErrors,
-  addItem, placeOrder, readCollection, waitForOrders, londonDay
+  addItem, placeOrder, readCollection, waitForOrders, londonDay,
+  isSmallCash, openCashPanel, closeCashPanel, quickTender, seedDoc, londonTimeToday
 } from './helpers.js';
 
-// Hotfix H1 (18 Oct 2026): the till shows the eight ACTIVE menu items.
-// `samosa` and `straw` are retired (active:false) and are no longer tiles,
-// but stay in the menu collection for old orders. CLAUDE.md -> Menu, H1 1/5.
-const ITEMS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain'];
-const RETIRED = ['samosa', 'straw'];
-const SEEDED = [...ITEMS, ...RETIRED];
+/** CLAUDE.md -> Menu: the seven items the till sells, in sort order. */
+const ITEMS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+/** Deleted by H3 ("Don't reuse those ids"). */
+const GONE = ['fountain', 'samosa', 'straw'];
+
+/** Open the recent-orders list: a strip on tablet, the ☰ sheet below 700 px. */
+async function openRecent(page) {
+  if (!isSmallCash(page)) return;
+  await closeCashPanel(page);
+  if (await tid(page, 'recent-sheet').isVisible().catch(() => false)) return;
+  await tid(page, 'menu-button').click();
+  await tid(page, 'menu-recent').click();
+  await expect(tid(page, 'recent-sheet')).toBeVisible({ timeout: 10000 });
+}
 
 test.beforeEach(async () => { await clearFirestore(); });
 
-test('C-01 eight big item tiles with an icon, a name and £5 (H-08)', async ({ page }) => {
+test('C-01 seven big item tiles with an icon and a name (H3-j)', async ({ page }) => {
   const errors = await openApp(page, '#/cash');
+  const small = isSmallCash(page);
   for (const id of ITEMS) {
     const tile = tid(page, `tile-${id}`);
     await expect(tile, `tile-${id} is missing`).toBeVisible({ timeout: 15000 });
     const h = await heightOf(tile);
     expect(h, `tile-${id} is ${h}px tall; touch targets must be at least 48px`).toBeGreaterThanOrEqual(47.5);
     expect(await tile.locator('svg').count(), `tile-${id} must carry an inline SVG icon, not an emoji`).toBeGreaterThan(0);
-    const text = await tile.innerText();
-    expect(text.replace(/\s+/g, ' '), `tile-${id} must show the £5 price`).toMatch(/£5(\.00)?/);
+    const text = (await tile.innerText()).replace(/\s+/g, ' ');
+    // CLAUDE.md Cash 1 puts "£5" on the tile; the H3 small layout draws the
+    // tile as icon + short name only (H3 2 and design/CashCounterSmall.dc.html).
+    if (!small) expect(text, `tile-${id} must show the £5 price`).toMatch(/£5(\.00)?/);
     expect(text.trim().length, `tile-${id} must show the item name`).toBeGreaterThan(2);
   }
-  // Exactly eight tiles, in sort order, and neither retired id among them.
+  // Exactly seven tiles, in sort order, and none of the deleted ids.
   const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
     .map((t) => t.dataset.testid.replace(/^tile-/, '')));
-  expect(rendered, 'CLAUDE.md H1 5: the till shows the eight active items in sort order').toEqual(ITEMS);
-  for (const id of RETIRED) {
-    expect(await tid(page, `tile-${id}`).count(), `retired "${id}" must not be a tile`).toBe(0);
+  expect(rendered, 'CLAUDE.md Menu / H3 7: the till shows the seven items in sort order').toEqual(ITEMS);
+  for (const id of GONE) {
+    expect(await tid(page, `tile-${id}`).count(), `"${id}" was deleted by H3 and must not be a tile`).toBe(0);
   }
   await expectNoConsoleErrors(errors, '#/cash');
 });
 
 test('C-02 the menu is seeded once on first load (H-07)', async ({ page }) => {
   await openApp(page, '#/cash');
-  await expect(tid(page, 'tile-fountain')).toBeVisible({ timeout: 15000 });
+  await expect(tid(page, 'tile-marshmallow')).toBeVisible({ timeout: 15000 });
 
   const menu = await (async () => {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline) {
       const m = await readCollection('menu');
-      if (m.length >= SEEDED.length) return m;
+      if (m.length >= ITEMS.length) return m;
       await new Promise((r) => setTimeout(r, 250));
     }
     return readCollection('menu');
   })();
 
-  expect(menu.map((m) => m._id).sort()).toEqual([...SEEDED].sort());
+  expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu after H3: seven documents').toEqual([...ITEMS].sort());
   for (const m of menu) {
     expect(m.price, `${m._id} must be seeded at 500 pence`).toBe(500);
     expect(typeof m.name).toBe('string');
@@ -59,28 +81,26 @@ test('C-02 the menu is seeded once on first load (H-07)', async ({ page }) => {
     expect(m.colour, `${m._id} must carry a tile colour`).toMatch(/^#[0-9A-Fa-f]{6}$/);
     expect(['chaat', 'momo', 'sweets'], `${m._id} station`).toContain(m.station);
     expect(typeof m.sort).toBe('number');
+    expect(m.active, `${m._id} must be active — H3 keeps no retired rows`).toBe(true);
   }
   expect(menu.find((m) => m._id === 'fuchka').station).toBe('chaat');
   expect(menu.find((m) => m._id === 'momo').station).toBe('momo');
-  expect(menu.find((m) => m._id === 'fountain').station).toBe('sweets');
-  // H1: the four new items are all sweets, and the two retired rows are
-  // seeded with active:false so stationOf and the reports still resolve them.
   for (const id of ['sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow']) {
     expect(menu.find((m) => m._id === id).station, `${id} station`).toBe('sweets');
-    expect(menu.find((m) => m._id === id).active, `${id} must be active`).toBe(true);
   }
-  for (const id of RETIRED) {
-    const row = menu.find((m) => m._id === id);
-    expect(row, `retired "${id}" must still be seeded for old orders`).toBeTruthy();
-    expect(row.active, `retired "${id}" must be active:false`).toBe(false);
+  // H3 7: the Marshmallow rename.
+  expect(menu.find((m) => m._id === 'marshmallow').name).toBe('Chocolate Marshmallow (V)');
+  expect(menu.find((m) => m._id === 'marshmallow').short).toBe('Choc Marshmallow');
+  for (const id of GONE) {
+    expect(menu.find((m) => m._id === id), `H3 deletes "${id}" and never reseeds it`).toBeUndefined();
   }
-  expect(menu.filter((m) => m.active === true).map((m) => m.sort).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  expect(menu.map((m) => m.sort).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
 
   // Second load must not duplicate the seed.
   await page.reload();
-  await expect(tid(page, 'tile-fountain')).toBeVisible({ timeout: 15000 });
+  await expect(tid(page, 'tile-marshmallow')).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(1500);
-  expect((await readCollection('menu')).length, 'seeding must only happen when the menu collection is empty').toBe(SEEDED.length);
+  expect((await readCollection('menu')).length, 'seeding must only happen when the menu collection is empty').toBe(ITEMS.length);
 });
 
 test('C-03 tapping a tile adds one and shows a quantity badge', async ({ page }) => {
@@ -101,6 +121,7 @@ test('C-04 order panel shows lines, line totals and a big total', async ({ page 
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 15000 });
   await addItem(page, 'fuchka', 3);
   await addItem(page, 'momo', 1);
+  await openCashPanel(page);
 
   await expect(tid(page, 'line-fuchka')).toBeVisible();
   await expect(tid(page, 'line-fuchka')).toContainText('£15.00');
@@ -108,16 +129,20 @@ test('C-04 order panel shows lines, line totals and a big total', async ({ page 
   await expect(tid(page, 'order-total')).toContainText('£20.00');
 });
 
-test('C-05 the minus and plus buttons are at least 52px and adjust the line', async ({ page }) => {
+test('C-05 the minus and plus buttons are big enough and adjust the line', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 15000 });
   await addItem(page, 'fuchka', 3);
+  await openCashPanel(page);
 
+  // CLAUDE.md Cash 2 sets 52x52 on the tablet panel; H3 4 sets 48 px in the
+  // small Review & send sheet.
+  const min = isSmallCash(page) ? 48 : 52;
   for (const name of ['line-inc-fuchka', 'line-dec-fuchka']) {
     const box = await boxOf(tid(page, name));
     expect(box, `${name} is missing`).not.toBeNull();
-    expect(box.height, `${name} is ${box.height}px tall; CLAUDE.md Cash 2 requires at least 52x52px`).toBeGreaterThanOrEqual(51.5);
-    expect(box.width, `${name} is ${box.width}px wide; CLAUDE.md Cash 2 requires at least 52x52px`).toBeGreaterThanOrEqual(51.5);
+    expect(box.height, `${name} is ${box.height}px tall; it must be at least ${min}px here`).toBeGreaterThanOrEqual(min - 0.5);
+    expect(box.width, `${name} is ${box.width}px wide; it must be at least ${min}px here`).toBeGreaterThanOrEqual(min - 0.5);
   }
 
   await tid(page, 'line-inc-fuchka').click();
@@ -125,18 +150,27 @@ test('C-05 the minus and plus buttons are at least 52px and adjust the line', as
   await tid(page, 'line-dec-fuchka').click();
   await tid(page, 'line-dec-fuchka').click();
   await expect(tid(page, 'order-total')).toContainText('£10.00');
+  await closeCashPanel(page);
   await expect(tid(page, 'qty-fuchka')).toHaveText(/2/);
+  await openCashPanel(page);
 
   await tid(page, 'line-dec-fuchka').click();
   await tid(page, 'line-dec-fuchka').click();
   await expect(tid(page, 'line-fuchka')).toHaveCount(0);
-  await expect(tid(page, 'order-total')).toContainText('£0.00');
+  if (isSmallCash(page)) {
+    // CLAUDE.md H3 4: "Removing the last item closes the sheet".
+    await expect(tid(page, 'review-sheet')).toBeHidden({ timeout: 8000 });
+    await expect(tid(page, 'order-bar')).toBeHidden();
+  } else {
+    await expect(tid(page, 'order-total')).toContainText('£0.00');
+  }
 });
 
 test('C-07 cash and card toggle, quick tenders and change due', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 15000 });
   await addItem(page, 'fuchka', 3); // £15.00
+  await openCashPanel(page);
 
   await tid(page, 'pay-cash').click();
   for (const p of [500, 1000, 2000, 5000]) {
@@ -159,8 +193,25 @@ test('C-07 cash and card toggle, quick tenders and change due', async ({ page })
   await expect(tid(page, 'change-due')).toBeHidden();
 });
 
-test('C-08 send button is disabled when empty and at least 72px tall', async ({ page }) => {
+test('C-08 send is unavailable on an empty order and big enough when it is not', async ({ page }) => {
   await openApp(page, '#/cash');
+  await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
+
+  if (isSmallCash(page)) {
+    // CLAUDE.md H3 3: the order bar — the only way to Send — is "hidden while
+    // the cart is empty", which is this layout's form of "disabled when empty".
+    await expect(tid(page, 'order-bar')).toBeHidden();
+    await expect(tid(page, 'send-order')).toHaveCount(0);
+    await addItem(page, 'momo', 1);
+    await expect(tid(page, 'order-bar-open')).toBeVisible();
+    await openCashPanel(page);
+    const send = tid(page, 'send-order');
+    await expect(send).toBeEnabled();
+    const h = await heightOf(send);
+    expect(h, `send-order is ${h}px tall; CLAUDE.md H3 4 requires 60px in the sheet`).toBeGreaterThanOrEqual(56);
+    return;
+  }
+
   const send = tid(page, 'send-order');
   await expect(send).toBeVisible({ timeout: 15000 });
   await expect(send, 'CLAUDE.md Cash 4: the send button is disabled when the order is empty').toBeDisabled();
@@ -180,10 +231,16 @@ test('C-09 / D-01 / D-03 send writes the order, toasts the number and clears the
   await expect(tid(page, 'order-toast')).toContainText('A-001');
 
   // Panel clears.
-  await expect(tid(page, 'order-total')).toContainText('£0.00');
   await expect(tid(page, 'line-fuchka')).toHaveCount(0);
-  await expect(tid(page, 'customer-name')).toHaveValue('');
-  await expect(tid(page, 'send-order')).toBeDisabled();
+  if (isSmallCash(page)) {
+    await expect(tid(page, 'review-sheet'), 'CLAUDE.md H3 5: send closes the sheet').toBeHidden({ timeout: 8000 });
+    await expect(tid(page, 'order-bar'), 'CLAUDE.md H3 5: send clears the cart').toBeHidden({ timeout: 8000 });
+    await expect(tid(page, 'qty-fuchka')).toBeHidden();
+  } else {
+    await expect(tid(page, 'order-total')).toContainText('£0.00');
+    await expect(tid(page, 'customer-name')).toHaveValue('');
+    await expect(tid(page, 'send-order')).toBeDisabled();
+  }
 
   // Document shape, CLAUDE.md Data model.
   const [order] = await waitForOrders((o) => o.length === 1, { label: 'the order to be written' });
@@ -221,7 +278,7 @@ test('C-06 a blank name is stored as Guest, and no tender is stored', async ({ p
   expect(Object.keys(order), 'card orders store no tender either').not.toContain('tendered');
 });
 
-test('C-10 recent orders strip keeps the last five from this till', async ({ page }) => {
+test('C-10 recent orders keeps the last five from this till', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
 
@@ -230,10 +287,12 @@ test('C-10 recent orders strip keeps the last five from this till', async ({ pag
     await page.waitForTimeout(150);
   }
 
+  // CLAUDE.md Cash 5 on tablet; H3 6 moves it to ☰ -> Recent orders below 700 px.
+  await openRecent(page);
   for (const n of ['A-002', 'A-003', 'A-004', 'A-005', 'A-006']) {
-    await expect(tid(page, `recent-${n}`), `${n} should be in the recent strip`).toBeVisible({ timeout: 10000 });
+    await expect(tid(page, `recent-${n}`), `${n} should be in the recent list`).toBeVisible({ timeout: 10000 });
   }
-  await expect(tid(page, 'recent-A-001'), 'CLAUDE.md Cash 5: the strip shows the last 5 orders').toHaveCount(0);
+  await expect(tid(page, 'recent-A-001'), 'CLAUDE.md Cash 5: the list shows the last 5 orders').toHaveCount(0);
   await expect(tid(page, 'recent-A-006')).toContainText(/new/i);
 });
 
@@ -242,6 +301,7 @@ test('C-11 cancel is available while the order is new', async ({ page }) => {
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
   await placeOrder(page, { items: { momo: 1 }, name: 'Cancel Me', payment: 'card' });
 
+  await openRecent(page);
   const cancel = tid(page, 'cancel-A-001');
   await expect(cancel, 'CLAUDE.md Cash 5: cancel is available while status is new').toBeVisible({ timeout: 10000 });
   await cancel.click();
@@ -256,6 +316,7 @@ test('C-12 cancel disappears once the kitchen has started the order', async ({ p
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
   await placeOrder(page, { items: { momo: 1 }, name: 'Started', payment: 'card' });
+  await openRecent(page);
   await expect(tid(page, 'cancel-A-001')).toBeVisible({ timeout: 10000 });
 
   const kitchen = await context.newPage();
@@ -273,12 +334,13 @@ test('C-12 cancel disappears once the kitchen has started the order', async ({ p
     .not.toBe('enabled');
 });
 
-test('C-13 connection pill reads Online · synced', async ({ page }) => {
+test('C-13 connection pill reads Online', async ({ page }) => {
   await openApp(page, '#/cash');
   const pill = tid(page, 'conn-pill');
   await expect(pill).toBeVisible({ timeout: 15000 });
   await expect(pill, 'CLAUDE.md Cash 6: "Online · synced" or "Offline · N queued"').toContainText(/Online/i, { timeout: 15000 });
-  await expect(pill).toContainText(/synced/i);
+  // H3 1 shortens it to "Online" in the 52px one-row phone header.
+  if (!isSmallCash(page)) await expect(pill).toContainText(/synced/i);
 });
 
 test('C-14 the order sequence survives a reload', async ({ page }) => {
@@ -302,4 +364,37 @@ test('C-14 the order sequence survives a reload', async ({ page }) => {
   const key = Object.keys(seq)[0];
   expect(key, 'CLAUDE.md: localStorage["seq:<till>:<day>"]').toBe(`seq:A:${londonDay()}`);
   expect(Number(seq[key])).toBe(3);
+});
+
+test('C-15 an unknown item id on an older order still renders (H3-k)', async ({ page }) => {
+  // CLAUDE.md -> Menu: "Any item id the app doesn't know still renders with
+  // the name stored on the order line and the plate icon."
+  await seedDoc('orders', {
+    orderNo: 'A-900', name: 'Old', till: 'A', day: londonDay(),
+    items: [{ id: 'fountain', name: 'Chocolate Fountain', qty: 2, price: 500 }],
+    total: 1000, payment: 'cash', status: 'new', createdAtMs: londonTimeToday(12, 0)
+  });
+
+  const errors = await openApp(page, '#/kitchen');
+  const tab = tid(page, 'tab-new');
+  if ((await tab.count()) && (await tab.isVisible().catch(() => false))) await tab.click();
+  const card = tid(page, 'order-card-A-900');
+  await expect(card, 'an order on a deleted id must still show on the board').toBeVisible({ timeout: 20000 });
+  const text = (await card.innerText()).replace(/\s+/g, ' ');
+  expect(text, 'the line keeps the name stored on the order').toContain('Chocolate Fountain');
+  expect(text, 'no placeholder for an unknown item').not.toMatch(/unknown|undefined|\[object/i);
+  expect(await card.locator('svg').count(), 'the plate fallback icon is still drawn').toBeGreaterThan(0);
+  await expectNoConsoleErrors(errors, '#/kitchen with an unknown item id');
+});
+
+test('C-16 quick tenders are reachable wherever the cash block lives', async ({ page }) => {
+  await openApp(page, '#/cash');
+  await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 15000 });
+  await addItem(page, 'fuchka', 3);
+  await openCashPanel(page);
+  await tid(page, 'pay-cash').click();
+  const exact = await quickTender(page, 'exact');
+  await expect(exact).toBeVisible();
+  await exact.click();
+  await expect(tid(page, 'change-due')).toContainText('£0.00');
 });

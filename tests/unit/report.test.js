@@ -15,9 +15,17 @@ describe('U-12 stationOf', () => {
     expect(stationOf('fuchka')).toBe('chaat');
     expect(stationOf('chat')).toBe('chaat');
     expect(stationOf('momo')).toBe('momo');
-    expect(stationOf('samosa')).toBe('sweets');
-    expect(stationOf('straw')).toBe('sweets');
-    expect(stationOf('fountain')).toBe('sweets');
+    expect(stationOf('sweet_box')).toBe('sweets');
+    expect(stationOf('samosa_only')).toBe('sweets');
+    expect(stationOf('choc_strawberry')).toBe('sweets');
+    expect(stationOf('marshmallow')).toBe('sweets');
+  });
+
+  it('an id deleted by H3 is simply unknown (CLAUDE.md H3 7)', () => {
+    // "Remove the retired-id special cases from the code (station lists ...)".
+    for (const id of ['samosa', 'straw', 'fountain']) {
+      expect(stationOf(id), `stationOf("${id}") after the H3 reset`).toBeFalsy();
+    }
   });
 
   it('does not throw on an unknown id', () => {

@@ -107,13 +107,18 @@ export const EXPECTED_FILTERS = [
   { label: 'cancelled + cash finds nothing', args: { status: 'cancelled', pay: 'cash' }, rows: [], total: 0, cancelled: 0 }
 ];
 
-/** The items column, "2× Fuchka, 1× Momo" in menu `short` names. */
+/**
+ * The items column, "2× Fuchka, 1× Momo" in menu `short` names.
+ * A-043 carries `fountain`, an id hotfix H3 deleted, so it falls back to the
+ * name stored on the order line (CLAUDE.md -> Menu: "Any item id the app
+ * doesn't know still renders with the name stored on the order line").
+ */
 export const EXPECTED_SUMMARIES = {
   'A-041': '2× Fuchka, 1× Momo',
   'A-040': '2× Sweet Box, 1× Samosa',
   'B-019': '2× Momo, 1× Papri Chat',
   'A-042': '1× Fuchka, 1× Choc Strawberry',
-  'A-043': '1× Choc Fountain, 1× Sweet Box',
+  'A-043': '1× Chocolate Fountain, 1× Sweet Box',
   'B-017': '3× Fuchka',
   'A-044': '2× Samosa'
 };

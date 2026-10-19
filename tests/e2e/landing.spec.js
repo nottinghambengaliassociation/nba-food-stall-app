@@ -20,8 +20,10 @@ test('L-01 three big navigation buttons are present and large enough', async ({ 
 
 test('L-02 each button routes to its screen', async ({ page }) => {
   await openApp(page, '#/');
+  // The cash counter's marker is a menu tile: hotfix H3 hides the order panel
+  // (and with it `send-order`) behind the order bar below 700 px.
   const routes = [
-    ['nav-cash', '#/cash', 'send-order'],
+    ['nav-cash', '#/cash', 'tile-fuchka'],
     ['nav-kitchen', '#/kitchen', null],
     ['nav-reports', '#/reports', 'report-date']
   ];

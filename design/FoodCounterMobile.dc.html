@@ -66,14 +66,14 @@ class Component extends DCLogic {
       orders: [
         { no: 'A-041', name: 'Ahmed', status: 'preparing', mins: 5, items: { momo: 2, chat: 1 } },
         { no: 'A-042', name: 'Sam', status: 'ready', mins: 4, items: { fuchka: 1, choc_strawberry: 1 } },
-        { no: 'B-012', name: 'Meera', status: 'new', mins: 2, items: { fountain: 1, sweet_box: 1 } },
+        { no: 'B-012', name: 'Meera', status: 'new', mins: 2, items: { momo: 1, sweet_box: 1 } },
         { no: 'A-043', name: 'Priya', status: 'new', mins: 1, items: { fuchka: 2, momo: 1 } },
         { no: 'A-044', name: 'Josh', status: 'new', mins: 0, items: { chat: 1, marshmallow: 2 } }
       ]
     };
   }
   renderVals() {
-    const NAMES = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow', fountain: 'Choc Fountain', samosa: 'Sweets Box (old)', straw: 'Choc Straw & Mallow (old)' };
+    const NAMES = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow' };
     const NEXT = { new: 'preparing', preparing: 'ready', ready: 'collected' };
     const TABS = [
       { key: 'new', label: 'New', bg: '#FDE68A', fg: '#1C1917', action: 'Start', actionBg: '#1D4ED8' },

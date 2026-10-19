@@ -261,6 +261,13 @@ test('K-09 a cancelled order leaves the kitchen board', async ({ browser }) => {
   await kitchen.goto('/#/kitchen');
   await expect(kitchen.locator('[data-testid="order-card-A-001"]')).toBeVisible({ timeout: 20000 });
 
+  // Hotfix H3 6: below 700 px the recent strip (and its Cancel) moved to
+  // ☰ -> Recent orders.
+  if ((cash.viewportSize()?.width ?? 1280) < 700) {
+    await cash.locator('[data-testid="menu-button"]').click();
+    await cash.locator('[data-testid="menu-recent"]').click();
+    await expect(cash.locator('[data-testid="recent-sheet"]')).toBeVisible({ timeout: 10000 });
+  }
   await cash.locator('[data-testid="cancel-A-001"]').click();
   await waitForOrders((o) => o[0] && o[0].status === 'cancelled', { label: 'cancellation' });
 

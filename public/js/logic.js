@@ -10,12 +10,7 @@ export const MENU = [
   { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
   { id: 'samosa_only', name: 'Samosa', short: 'Samosa', price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
   { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow', name: 'Marshmallow (V)', short: 'Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
-  { id: 'fountain', name: 'Chocolate Fountain', short: 'Choc Fountain', price: 500, colour: '#E7D3BF', station: 'sweets', active: true, sort: 8 },
-  // Retired by hotfix H1 (18 Oct 2026): kept in the seed so stationOf and the
-  // reports still resolve older orders. Never reuse these ids.
-  { id: 'samosa', name: 'Sweets Box Samosa / Shingara', short: 'Sweets Box', price: 500, colour: '#FED7AA', station: 'sweets', active: false, sort: 90 },
-  { id: 'straw', name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: false, sort: 91 }
+  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
 ];
 
 /** The items the till shows as tiles: everything in MENU that is still on sale. */
@@ -828,8 +823,8 @@ const MENU_BY_ID = MENU.reduce((acc, m) => { acc[m.id] = m; return acc; }, {});
 
 /**
  * The short name for one order line: the menu's short name when the id is
- * known (retired ids included, so old orders keep their original wording),
- * then the name stored on the line, then the raw id.
+ * known, then the name stored on the line, then the raw id. An id the menu
+ * no longer carries keeps the name saved on the order.
  */
 export function lineShortName(line) {
   const id = line && line.id;

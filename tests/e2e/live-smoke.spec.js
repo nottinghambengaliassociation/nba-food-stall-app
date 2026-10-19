@@ -243,7 +243,8 @@ test('S-07 Cash received calculator on the live cash counter', async ({ page }, 
   await expect(page.locator('[data-testid="order-total"]')).toContainText('£15.00');
   const cash = page.locator('[data-testid="pay-cash"]');
   if (await cash.count()) await cash.click();
-  const phone = info.project.name === 'phone';
+  // H3 (v1.3.1): the short wording applies to every viewport below 700 px.
+  const phone = (page.viewportSize()?.width ?? 1280) < 700;
   const body = () => page.locator('body').innerText().then(norm);
 
   // Exact = the order total.
@@ -367,14 +368,14 @@ test('S-08 QA-SMOKE order round trip against the real project', async ({ page },
   expect(one.payment).toBe('cash');
   expect(one.status).toBe('collected');
 
-  // The live menu must hold the ten H1 documents, untouched by this run.
-  // CLAUDE.md -> Menu (hotfix H1): eight active plus the two retired ids,
-  // which are never deleted because old orders report under their names.
+  // The live menu must hold the seven H3 documents, untouched by this run.
+  // CLAUDE.md -> Menu / H3 7: scripts/reset-live.mjs leaves exactly these and
+  // deletes `samosa`, `straw` and `fountain`.
   const menu = await liveFirestore('/menu?pageSize=50');
   const menuIds = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
   record(`S-08 live menu intact: ${menuIds.length} documents [${menuIds.join(', ')}]`);
-  expect(menuIds, 'the live menu must hold the ten H1 items').toEqual(
-    ['chat', 'choc_strawberry', 'fountain', 'fuchka', 'marshmallow', 'momo', 'samosa', 'samosa_only', 'straw', 'sweet_box']
+  expect(menuIds, 'the live menu must hold the seven H3 items').toEqual(
+    ['chat', 'choc_strawberry', 'fuchka', 'marshmallow', 'momo', 'samosa_only', 'sweet_box']
   );
 
   // The collected order counts, the cancelled one does not.

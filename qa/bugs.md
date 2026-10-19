@@ -771,3 +771,88 @@ The phone header carries the "Export these orders (CSV)" button, although `desig
 
 `qa/screenshots/live-p4-<project>-<screen>.png` for `project` ∈ {phone, tablet}:
 `login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-orders`, `reports-orders-detail`, `header-version`, `signed-out` — 20 files.
+
+---
+
+## Hotfix H3 round 1 — 2026-10-19 (v1.3.1, phone cash counter + seven-item menu)
+
+**Result: green. No bugs raised.**
+
+| Suite | Tests | Pass | Fail | Skipped |
+|---|---|---|---|---|
+| Unit (`vitest`, 11 files) | 307 | **307** | 0 | 0 |
+| e2e `phone` (390×844) | 213 | 213 | 0 | — |
+| e2e `tablet` (1280×800) | 213 | 213 | 0 | — |
+| e2e `iphone13` (390×664) | 25 | 25 | 0 | — |
+| e2e `iphone17` (402×694) | 25 | 25 | 0 | — |
+| e2e `promax` (430×752) | 25 | 25 | 0 | — |
+| **e2e total** | **501** | **387** | **0** | **114** |
+
+The 114 skips are the gated live checks (`live-smoke`, `live-h1`, `live-h2`,
+`live-p3`, `live-p4` — they need `LIVE_*=1`), the tablet-only block of
+`cash-h3.spec.js` on the four small projects, the small-screen block on
+`tablet`, and the tablet-only Clear-link case `T-08`. Run time 18.4 min
+(`npm run test:e2e`, Firestore emulator, one worker).
+
+### Test-side corrections made this round (deliberate spec change, not defects)
+
+Hotfix H3 replaces the cash counter below 700 px and cuts the menu to seven
+items, so tests written against the old layout were testing a screen the brief
+no longer describes. Each of these was corrected against `CLAUDE.md`, not
+against the implementation:
+
+| Test | What changed | Brief |
+|---|---|---|
+| `C-01`, `C-02`, `H-07`, `H-08`, `X-06`, `H-21`, unit `H-01`..`H-06` | seven menu items, `fountain`/`samosa`/`straw` deleted, `marshmallow` renamed | Menu table; H3 7 |
+| `C-04`, `C-05`, `C-07`, `C-09`, `C-16`, `T-01`..`T-13`, `H-21`, `H-17`, `X-09`, `G-15`..`G-17` | reach the order controls through the order bar and the Review & send sheet below 700 px | H3 3, 4 |
+| `C-08` | "disabled when empty" below 700 px is "the order bar, and with it Send, is hidden when empty" | H3 3 |
+| `C-05`, `H-21`, `H-17` | steppers 52 px on tablet, **48 px** in the sheet; Send 72 px on tablet, **60 px** in the sheet | Cash 2 / 4 vs H3 4 |
+| `C-10`, `C-11`, `C-12`, `K-09`, `P-01` | recent orders read from ☰ → Recent orders below 700 px | H3 6 |
+| `C-13` | the connection label is the short "Online" in the one-row phone header | H3 1 |
+| `G-13`, `G-15`..`G-18` | Sign out is in the ☰ menu on the small cash counter, still red, still showing the in-page confirm | H3 1, Login 8 |
+| `V-03`, `V-05` | the version line is read inside the ☰ menu on the small cash counter (it still carries `app-version`) | H3 1, Phase III part 2 6 |
+| `X-05` | 3-column tiles below 700 px, not 2 | H3 2 |
+| `X-02` | ☰ is allowed 44 px and the header till picker 40 px, in the small cash header only | H3 1 + `design/CashCounterSmall.dc.html` |
+| `L-02` | `#/cash` is "loaded" when the tiles are up, not when Send is | H3 3 |
+| `C-01`, `H-08` | the small tile shows icon + `short` name (no £5); the tablet tile keeps the full name and the price | H3 2 vs Cash 1 |
+| `P3-08`, unit `P3-U-12` | rows for ids the menu no longer knows sort after the known ones, in an order the brief never fixes, so they are read as a set | H3 7 |
+| `C-15` (new), `H-11`, `H-16`, unit `H-05b` | the unknown-id fallback is now driven by the deleted ids: stored line name plus the plate icon, no station | Menu ("Any item id the app doesn't know…") |
+| unit `P4-U-09` | `package.json` is 1.3.1 | H3 8 |
+
+### Harness changes
+
+* `clearFirestore()` now deletes, re-reads and only returns after the `orders`
+  collection comes back empty **twice**. A context that was still closing could
+  flush a queued write just after the DELETE landed, leaving a stale order that
+  made the next test read two documents with the same order number (seen as
+  `strict mode violation: recent-A-001 resolved to 2 elements` and as a cancel
+  assertion reading the wrong one of two `A-006`s). Those were harness races,
+  not app defects: the UI showed the right thing in both screenshots.
+* Three tests were re-run in isolation after failing in a run where the shared
+  Firestore emulator was killed mid-suite by another agent on this machine
+  (`H3-a8`, `H3-d1`, `H3-g`); all three pass against a clean emulator, and all
+  pass in the final full run above.
+
+### `scripts/reset-live.mjs` (H3-l), emulator only
+
+Exercised by hand against the Firestore emulator with 2 orders, a menu holding
+`fountain`/`samosa`/`straw` and a hand-edited `fuchka` price, and a
+`settings/event` document. All five cases in `qa/test-plan.md` section 41 pass:
+plan-only changes nothing and writes no backup; `--yes` backs up first, empties
+`orders`, leaves exactly the 7 menu documents with the right fields (including
+the `marshmallow` rename and the price put back to 500), deletes
+`fountain`/`samosa`/`straw` and leaves `settings` alone; a second run is
+harmless; an unwritable backup directory stops the run before any delete with
+the seeded order still in place. Nothing was run against live Firestore.
+
+### Observations, no bug raised
+
+1. The ☰ version line carries both `app-version` (the id named in
+   `CLAUDE.md` Phase III part 2, 6) and `menu-version`. The documented id is
+   present, so the label is still findable on the small cash counter.
+2. `review-sheet` exists at 700 px and wider as a `display: contents` wrapper
+   that measures 0×0. It is never visible there, which is what `H3-h` asserts;
+   tests should not measure it on tablet.
+3. The sign-out confirm answers to `signout-confirm` / `signout-confirm-ok` /
+   `signout-cancel`; `cash-h3.spec.js` resolves the box and its two buttons by
+   role, so either spelling works.

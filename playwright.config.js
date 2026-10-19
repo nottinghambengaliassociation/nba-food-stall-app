@@ -46,6 +46,33 @@ export default defineConfig({
         deviceScaleFactor: 2,
       },
     },
+    // Hotfix H3 (v1.3.1): the cash counter is rebuilt for small phones.
+    // These three viewports run the H3 spec ONLY (`testMatch` below): the
+    // suite is already ~286 e2e cases and running all of it three more times
+    // would make the fix loop unusable. `cash-h3.spec.js` carries every
+    // assertion that depends on the small-screen geometry; everything else
+    // keeps running on `phone` (390x844, also below the 700 px breakpoint, so
+    // it exercises the same H3 layout) and `tablet`.
+    //
+    // 390x664 and 402x694 are the visible areas named in CLAUDE.md -> Hotfix
+    // H3. 430x752 is the iPhone Pro Max device width (430x932) less the same
+    // 180 px of Safari chrome that turns 844 into 664 and 874 into 694.
+    ...[
+      { name: "iphone13", width: 390, height: 664 },
+      { name: "iphone17", width: 402, height: 694 },
+      { name: "promax", width: 430, height: 752 },
+    ].map(({ name, width, height }) => ({
+      name,
+      testMatch: /cash-h3\.spec\.js/,
+      use: {
+        ...devices["Desktop Chrome"],
+        browserName: "chromium",
+        viewport: { width, height },
+        hasTouch: true,
+        isMobile: true,
+        deviceScaleFactor: 2,
+      },
+    })),
   ],
   webServer: {
     command: "npm run serve",

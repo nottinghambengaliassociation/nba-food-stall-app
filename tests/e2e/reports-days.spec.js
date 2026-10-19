@@ -321,12 +321,24 @@ test.describe('Phase III — Sales by day', () => {
       expect(head[i + 1], 'a column per trading day').toBe(weekdayOf(X.trading[i]));
     }
 
-    expect(rows.map((r) => r.name), 'one row per item that sold, in menu order')
-      .toEqual(X.items.map((i) => i.name));
+    // Hotfix H3 deleted `samosa`, `straw` and `fountain` from the menu, so the
+    // app has no sort key for them: the ids it knows come first, in menu order,
+    // and rows for ids it does not know follow in an order the brief never
+    // fixes. So: the same set of rows, the known ones in menu order, and each
+    // expected row looked up by name rather than by index.
+    const KNOWN_NAMES = ['Fuchka / Gol Gappa', 'Momo', 'Papri Chat', 'Sweet Box', 'Samosa',
+      'Chocolate Strawberry', 'Chocolate Marshmallow (V)', 'Marshmallow (V)'];
+    const gotNames = rows.map((r) => r.name);
+    const wantNames = X.items.map((i) => i.name);
+    expect(gotNames.slice().sort(), 'one row per item that sold').toEqual(wantNames.slice().sort());
+    expect(gotNames.filter((n) => KNOWN_NAMES.includes(n)),
+      'the items the menu still knows come first, in menu order')
+      .toEqual(wantNames.filter((n) => KNOWN_NAMES.includes(n)));
 
     for (let i = 0; i < X.items.length; i++) {
       const expected = X.items[i];
-      const got = rows[i];
+      const got = rows.find((r) => r.name === expected.name);
+      expect(got, `no matrix row named "${expected.name}"`).toBeTruthy();
       const perDay = X.trading.map((d) => String(expected.units[d]));
       expect(got.values.slice(0, X.trading.length), `${expected.id} units by day`).toEqual(perDay);
       expect(got.values[X.trading.length], `${expected.id} total`).toBe(String(expected.total));

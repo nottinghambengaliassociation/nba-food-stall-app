@@ -11,33 +11,37 @@
 // a hardcoded x: the defect is a difference between rows, and a test pinned to
 // a number would pass or fail for the wrong reason on a different viewport.
 //
-// Three things are checked with the cart holding ALL EIGHT active items, so the
-// longest name ("Chocolate Strawberry") and the shortest ("Momo") are both in:
+// Three things are checked with the cart holding ALL SEVEN menu items, so the
+// longest name and the shortest ("Momo") are both in:
 //   1. every `line-dec-*` shares one left x, and every `line-inc-*` shares one
 //      left x, within ±1 px;
 //   2. no `.line__name` overflows its column, and no row is wider than the
 //      panel it sits in;
-//   3. the steppers are still at least 52×52 — a "fix" that lined the columns
-//      up by shrinking the buttons would break CLAUDE.md -> Cash counter 2 and
-//      the H2 note "keep the 52 px steppers".
+//   3. the steppers are still big enough — a "fix" that lined the columns up by
+//      shrinking the buttons would break CLAUDE.md -> Cash counter 2 and the H2
+//      note "keep the 52 px steppers". Hotfix H3 (v1.3.1) sets the figure for
+//      the small Review & send sheet at 48 px (CLAUDE.md H3 4), so the minimum
+//      is read from the viewport: 52 px on tablet, 48 px below 700 px.
 //
 // Emulator only. Nothing here writes to live Firestore.
 import { test, expect } from './session.js';
 import {
-  clearFirestore, openApp, tid, addItem, expectNoConsoleErrors, shot
+  clearFirestore, openApp, tid, addItem, expectNoConsoleErrors, shot,
+  isSmallCash, openCashPanel, closeCashPanel
 } from './helpers.js';
 
-/** CLAUDE.md -> Menu: the eight active rows, in sort order. */
+/** CLAUDE.md -> Menu (after H3): the seven rows, in sort order. */
 const ACTIVE_IDS = [
   'fuchka', 'momo', 'chat', 'sweet_box',
-  'samosa_only', 'choc_strawberry', 'marshmallow', 'fountain'
+  'samosa_only', 'choc_strawberry', 'marshmallow'
 ];
 
-/** Longest and shortest active names, the two ends of the bug. */
-const LONGEST = 'choc_strawberry';   // "Chocolate Strawberry"
+/** Longest and shortest names in the cart, the two ends of the bug. */
+const LONGEST = 'marshmallow';       // "Chocolate Marshmallow (V)" after H3
 const SHORTEST = 'momo';             // "Momo"
 
-const MIN_STEPPER = 52;
+/** CLAUDE.md Cash 2 / H2 on tablet; CLAUDE.md H3 4 in the small sheet. */
+const minStepper = (page) => (isSmallCash(page) ? 48 : 52);
 const TOL = 1;          // ±1 px, as the hotfix brief states
 const SIZE_TOL = 0.5;   // sub-pixel slack on a 2x device scale factor
 
@@ -86,7 +90,9 @@ async function measureCart(page, ids) {
       });
     }
 
-    const panel = document.querySelector('[aria-label="Current order"]') || document.querySelector('.panel');
+    const panel = document.querySelector('[data-testid="review-sheet"]')
+      || document.querySelector('[aria-label="Current order"]')
+      || document.querySelector('.panel');
     const linesBox = document.querySelector('.lines');
     return {
       rows,
@@ -112,19 +118,21 @@ function table(m) {
   return [head, ...body].join('\n');
 }
 
-/** Fill the cart with every active item, then wait for the rows to settle. */
+/** Fill the cart with every menu item, then wait for the rows to settle. */
 async function fillCart(page) {
   const errors = await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
-  await expect(tid(page, 'tile-fountain')).toBeVisible({ timeout: 20000 });
+  await expect(tid(page, 'tile-marshmallow')).toBeVisible({ timeout: 20000 });
 
-  // Quantities 1..8: single digits, so the fixed 28 px quantity column and the
-  // 58 px amount column are exercised without being asked to hold more than
+  // Quantities 1..7: single digits, so the fixed quantity column and the
+  // amount column are exercised without being asked to hold more than
   // the brief's grid allows. Different quantities also prove the steppers do
   // not move when the quantity or the line total changes width.
   for (let i = 0; i < ACTIVE_IDS.length; i++) {
     await addItem(page, ACTIVE_IDS[i], i + 1);
   }
+  // H3: below 700 px the cart lives in the Review & send sheet.
+  await openCashPanel(page);
 
   for (const id of ACTIVE_IDS) {
     await expect(tid(page, `line-${id}`), `line-${id} must be in the cart`).toHaveCount(1, { timeout: 10000 });
@@ -135,7 +143,7 @@ async function fillCart(page) {
 
 /* ------------------------------------------------------------------ H-21 */
 
-test('H-21 with all eight items in the cart the steppers line up, nothing overflows, 52px kept', async ({ page }, info) => {
+test('H-21 with every item in the cart the steppers line up, nothing overflows, the stepper size is kept', async ({ page }, info) => {
   const consoleErrors = await fillCart(page);
 
   const m = await measureCart(page, ACTIVE_IDS);
@@ -145,14 +153,18 @@ test('H-21 with all eight items in the cart the steppers line up, nothing overfl
     `panel: left=${r2(m.panel.left)} width=${r2(m.panel.width)} clientWidth=${m.panelClientWidth}; ` +
     `lines clientWidth=${m.linesClientWidth}; row display=${m.rows[0].display}; columns=${m.rows[0].columns}\n`);
 
-  expect(m.rows.filter((r) => r.missing).map((r) => r.id), 'all eight active items must be in the cart').toEqual([]);
-  expect(m.rows.map((r) => r.id), 'the cart holds all eight active items').toEqual(ACTIVE_IDS);
+  expect(m.rows.filter((r) => r.missing).map((r) => r.id), 'all seven items must be in the cart').toEqual([]);
+  expect(m.rows.map((r) => r.id), 'the cart holds all seven items').toEqual(ACTIVE_IDS);
 
-  // Sanity: the two ends of the bug really are both present.
-  const longest = m.rows.find((r) => r.id === LONGEST);
+  // Sanity: the two ends of the bug really are both present. The longest name
+  // is read off the cart rather than pinned to a string, so a later menu
+  // rewording cannot quietly turn this into a one-ended test.
+  const longest = m.rows.slice().sort((a, b) => b.text.length - a.text.length)[0];
   const shortest = m.rows.find((r) => r.id === SHORTEST);
-  expect(longest.text, 'the longest active name must be in the cart').toBe('Chocolate Strawberry');
-  expect(shortest.text, 'the shortest active name must be in the cart').toBe('Momo');
+  expect(shortest.text, 'the shortest name must be in the cart').toBe('Momo');
+  expect(longest.text.length,
+    `the cart must hold a name clearly longer than "Momo" for this test to mean anything; longest is "${longest.text}"`
+  ).toBeGreaterThan(shortest.text.length + 6);
 
   /* --- 1. the steppers share one column, row against row ---------------- */
 
@@ -174,9 +186,9 @@ test('H-21 with all eight items in the cart the steppers line up, nothing overfl
   for (const key of ['dec', 'inc']) {
     const delta = Math.abs(longest[key].left - shortest[key].left);
     expect(delta,
-      `CLAUDE.md H2: "Chocolate Strawberry" must not push its ${key === 'dec' ? '−' : '+'} button ` +
+      `CLAUDE.md H2: "${longest.text}" must not push its ${key === 'dec' ? '−' : '+'} button ` +
       `further right than "Momo" does. ` +
-      `${LONGEST} ${key}.left=${r2(longest[key].left)}, ${SHORTEST} ${key}.left=${r2(shortest[key].left)}, ` +
+      `${longest.id} ${key}.left=${r2(longest[key].left)}, ${SHORTEST} ${key}.left=${r2(shortest[key].left)}, ` +
       `difference ${r2(delta)} px.\n\n${report}`
     ).toBeLessThanOrEqual(TOL);
   }
@@ -235,15 +247,16 @@ test('H-21 with all eight items in the cart the steppers line up, nothing overfl
 
   /* --- 3. the 52 px steppers are kept ----------------------------------- */
 
+  const MIN_STEPPER = minStepper(page);
   for (const r of m.rows) {
     for (const key of ['dec', 'inc']) {
       expect(r[key].width,
-        `CLAUDE.md Cash counter 2 and H2 ("keep the 52 px steppers"): line-${key}-${r.id} ` +
+        `CLAUDE.md Cash counter 2 / H2 / H3 4: line-${key}-${r.id} ` +
         `is ${r2(r[key].width)} px wide, under ${MIN_STEPPER}. Aligning the columns by shrinking ` +
         `the buttons is not the fix.\n\n${report}`
       ).toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
       expect(r[key].height,
-        `CLAUDE.md Cash counter 2 and H2: line-${key}-${r.id} is ${r2(r[key].height)} px tall, ` +
+        `CLAUDE.md Cash counter 2 / H2 / H3 4: line-${key}-${r.id} is ${r2(r[key].height)} px tall, ` +
         `under ${MIN_STEPPER}.\n\n${report}`
       ).toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
     }
@@ -262,7 +275,8 @@ test('H-21.2 the steppers stay in their column while the cart is edited', async 
   const before = await measureCart(page, ACTIVE_IDS);
   const beforeDec = before.rows.find((r) => r.id === LONGEST).dec.left;
 
-  // fillCart gives Momo a quantity of 2, so step it down to zero.
+  // fillCart gives Momo a quantity of 2, so step it down to zero. Six other
+  // rows stay in the cart, so the H3 sheet does not close under us.
   for (let i = 0; i < 6; i++) {
     if (await tid(page, `line-${SHORTEST}`).count() === 0) break;
     await tid(page, `line-dec-${SHORTEST}`).click();
@@ -311,7 +325,7 @@ test('H-21.2 the steppers stay in their column while the cart is edited', async 
 
 /* --------------------------------------------------------------- H-21.3 */
 
-test('H-21.3 the cart lines up at 360px too, with every active item in it', async ({ page }) => {
+test('H-21.3 the cart lines up at 360px too, with every item in it', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await fillCart(page);
 
@@ -328,8 +342,8 @@ test('H-21.3 the cart lines up at 360px too, with every active item in it', asyn
   for (const r of m.rows) {
     expect(r.nameScrollWidth, `"${r.text}" must wrap, not overflow, at 360px\n\n${table(m)}`)
       .toBeLessThanOrEqual(r.nameClientWidth + TOL);
-    expect(r.dec.width, `line-dec-${r.id} keeps its 52 px at 360px`).toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
-    expect(r.inc.width, `line-inc-${r.id} keeps its 52 px at 360px`).toBeGreaterThanOrEqual(MIN_STEPPER - SIZE_TOL);
+    expect(r.dec.width, `line-dec-${r.id} keeps its ${minStepper(page)} px at 360px`).toBeGreaterThanOrEqual(minStepper(page) - SIZE_TOL);
+    expect(r.inc.width, `line-inc-${r.id} keeps its ${minStepper(page)} px at 360px`).toBeGreaterThanOrEqual(minStepper(page) - SIZE_TOL);
     expect(r.row.right, `row line-${r.id} must not spill past the panel at 360px`)
       .toBeLessThanOrEqual(m.panel.right + TOL);
   }

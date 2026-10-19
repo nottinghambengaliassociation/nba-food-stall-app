@@ -298,6 +298,8 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
 }
 .tile[data-selected='true'] { border-color: var(--ink); }
 .tile__name { font-size: 21px; line-height: 26px; font-weight: 700; }
+/* The short name is the phone tile's label (hotfix H3 2). */
+.tile__short { display: none; }
 .tile__price { font-size: 19px; color: var(--ink-2); }
 .tile__qty {
   position: absolute;
@@ -435,7 +437,11 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
 }
 .tender__btn[aria-pressed='true'] { border-color: var(--ink); background: var(--marigold); }
 
-.tender__other { grid-area: other; display: flex; align-items: center; gap: 12px; }
+/* The Other amount row, plus the phone-only link that reveals it (H3 4).
+   On tablet the link is display:none, so this wrapper is invisible. */
+.tender__otherwrap { grid-area: other; display: flex; flex-direction: column; gap: 6px; }
+.tender__toggle { display: none; }
+.tender__other { display: flex; align-items: center; gap: 12px; }
 .tender__other .field-label { flex: none; }
 .tender__input { position: relative; flex: 1 1 auto; min-width: 0; display: block; }
 .tender__prefix {
@@ -524,6 +530,20 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
   font-weight: 700;
 }
 .recent__empty { font-size: 17px; color: var(--muted); }
+
+/* ------------------------------------ hotfix H3: small cash counter (v1.3.1)
+   Everything here belongs to the layout below 700px (design/CashCounterSmall
+   .dc.html). At 700px and wider the wrapper is display:contents, so the order
+   panel stays an ordinary flex child of .cash and nothing else is rendered. */
+
+.sheet { display: contents; }
+.sheet__head { display: none; }
+.sheet__backdrop,
+.order-bar,
+.mini-sheet,
+.mini-sheet__backdrop,
+.app-menu,
+.menu-btn { display: none; }
 
 /* ------------------------------------------------------------- kitchen */
 
@@ -1324,6 +1344,9 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
   .modal__title { font-size: 21px; }
   .modal__btn { min-height: 56px; font-size: 18px; }
 
+  /* Cash received: the label and its message share the top row, the five
+     quick buttons the next, and the Other amount box hides behind a link
+     until it is wanted (hotfix H3 4). */
   .tender {
     grid-template-areas:
       'head   status'
@@ -1332,7 +1355,30 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
     gap: 6px 8px;
   }
   .tender__clear { display: none; }
-  .tender__btn { min-height: 48px; font-size: 16px; }
+  .tender__grid { gap: 6px; }
+  .tender__btn { min-height: 44px; padding: 0 2px; font-size: 15px; border-radius: 10px; }
+  .tender__toggle {
+    display: inline-block;
+    align-self: start;
+    min-height: 44px;
+    padding: 0 2px;
+    font-size: 16px;
+  }
+  .tender[data-other='closed'] .tender__other { display: none; }
+  /* The link above the box is the visible label; the real <label> stays for
+     screen readers only, so the words are not printed twice. */
+  .tender__other { gap: 8px; }
+  .tender__other .field-label {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* Keep the revealed box clear of the pinned Send button when it is
+     scrolled into view. */
+  .tender__otherwrap { scroll-margin-bottom: 96px; }
   .tender__input input { height: 48px; font-size: 18px; }
   .tender__prefix { left: 12px; font-size: 18px; }
   .change { justify-self: end; text-align: right; font-size: 16px; }
@@ -1346,8 +1392,146 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
   .landing { padding: 20px 16px 40px; }
   .landing h1 { font-size: 32px; }
 
+  /* ---------------------------------------------------------------------
+     Hotfix H3 (v1.3.1): the small cash counter.
+     design/CashCounterSmall.dc.html. Header on one 52px row, 3-column tiles,
+     an order bar that only appears with items in the cart, and the order
+     panel as a Review & send sheet over the top.
+     --------------------------------------------------------------------- */
+
   body[data-route='/cash'] .app { height: 100vh; height: 100dvh; }
   body[data-route='/cash'] .outlet { overflow: hidden; }
+
+  /* Header: till picker, connection, next order number, ☰. The two groups
+     become display:contents so all four sit on one row in the right order
+     whatever their wrapper. */
+  body[data-route='/cash'] .header {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    height: 52px;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+  }
+  body[data-route='/cash'] .header__left,
+  body[data-route='/cash'] .header__right { display: contents; }
+  body[data-route='/cash'] .header .header__title,
+  body[data-route='/cash'] .header .version-pill,
+  body[data-route='/cash'] .header nav.header__right,
+  body[data-route='/cash'] .header .signout { display: none; }
+
+  body[data-route='/cash'] .till-field {
+    order: 1;
+    gap: 2px;
+    height: 48px;
+    padding: 0 6px 0 10px;
+    border: 1.5px solid #57534E;
+    border-radius: 10px;
+    color: #FFFFFF;
+    font-size: 17px;
+    font-weight: 700;
+  }
+  body[data-route='/cash'] .till-field label {
+    position: static;
+    width: auto;
+    height: auto;
+    clip: auto;
+  }
+  body[data-route='/cash'] .till-field select {
+    height: 44px;
+    min-width: 44px;
+    padding: 0 2px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 18px;
+    font-weight: 800;
+  }
+  body[data-route='/cash'] .pill {
+    order: 2;
+    min-height: 0;
+    padding: 0;
+    gap: 6px;
+    background: transparent;
+    color: var(--stone-300);
+    font-size: 14px;
+  }
+  body[data-route='/cash'] .pill--offline { background: transparent; }
+  body[data-route='/cash'] .pill__dot { width: 9px; height: 9px; }
+  body[data-route='/cash'] .pill__suffix { display: none; }
+  body[data-route='/cash'] .header__sub {
+    order: 3;
+    margin-left: auto;
+    font-size: 14px;
+    white-space: nowrap;
+    color: var(--stone-300);
+  }
+  .menu-btn {
+    order: 4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1.5px solid #57534E;
+    border-radius: 10px;
+    background: transparent;
+    color: #FFFFFF;
+  }
+
+  /* ☰ dropdown: Food counter, Reports, Recent orders, Sign out, version. */
+  .app-menu {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 56px;
+    right: 10px;
+    z-index: 48;
+    width: 220px;
+    max-width: calc(100vw - 20px);
+    padding: 8px;
+    border-radius: 14px;
+    background: var(--card);
+    box-shadow: 0 8px 24px rgba(28, 25, 23, 0.2);
+  }
+  .app-menu[hidden] { display: none; }
+  .app-menu__item {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ink);
+    font-size: 17px;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+  }
+  .app-menu__item:hover { background: var(--page); }
+  .app-menu__item--danger { color: #B5050F; }
+  .app-menu__version {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 6px 12px 4px;
+    font-size: 12px;
+    color: var(--stone-500);
+  }
+  /* The borrowed header pill reads as plain text in the menu. */
+  .app-menu__version .version-pill {
+    flex: none;
+    width: auto;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--stone-500);
+  }
+  .app-menu__build { font-size: 12px; line-height: 16px; color: var(--stone-500); }
 
   .cash {
     flex-direction: column;
@@ -1357,68 +1541,218 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
     flex: 1 1 auto;
     min-height: 0;
   }
-  /* Hotfix H1: the till has 8 tiles, so the tile area always scrolls on a
-     phone. It keeps at least one full tile row visible with the next row
-     peeking, so no tile ever ends up hidden behind the order bar. */
+  /* The tile area owns the whole screen under the header. Bottom padding
+     keeps the last row clear of the order bar (H3 2). */
   .cash__scroll {
-    /* flex-basis 0: the order sheet is sized by its own content first, the
-       tile area takes what is left (never less than one full row). */
-    flex: 1 1 0;
-    min-height: min(190px, 26dvh);
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 12px 16px;
-    gap: 14px;
+    padding: 10px 10px calc(96px + env(safe-area-inset-bottom));
+    gap: 12px;
   }
   .tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
     width: 100%;
   }
-  .tile { min-height: 132px; padding: 10px 8px; border-radius: 18px; border-width: 3px; gap: 6px; }
-  .tile__name { font-size: 15px; line-height: 18px; }
-  .tile__price { font-size: 15px; }
-  .tile__qty { top: 8px; right: 8px; min-width: 36px; height: 36px; font-size: 19px; }
+  .tile {
+    min-height: 112px;
+    height: 112px;
+    padding: 8px 4px;
+    border-radius: 16px;
+    border-width: 3px;
+    gap: 6px;
+  }
+  .tile .icon { width: 40px; height: 40px; }
+  /* The full name stays in the accessible name; the short name is what the
+     volunteer reads (H3 2). */
+  .tile__name {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .tile__short { display: block; font-size: 14px; line-height: 16px; font-weight: 700; }
+  .tile__price { display: none; }
+  .tile__qty { top: 6px; right: 6px; min-width: 30px; height: 30px; font-size: 16px; }
+
+  /* Order bar: hidden while the cart is empty (H3 3). */
+  .order-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -4px 16px rgba(28, 25, 23, 0.1);
+  }
+  .order-bar[hidden] { display: none; }
+  .order-bar__btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 60px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 14px;
+    background: var(--teal);
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .order-bar__cta { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Review & send sheet (H3 4). */
+  .sheet__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(28, 25, 23, 0.45);
+  }
+  .sheet__backdrop[hidden] { display: none; }
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 40px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: var(--card);
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+    animation: sheet-up 180ms ease-out;
+  }
+  .sheet:focus { outline: none; }
+  .cash[data-sheet='closed'] .sheet { display: none; }
+
+  .sheet__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 -16px;
+    padding: 10px 12px 6px 16px;
+    background: var(--card);
+  }
+  .sheet__title { font-family: var(--font-head); font-weight: 800; font-size: 22px; }
+  .sheet__more {
+    flex: none;
+    height: 44px;
+    padding: 0 12px;
+    border: 2px solid var(--stone-300);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 15px;
+    font-weight: 700;
+  }
 
   .panel {
+    flex: 1 1 auto;
     width: 100%;
-    /* Shrinkable (it scrolls inside) so the tile area above always keeps its
-       minimum height: the bar can never grow over the last tile row. */
-    flex: 0 1 auto;
-    border-radius: 18px 18px 0 0;
-    padding: 14px 16px 0;
-    gap: 10px;
-    border-top: 1px solid var(--line);
-    box-shadow: 0 -4px 16px rgba(28, 25, 23, 0.08);
-    max-height: 62dvh;
+    min-height: 0;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    padding: 0 16px;
+    gap: 12px;
+    box-shadow: none;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
+  /* Send stays pinned under the scrolling body, always visible (H3 4). */
   .panel__foot {
     position: sticky;
     bottom: 0;
     z-index: 2;
     gap: 6px;
-    padding: 8px 0 14px;
+    margin: 0 -16px;
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
     background: var(--card);
   }
-  /* The line list is the part of the sheet that scrolls, so Total, payment,
-     Cash received and Send stay on screen however long the order is. */
-  .lines {
-    flex: 1 1 auto;
-    min-height: 56px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    gap: 8px;
-  }
+  /* Clear order is not part of the sheet: emptying the cart closes it. */
+  .panel__foot .link-btn { display: none; }
+
+  .lines { min-height: 0; gap: 6px; }
   .lines__empty { padding: 12px 0; }
-  .total-row { padding-top: 10px; }
-  .tender__grid { gap: 8px; }
-  .total-row__value { font-size: 34px; }
-  .field input[type='text'] { height: 52px; font-size: 21px; }
-  .send-btn { min-height: 72px; font-size: 21px; }
-  .recent { padding: 0 0 8px; }
+  /* The H2 aligned grid at the sheet's 48px stepper size (H3 4). */
+  .line { grid-template-columns: minmax(0, 1fr) 48px 28px 48px 54px; column-gap: 6px; }
+  .line__name { font-size: 16px; line-height: 19px; }
+  .line__qty { font-size: 20px; }
+  .line__amount { font-size: 16px; }
+  .stepper { width: 48px; height: 48px; border-radius: 12px; font-size: 24px; }
+
+  .total-row { padding-top: 8px; }
+  .total-row__label { font-size: 18px; }
+  .total-row__value { font-size: 32px; }
+  .pay-group { gap: 8px; }
+  .pay-btn { height: 48px; border-radius: 12px; font-size: 18px; }
+  .field input[type='text'] { height: 48px; font-size: 20px; border-radius: 12px; }
+  .send-btn { min-height: 60px; height: 60px; border-radius: 14px; font-size: 20px; }
+
+  /* Recent orders: ☰ → Recent orders opens them in their own small sheet
+     (H3 6), so the till screen itself is just tiles. */
+  .mini-sheet__backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(28, 25, 23, 0.45);
+  }
+  .mini-sheet__backdrop[hidden] { display: none; }
+  .mini-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 46;
+    max-height: 70dvh;
+    padding: 0 16px calc(14px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    background: var(--card);
+    animation: sheet-up 180ms ease-out;
+  }
+  .mini-sheet[hidden] { display: none; }
+  .mini-sheet:focus { outline: none; }
+  .mini-sheet__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0 8px;
+  }
+  .mini-sheet__title { font-size: 20px; }
+  .mini-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
+  .mini-sheet .recent { flex-direction: column; align-items: stretch; padding: 0; gap: 8px; }
+  .mini-sheet .recent__label { display: none; }
+  .mini-sheet .recent__items { flex-direction: column; align-items: stretch; gap: 8px; }
+  .mini-sheet .recent__item { justify-content: space-between; border-radius: 14px; }
+
+  /* A fade, not a slide: a moving box would report a moving position to
+     anything measuring the sheet the moment it opens. */
+  @keyframes sheet-up {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sheet, .mini-sheet { animation: none; }
+  }
 
   .header__slot--stations {
     flex-wrap: nowrap;

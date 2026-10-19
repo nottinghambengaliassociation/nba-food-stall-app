@@ -53,7 +53,12 @@ const BRIEF = {
   straw: { name: 'Chocolate Strawberry & Marshmallow (V)', short: 'Choc Strawberry', station: 'sweets', active: false, sort: 91 }
 };
 
-test.skip(!process.env.LIVE_H1, 'set LIVE_H1=1 to run the read-only H1 live verification (after deploy + menu-sync)');
+// SUPERSEDED by hotfix H3 (v1.3.1): CLAUDE.md -> Hotfix H3 7 resets the live
+// database and makes the menu exactly seven documents, deleting `samosa`,
+// `straw` and `fountain`. The ten-document expectations below describe the
+// 19 Oct state and are kept only as the record of that run; the current live
+// menu is checked by tests/e2e/live-smoke.spec.js and cash-h3.spec.js.
+test.skip(!process.env.LIVE_H1, 'set LIVE_H1=1 to replay the H1 live verification (superseded by H3)');
 test.describe.configure({ mode: 'serial' });
 
 /** Append one line to qa/live-smoke-record.txt. Public file: values must be safe. */

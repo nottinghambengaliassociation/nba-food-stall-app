@@ -68,7 +68,13 @@ Never create the repo under any other owner.
 
 Write `scripts/menu-sync.mjs` per CLAUDE.md "Hotfix H1". Run it against the emulator for Morpheus first. After the hotfix deploy is green, run it once against the live project (config from the gitignored `public/js/firebase-config.js`) and record what it created, retired or reported in HANDOVER.md. It never deletes and never overwrites a value that differs.
 
-## Phase IV
+## Hotfix H3
+
+1. Set `package.json` `version` to `1.3.1` before committing.
+2. Write `scripts/reset-live.mjs` per CLAUDE.md H3 point 7 (backup → delete all orders → menu exactly the 7-item table → settings untouched; `--yes` required). Confirm `.secrets/` is gitignored. Run it against the emulator for Morpheus first. Drop the H1 whitelist from `menu-sync.mjs`.
+3. After the H3 deploy is green: run `node scripts/reset-live.mjs` (plan only), then `node scripts/reset-live.mjs --yes` against live. The user has approved this reset: the system is not in use and holds no real orders. Record the backup file name and the counts (orders deleted, menu documents written and deleted) in HANDOVER.md. If it can't write to live, put the console steps under "Needs you".
+
+## Phase IV (done)
 
 Set `package.json` `version` to `1.3.0` before committing. Nothing else changes for the platform.
 

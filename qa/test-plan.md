@@ -1308,3 +1308,166 @@ Run on 2026-10-19 against deploy `064f0a8`. **23/23 passed, 1 skipped (phone CSV
 
 ### P4L screenshots
 `qa/screenshots/live-p4-<project>-<screen>.png` for both projects: `login-version`, `landing`, `cash`, `kitchen`, `reports`, `reports-days`, `reports-orders`, `reports-orders-detail`, `header-version`, `signed-out` — 20 files.
+
+---
+
+# Hotfix H3 — phone cash counter layout and the seven-item menu (v1.3.1)
+
+Spec: `CLAUDE.md` → "Hotfix H3: phone cash counter layout (v1.3.1)" 1–8 and the
+revised "Menu" table ("This is the whole menu from v1.3.1: 7 items").
+Mock-ups: `design/CashCounterSmall.dc.html` (menu and order bar, iPhone 13),
+`design/CashCounterSmallOpen.dc.html` (Review & send sheet),
+`design/CashCounterSmall17.dc.html` (iPhone 17, 402×694). The second and third
+render the same component at different props, so the first is the one with the
+detail.
+
+**Scope of the change.** The cash counter is rebuilt on *every screen narrower
+than 700 px*, not only on the `phone` project. Tablet and desktop (700 px and
+wider) are unchanged. No data change beyond the menu.
+
+## 36. H3 viewports and how the suite is split
+
+Three Playwright projects are added, all chromium, `hasTouch`, `isMobile`,
+`deviceScaleFactor: 2`:
+
+| Project | Viewport | Why |
+|---|---|---|
+| `iphone13` | 390×664 | the visible area named in the brief |
+| `iphone17` | 402×694 | the visible area named in the brief |
+| `promax` | 430×752 | iPhone Pro Max 430×932 less the same 180 px of Safari chrome that gives 664 from 844 and 694 from 874 |
+
+They are scoped with `testMatch: /cash-h3\.spec\.js/` and run **that spec only**.
+The e2e suite is already ~286 cases; running all of it three more times would
+make the fix loop unusable, and every assertion that actually depends on the
+small-screen geometry lives in `cash-h3.spec.js`. `phone` (390×844) is also
+below the 700 px breakpoint, so the rest of the suite still exercises the H3
+layout once per run. `phone` and `tablet` are otherwise untouched.
+
+`cash-h3.spec.js` splits itself by viewport rather than by project name: the
+`H3 the small cash counter` block skips at 700 px and wider, and the
+`H3-h the tablet cash counter is unchanged` block skips below it. So `tablet`
+runs only the tablet block, and the four small projects only the H3 block.
+
+## 37. H3 unit cases — `public/js/logic.js`, `public/js/icons.js` (`H-01`..`H-06`, `tests/unit/menu.test.js`)
+
+| id | Case | Expected |
+|---|---|---|
+| H-01 | `MENU` is the brief table | Exactly 7 rows, field for field: id, name, short, price 500, colour, station, `active: true`, sort. `marshmallow` reads "Chocolate Marshmallow (V)" / "Choc Marshmallow". No `fountain`, `samosa` or `straw` anywhere in the seed |
+| H-02 | Seven active, sorts 1..7 | Every row is active — H3 removes the retired rows from the seed entirely. Sorts 1..7, no gaps. `ACTIVE_MENU` holds the same seven, in sort order |
+| H-03 | `stationOf` | The four sweets ids resolve to `sweets`, fuchka/chat to `chaat`, momo to `momo`. A deleted id (`samosa`, `straw`, `fountain`) is now simply **unknown** — falsy, never throwing. `inStation(unknown, 'all')` is true; `inStation(unknown, <any station>)` is false |
+| H-04 | Icons | Every one of the seven ids has its own stroke SVG, never the plate fallback; an unknown id (and `''`, `null`, `undefined`) gets the plate icon and never throws; no emoji; `itemIcon(id, 32)` honours the size |
+| H-05 | `buildReport` over a mixed day | Old ids and new ids stay separate rows. An older `samosa` line reports as "Sweets Box Samosa / Shingara", a `fountain` line as "Chocolate Fountain", `samosa_only` as "Samosa", `marshmallow` as "Chocolate Marshmallow (V)". Totals: £60.00, 4 orders, 12 items; per-item revenue and units sum to the totals |
+| H-05b | Unknown-id fallback | `lineShortName` / `lineFullName` return the name stored on the line for any id the menu doesn't hold; a known id still uses the menu wording ("Choc Marshmallow" short, "Chocolate Marshmallow (V)" full); a line with neither degrades to the id, never to a crash |
+| H-06 | `ordersToCsv` | The thirteen Phase I columns unchanged, one row per line, older lines under their stored names, current lines under their current names, nothing rewritten |
+
+## 38. H3 end-to-end cases — `tests/e2e/cash-h3.spec.js`
+
+Run on `phone`, `iphone13`, `iphone17` and `promax` unless noted.
+
+| id | Case | Expected |
+|---|---|---|
+| H3-a1 | Header geometry | One row, at most 56 px tall and within 6 px of 52; every visible child inside the header band (nothing wrapped onto a second line); nothing spills past the right edge. At 390, 402 and 430 wide |
+| H3-a2 | Header contents | Till picker (`till-select`) in the header reading "Till A"; `conn-pill` reads "Online" in a short label (≤ 22 characters); "Next A-0NN"; ☰ `menu-button` at least 44×44 with `aria-expanded="false"` |
+| H3-a3 | Till picker ↔ landing page | Setting the till to B on the landing page shows "B" in the cash header and "Next B-001"; changing it to C in the header stores the letter and the landing page shows C |
+| H3-a4 | Next order number | A fresh till advertises "Next A-001"; after sending A-001 it reads A-002, then A-003 |
+| H3-a5 | ☰ menu contents | Opens on tap, `aria-expanded` flips to true, lists Food counter, Reports, Recent orders, Sign out (red) and a version line; every item at least 48 px tall |
+| H3-a6 | ☰ menu closing | Closes on an outside tap, on Escape and on choosing an item; `aria-expanded` returns to false |
+| H3-a7 | ☰ menu destinations | Food counter → `#/kitchen`; Reports → `#/reports…`; Recent orders → the `recent-sheet` |
+| H3-a8 | Sign out with a cart | The in-page `sign-out-confirm` appears, **never `window.confirm`**; Cancel keeps the order and the session; confirming clears `nba.session` and goes to `#/login` |
+| H3-b1 | Seven tiles, three columns | Exactly the seven ids in sort order, none of `fountain`/`samosa`/`straw`; three distinct left edges; with an empty cart every tile is fully inside the viewport **and the menu area's `scrollHeight` fits its `clientHeight`**; tiles within 16 px of 112 tall, icons within 6 px of 40 |
+| H3-b2 | Tapping and the order bar | A tap adds one and badges the tile top right; with the bar up every tile can be scrolled into view and `elementFromPoint` at its centre is the tile; a real coordinate tap on the last tile adds one |
+| H3-c | Order bar | Hidden with an empty cart; with items it reads "<n> items · £x.xx  Review & send", is within 4 px of 60 tall and sits at the bottom of the viewport; emptying the cart hides it again |
+| H3-d1 | The sheet | `role="dialog"`, top within 4 px of 40, reaching the bottom; a dimmed full-screen backdrop behind it; header "Order · <n> items"; the order bar is not competing with it |
+| H3-d2 | Closing the sheet | Add more, Escape and the browser Back button each close it; Back leaves the route at `#/cash` and keeps the cart |
+| H3-d3 | Focus | Focus is inside the sheet after opening and back on `order-bar-open` after closing |
+| H3-d4 | Last item | Stepping the last line to zero closes the sheet and hides the order bar |
+| H3-d5 | Cart grid | With all seven items in the cart every `line-dec-*` shares one left x and every `line-inc-*` shares one left x (±1 px); no `.line__name` overflows; no row is wider than its column; steppers at least 48×48 |
+| H3-d6 | Pinned footer | With all seven items in the cart the Send button is fully inside the viewport, uncovered, within 4 px of 60 tall, reads "Send to food counter · £35.00", and stays put when the sheet body is scrolled to the bottom. At all three H3 viewports |
+| H3-d7 | Sheet body | Name input at least 48 px; total; Cash/Card both at least 48 px with `aria-pressed` |
+| H3-e | Cash received in the sheet | "Cash received (optional)"; five quick buttons Exact/£5/£10/£20/£50, each at least 44 px; £20 on £15 → "Change £5.00"; £10 → "Short £5.00"; tapping the selected button deselects it; the **Other amount link** reveals the box (`inputmode="decimal"`), which parses `17.50`, `17.5`, `£17.50`, `17`, `1,000`, shows "Short £3.00" for `12` and "Check amount" for `abc`; Card hides the block |
+| H3-f | Send | Writes the order, toasts the number, closes the sheet, clears the cart, toast on screen and gone within 4 s; the document carries no `tendered` and no `changeGiven` |
+| H3-g | Recent orders | No recent strip on the small menu screen; ☰ → Recent orders opens `recent-sheet` with the last five, live status, and Cancel while New working |
+| H3-i1 | 360 px | No horizontal scroll with an empty cart, a full cart with the bar up, or the sheet open |
+| H3-i2 | Axe | Zero serious or critical violations with the cart empty, the ☰ menu open, the order bar up, the review sheet open and the recent sheet open |
+| H3-j | Menu rename | The tile reads "Choc Marshmallow"; the cart names the renamed item and never the old "Marshmallow (V)"; the saved order line stores "Chocolate Marshmallow (V)"; the `menu` collection holds exactly the seven ids |
+| H3-h | **Tablet unchanged** (1280×800 only) | The order panel is always open with an empty cart, Send is disabled and at least 72 px, none of `order-bar`, `order-bar-open`, `review-sheet`, `sheet-add-more`, `menu-button`, `app-menu`, `recent-sheet` is visible, steppers stay 52×52, and the recent strip stays on the screen |
+
+Menu-wide coverage that is not viewport specific stays in `tests/e2e/menu-h1.spec.js`
+(`H-07`..`H-17`), rewritten for the seven-item menu: the seed writes seven
+documents matching the table, the till shows seven tiles in sort order, every
+tile is tappable with the order bar up, no horizontal scroll at 360 px, an order
+carrying a deleted id still renders on the kitchen board with its stored name
+and the plate icon and still moves through the flow, the station filter greys by
+station (an unknown id belongs to none), the reports and the CSV keep old and
+new names apart, nothing is migrated, and a new order is written with the
+current ids and names.
+
+## 39. H3 screenshots
+
+`qa/screenshots/<project>-cash-h3-empty.png`, `-cash-h3-bar.png` and
+`-cash-h3-sheet.png` for `phone`, `iphone13`, `iphone17` and `promax`: the cash
+counter with an empty cart, with the cart filled and the order bar showing, and
+with the Review & send sheet open on Cash. The standard `screenshots.spec.js`
+run adds `<project>-cash-orders.png` and `<project>-cash-sheet.png` below 700 px.
+
+## 40. H3 deliberate readings of the brief
+
+1. **390×844 is a small screen too.** The brief says "every screen narrower than
+   700 px", so the existing `phone` project gets the new layout. The phone paths
+   in `cash.spec.js`, `tender.spec.js`, `cart-align-h2.spec.js`,
+   `offline.spec.js`, `crosscutting.spec.js`, `screenshots.spec.js`,
+   `version.spec.js` and `live-smoke.spec.js` were updated to go through the
+   order bar and the sheet. These are test updates to match a deliberate spec
+   change, not bug fixes.
+2. **Send is 60 px in the sheet, 72 px on tablet.** CLAUDE.md Cash 4 asks for
+   "at least 72 px"; H3 4 pins a 60 px footer button for the sheet. The more
+   specific instruction wins below 700 px, as it does for the steppers (52 px
+   on tablet, 48 px in the sheet) and the quick cash buttons (54 / 44).
+3. **"Disabled when empty" becomes "hidden when empty".** There is no Send
+   button at all on the small screen with an empty cart: the order bar, the only
+   route to it, is hidden (H3 3). That is this layout's form of Cash 4.
+4. **No price on the small tile.** CLAUDE.md Cash 1 puts "£5" on the tile; H3 2
+   and the mock-up draw the small tile as icon plus `short` name only. The £5
+   assertion therefore applies at 700 px and wider.
+5. **The till picker is 40 px.** The Design rule is 48 px touch targets, but the
+   mock-up draws the header till control at 40 px inside a 52 px header, and the
+   brief itself sets the ☰ at 44 px. X-02 allows 44 px for ☰ and 40 px for the
+   till picker **in the small cash header only**.
+6. **The version label moves into ☰.** CLAUDE.md Phase III part 2, 5 puts a
+   version label in every dark header; H3 1 lists "the version line" as part of
+   the ☰ dropdown and gives the header a fixed one-row 52 px budget. On the
+   small cash counter V-03 and V-05 read the label inside the ☰ menu; every
+   other route is unchanged.
+7. **Cart naming.** H3 7 renames the item; the brief does not say whether the
+   cart line uses the full or the short name. The test asserts the cart names
+   the renamed item and never the old "Marshmallow (V)", and pins the hard
+   facts elsewhere: the tile shows "Choc Marshmallow", the saved order line and
+   the one-day report and CSV show "Chocolate Marshmallow (V)". The Orders list
+   Items column keeps using `short` names, per Phase IV 5.
+8. **An unknown id belongs to no station.** With the retired-id special cases
+   removed (H3 7), `stationOf('samosa')` is falsy, so such a line is greyed
+   under every specific station filter and shown under All. It is never hidden
+   (Food counter 4).
+9. **`tests/e2e/live-h1.spec.js` is superseded.** Its ten-document live menu
+   assertions describe the 19 Oct state that H3's reset replaces. It stays
+   gated behind `LIVE_H1=1` as the record of that run; the current live menu is
+   checked by `live-smoke.spec.js`.
+
+## 41. H3-l `scripts/reset-live.mjs` against the emulator
+
+Run by hand against the Firestore emulator (`node scripts/reset-live.mjs
+--emulator [--yes]`), never against the live project — Trinity runs it there
+once, after the H3 deploy. Spec: `CLAUDE.md` → Hotfix H3 7.
+
+Fixture: 2 orders, a `menu` holding `fountain`, `samosa`, `straw` and a
+hand-edited `fuchka` at 600p, and a `settings/event` document.
+
+| Case | Expected |
+|---|---|
+| H3-l-1 without `--yes` | Prints the plan — counts per collection, the order ids it would delete, the 7 menu ids it would write, the 3 it would delete, "settings … left exactly as they are" — and changes nothing. Orders still 2, menu still the 4 seeded ids, no backup file written |
+| H3-l-2 with `--yes` | Backup written **first** (`.secrets/backups/emulator-<timestamp>.json`, gitignored), then `orders` emptied, then `menu` made exactly the 7 documents with the right fields (`marshmallow` = "Chocolate Marshmallow (V)" / "Choc Marshmallow" / 500 / sort 7), the hand-edited price put back to 500 ("write all 7 documents in full"), `fountain`/`samosa`/`straw` deleted, `settings/event` untouched |
+| H3-l-3 second run | Harmless: 0 orders deleted, the same 7 menu documents rewritten, 0 deleted, settings untouched |
+| H3-l-4 failed backup | With the backup directory unwritable the run stops at the backup step (`EACCES`, "Nothing further was changed.", exit 1) **before any delete**; the seeded order is still there afterwards |
+| H3-l-5 output hygiene | Counts and document ids only — no document contents, no config value, no secret |
+
+**Result (19 Oct 2026): all five pass.**

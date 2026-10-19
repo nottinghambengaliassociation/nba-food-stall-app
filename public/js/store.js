@@ -148,7 +148,7 @@ function setQueued(n) {
 
 /* ----------------------------------------------------------------- menu */
 
-/** Write the seed items (including the retired ones) if the menu collection is empty. Safe to call repeatedly. */
+/** Write the seed items if the menu collection is empty. Safe to call repeatedly. */
 export async function seedMenuIfEmpty() {
   if (!isReady()) return false;
   const snap = await getDocs(collection(db, 'menu'));

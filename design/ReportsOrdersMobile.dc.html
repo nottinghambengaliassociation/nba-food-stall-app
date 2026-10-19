@@ -97,12 +97,12 @@ class Component extends DCLogic {
     this.state = { view: 'list', sel: null, status: 'all', q: '' };
   }
   renderVals() {
-    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow (V)', fountain: 'Choc Fountain' };
-    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow', fountain: 'Choc Fountain' };
+    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Chocolate Marshmallow (V)' };
+    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow' };
     const RAW = [
       ['A-044', '15:08', 'Guest', 'A', 'card', 'cancelled', { samosa_only: 2 }, [null, null, null]],
       ['B-019', '15:07', 'Ahmed', 'B', 'cash', 'new', { momo: 2, chat: 1 }, [null, null, null]],
-      ['A-043', '15:06', 'Meera', 'A', 'cash', 'preparing', { fountain: 1, sweet_box: 1 }, [2, null, null]],
+      ['A-043', '15:06', 'Meera', 'A', 'cash', 'preparing', { chat: 1, sweet_box: 1 }, [2, null, null]],
       ['A-042', '15:05', 'Sam', 'A', 'card', 'ready', { fuchka: 1, choc_strawberry: 1 }, [1, 4, null]],
       ['B-018', '15:03', 'Josh', 'B', 'card', 'collected', { chat: 1, marshmallow: 2 }, [1, 5, 2]],
       ['A-041', '15:02', 'Priya', 'A', 'cash', 'collected', { fuchka: 2, momo: 1 }, [1, 4, 1]],

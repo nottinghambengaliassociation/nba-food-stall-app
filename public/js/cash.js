@@ -8,8 +8,14 @@ import {
   dayString, nextOrderNo
 } from './logic.js';
 import { watchMenu, watchOrders, createOrder, cancelOrder, isReady } from './store.js';
+import { clearSession, openSignOutConfirm } from './login.js';
+import { href } from './router.js';
+import { loadVersion } from './app-version.js';
 
 const TOAST_MS = 4000;
+
+const MENU_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>`;
+const CHEVRON_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"></path></svg>`;
 
 const STATUS_LABEL = {
   new: 'New',
@@ -29,12 +35,23 @@ export function mountCash(outlet, ctx) {
     quick: null,
     other: '',
     orders: [],
-    toastTimer: null
+    toastTimer: null,
+    // Hotfix H3: small-screen chrome. The sheet, the ☰ menu and the recent
+    // orders sheet only exist below 700px; above it these stay false and the
+    // tablet panel is simply always on screen.
+    sheet: false,
+    appMenu: false,
+    recent: false,
+    // The phone sheet hides the Other amount box behind a link.
+    otherOpen: false
   };
 
   const phone = typeof window.matchMedia === 'function'
     ? window.matchMedia('(max-width: 699px)')
     : { matches: false, addEventListener: null };
+
+  /** True while the H3 small-screen cash layout is the one on screen. */
+  const isSmall = () => phone.matches === true;
 
   /* ---------------------------------------------------------- structure */
 
@@ -119,6 +136,30 @@ export function mountCash(outlet, ctx) {
     dataset: { state: 'empty' }
   });
 
+  // Phone only (hotfix H3 4): the Other amount box starts folded away behind
+  // this link, so the five quick buttons and Send both fit in the sheet.
+  const otherToggle = el('button', {
+    type: 'button',
+    class: 'link-btn tender__toggle',
+    testid: 'tender-other-toggle',
+    text: 'Other amount',
+    'aria-expanded': 'false',
+    'aria-controls': 'tender-other',
+    onclick: () => {
+      state.otherOpen = !state.otherOpen;
+      update();
+      if (state.otherOpen) otherInput.focus();
+    }
+  });
+
+  const otherRow = el('div', { class: 'tender__other' }, [
+    el('label', { class: 'field-label', for: 'tender-other', text: 'Other amount' }),
+    el('span', { class: 'tender__input' }, [
+      el('span', { class: 'tender__prefix', 'aria-hidden': 'true', text: '£' }),
+      otherInput
+    ])
+  ]);
+
   const tenderBlock = el('div', { class: 'tender' }, [
     el('div', { class: 'tender__head' }, [
       el('span', { class: 'field-label' }, [
@@ -128,13 +169,9 @@ export function mountCash(outlet, ctx) {
       clearTender
     ]),
     el('div', { class: 'tender__grid', role: 'group', 'aria-label': 'Quick cash amounts' }, tenderButtons),
-    el('div', { class: 'tender__other' }, [
-      el('label', { class: 'field-label', for: 'tender-other', text: 'Other amount' }),
-      el('span', { class: 'tender__input' }, [
-        el('span', { class: 'tender__prefix', 'aria-hidden': 'true', text: '£' }),
-        otherInput
-      ])
-    ]),
+    // One wrapper so the phone link and the box share a grid row; on tablet
+    // the link is display:none and this looks exactly as it did before.
+    el('div', { class: 'tender__otherwrap' }, [otherToggle, otherRow]),
     changeValue
   ]);
 
@@ -155,7 +192,25 @@ export function mountCash(outlet, ctx) {
     onclick: () => { resetOrder(); update(); }
   });
 
+  // Send and Clear ride together so the phone sheet can pin them to its
+  // bottom edge.
+  const panelFoot = el('div', { class: 'panel__foot' }, [sendButton, clearButton]);
+
+  // Sheet header (phone only): "Order · 3 items" and the Add more button that
+  // closes the sheet and puts the tiles back (hotfix H3 4).
+  const sheetCount = el('span', { class: 'sheet__title', text: 'Order' });
+  const addMore = el('button', {
+    type: 'button',
+    class: 'sheet__more',
+    testid: 'sheet-add-more',
+    text: 'Add more',
+    'aria-label': 'Add more items',
+    onclick: () => closeSheet()
+  });
+  const sheetHead = el('div', { class: 'sheet__head' }, [sheetCount, addMore]);
+
   const panel = el('aside', { class: 'panel', 'aria-label': 'Current order' }, [
+    sheetHead,
     toast,
     el('div', { class: 'field' }, [
       el('label', { class: 'field-label', for: 'customer-name', text: 'Name to call out' }),
@@ -168,9 +223,7 @@ export function mountCash(outlet, ctx) {
     ]),
     el('div', { class: 'pay-group', role: 'group', 'aria-label': 'Payment method' }, [payCash, payCard]),
     tenderBlock,
-    // Send + Clear ride together in a footer so the phone sheet can pin them
-    // to its bottom edge (hotfix H1: 8 tiles leave the sheet shorter).
-    el('div', { class: 'panel__foot' }, [sendButton, clearButton])
+    panelFoot
   ]);
 
   const recentList = el('div', { class: 'recent__items', testid: 'recent-list' });
@@ -179,9 +232,110 @@ export function mountCash(outlet, ctx) {
     recentList
   ]);
 
+  /* ------------------------------------------- hotfix H3: phone chrome */
+
+  // The order panel becomes a bottom sheet below 700px. The wrapper is
+  // display:contents on tablet (the panel stays a plain flex child there), so
+  // it only carries the review-sheet test id below 700px, where it is a box.
+  const sheet = el('div', { class: 'sheet' }, [panel]);
+  const backdrop = el('div', {
+    class: 'sheet__backdrop',
+    onclick: () => closeSheet()
+  });
+
+  const barLabel = el('span', { class: 'order-bar__count', text: '0 items · £0.00' });
+  const orderBarButton = el('button', {
+    type: 'button',
+    class: 'order-bar__btn',
+    testid: 'order-bar-open',
+    onclick: () => openSheet()
+  }, [
+    barLabel,
+    el('span', { class: 'order-bar__cta' }, [
+      document.createTextNode('Review & send'),
+      svgNode(CHEVRON_ICON)
+    ])
+  ]);
+  const orderBar = el('div', { class: 'order-bar', testid: 'order-bar' }, [orderBarButton]);
+  orderBar.hidden = true;
+
+  // Recent orders move off the phone screen into ☰ → Recent orders (H3 6).
+  const recentSheet = el('div', { class: 'mini-sheet', testid: 'recent-sheet', role: 'dialog', 'aria-label': 'Recent orders' }, [
+    el('div', { class: 'mini-sheet__head' }, [
+      el('h2', { class: 'mini-sheet__title', text: 'Recent orders' }),
+      el('button', {
+        type: 'button',
+        class: 'sheet__more',
+        testid: 'recent-close',
+        text: 'Close',
+        onclick: () => closeRecent()
+      })
+    ]),
+    el('div', { class: 'mini-sheet__body', testid: 'recent-sheet-body' })
+  ]);
+  recentSheet.hidden = true;
+  const recentSheetBody = recentSheet.querySelector('.mini-sheet__body');
+
+  const recentBackdrop = el('div', { class: 'mini-sheet__backdrop', onclick: () => closeRecent() });
+  recentBackdrop.hidden = true;
+
   const scroller = el('div', { class: 'cash__scroll' }, [tilesSection, recentSection]);
-  const main = el('main', { class: 'cash' }, [scroller, panel]);
+  const main = el('main', { class: 'cash' }, [
+    scroller, backdrop, sheet, orderBar, recentBackdrop, recentSheet
+  ]);
+  main.dataset.sheet = 'closed';
   outlet.appendChild(main);
+
+  /* ---------------------------------------- hotfix H3: header and ☰ menu */
+
+  const menuButton = el('button', {
+    type: 'button',
+    class: 'menu-btn',
+    testid: 'menu-button',
+    'aria-label': 'Menu',
+    'aria-expanded': 'false',
+    'aria-haspopup': 'true',
+    onclick: () => { state.appMenu ? closeAppMenu() : openAppMenu(); }
+  }, [svgNode(MENU_ICON)]);
+
+  // The ☰ menu ends with the version line (H3 1). It borrows the header's own
+  // version pill rather than printing a second one, so there is one version
+  // label on the screen wherever it is standing.
+  const menuBuild = el('span', { class: 'app-menu__build', text: '· build dev' });
+  loadVersion().then((v) => { menuBuild.textContent = `· build ${v.build}`; });
+  const menuVersion = el('div', { class: 'app-menu__version', testid: 'menu-version' }, [menuBuild]);
+
+  const versionPill = ctx.headerVersion || null;
+  const versionHome = versionPill
+    ? { parent: versionPill.parentNode, next: versionPill.nextSibling }
+    : null;
+
+  function placeVersion(small) {
+    if (!versionPill) return;
+    if (small) {
+      if (versionPill.parentNode !== menuVersion) menuVersion.insertBefore(versionPill, menuBuild);
+    } else if (versionHome && versionHome.parent && versionPill.parentNode !== versionHome.parent) {
+      versionHome.parent.insertBefore(versionPill, versionHome.next);
+    }
+  }
+
+  const appMenu = el('nav', { class: 'app-menu', testid: 'app-menu', 'aria-label': 'App menu' }, [
+    el('a', { class: 'app-menu__item', testid: 'menu-food', href: href('/kitchen'), text: 'Food counter', onclick: () => closeAppMenu() }),
+    el('a', { class: 'app-menu__item', testid: 'menu-reports', href: href('/reports'), text: 'Reports', onclick: () => closeAppMenu() }),
+    el('button', {
+      type: 'button', class: 'app-menu__item', testid: 'menu-recent', text: 'Recent orders',
+      onclick: () => { closeAppMenu(); openRecent(); }
+    }),
+    el('button', {
+      type: 'button', class: 'app-menu__item app-menu__item--danger', testid: 'menu-signout', text: 'Sign out',
+      onclick: () => { closeAppMenu(); signOut(); }
+    }),
+    menuVersion
+  ]);
+  appMenu.hidden = true;
+
+  if (ctx.headerRight) ctx.headerRight.appendChild(menuButton);
+  document.body.appendChild(appMenu);
 
   /* -------------------------------------------------------------- state */
 
@@ -199,10 +353,17 @@ export function mountCash(outlet, ctx) {
       .map((m) => ({ id: m.id, name: m.name, qty: qtyOf(m.id), price: m.price }));
   }
 
+  /** The menu's short name for an id, falling back to the full name. */
+  function shortOf(id, fallback) {
+    const item = state.menu.find((m) => m.id === id);
+    return (item && item.short) || fallback || id;
+  }
+
   /** Cash received resets on Clear, on switching to Card, on send and on clearing the order. */
   function resetTender() {
     state.quick = null;
     state.other = '';
+    state.otherOpen = false;
     otherInput.value = '';
   }
 
@@ -219,6 +380,120 @@ export function mountCash(outlet, ctx) {
     if (state.quick === 'exact') return total;
     if (typeof state.quick === 'number') return state.quick;
     return null;
+  }
+
+  /* ------------------------------- hotfix H3: sheet, ☰ menu, recent sheet */
+
+  // The sheet pushes one history entry so the browser Back button closes it
+  // (H3 4). `pushed` keeps that entry from being left behind when the sheet
+  // closes any other way.
+  let pushed = false;
+
+  function openSheet() {
+    if (state.sheet || !isSmall()) return;
+    if (!currentItems().length) return;
+    state.sheet = true;
+    closeAppMenu();
+    closeRecent();
+    try {
+      history.pushState({ nbaSheet: true }, '');
+      pushed = true;
+    } catch { pushed = false; }
+    update();
+    // Focus moves into the sheet (H3 4).
+    sheet.focus({ preventScroll: true });
+  }
+
+  /** `fromPop`: the entry has already been popped by the browser. */
+  function closeSheet({ fromPop = false, focusBar = true } = {}) {
+    if (!state.sheet) return;
+    state.sheet = false;
+    if (pushed && !fromPop) {
+      pushed = false;
+      try { history.back(); } catch { /* nothing to go back to */ }
+    } else {
+      pushed = false;
+    }
+    update();
+    if (focusBar && isSmall() && !orderBar.hidden) orderBarButton.focus({ preventScroll: true });
+  }
+
+  function openAppMenu() {
+    if (state.appMenu) return;
+    state.appMenu = true;
+    appMenu.hidden = false;
+    menuButton.setAttribute('aria-expanded', 'true');
+  }
+
+  function closeAppMenu() {
+    if (!state.appMenu) return;
+    state.appMenu = false;
+    appMenu.hidden = true;
+    menuButton.setAttribute('aria-expanded', 'false');
+  }
+
+  function openRecent() {
+    state.recent = true;
+    recentSheet.hidden = false;
+    recentBackdrop.hidden = false;
+    renderRecent();
+    recentSheet.focus({ preventScroll: true });
+  }
+
+  function closeRecent() {
+    if (!state.recent) return;
+    state.recent = false;
+    recentSheet.hidden = true;
+    recentBackdrop.hidden = true;
+    menuButton.focus({ preventScroll: true });
+  }
+
+  /** ☰ → Sign out. Same in-page confirm as the header button (Cash counter 8). */
+  function signOut() {
+    const done = () => {
+      clearSession();
+      location.hash = '#/login';
+    };
+    if (currentItems().length) openSignOutConfirm(done);
+    else done();
+  }
+
+  /**
+   * Nodes that sit in a different place on each layout. The toast belongs in
+   * the order panel on tablet and above the order bar on the phone; the
+   * recent strip belongs under the tiles on tablet and in its own sheet on
+   * the phone. Moving the one node keeps a single set of test ids.
+   */
+  function placeChrome() {
+    if (isSmall()) {
+      if (toast.parentNode !== scroller) scroller.appendChild(toast);
+      if (recentSection.parentNode !== recentSheetBody) recentSheetBody.appendChild(recentSection);
+      sheet.setAttribute('role', 'dialog');
+      sheet.setAttribute('aria-modal', 'true');
+      sheet.setAttribute('aria-label', 'Review order');
+      sheet.setAttribute('tabindex', '-1');
+      sheet.setAttribute('data-testid', 'review-sheet');
+      recentSheet.setAttribute('tabindex', '-1');
+      placeVersion(true);
+    } else {
+      if (toast.parentNode !== panel) panel.insertBefore(toast, panel.firstChild);
+      if (recentSection.parentNode !== scroller) scroller.appendChild(recentSection);
+      sheet.removeAttribute('role');
+      sheet.removeAttribute('aria-modal');
+      sheet.removeAttribute('aria-label');
+      sheet.removeAttribute('tabindex');
+      sheet.removeAttribute('data-testid');
+      placeVersion(false);
+      // Tablet never shows the phone-only chrome; make sure nothing is stuck
+      // open after a resize across 700px.
+      if (state.sheet) { state.sheet = false; pushed = false; }
+      closeAppMenu();
+      if (state.recent) {
+        state.recent = false;
+        recentSheet.hidden = true;
+        recentBackdrop.hidden = true;
+      }
+    }
   }
 
   function showToast(message) {
@@ -265,6 +540,9 @@ export function mountCash(outlet, ctx) {
       console.error('order not saved: storage not configured');
     }
 
+    // Phone: the sheet closes with the order it sent (H3 5). Focus goes back
+    // to the tiles, not the order bar, because the bar has just gone away.
+    closeSheet({ focusBar: false });
     showToast(`${orderNo} sent to the food counter for ${name}`);
     resetOrder();
     update();
@@ -283,7 +561,7 @@ export function mountCash(outlet, ctx) {
     // Rebuilding then would swap the buttons out from under a volunteer's
     // finger (and detach the node a test is about to tap), so skip no-ops.
     const signature = state.menu
-      .map((m) => [m.id, m.name, m.price, m.colour].join('\u0001'))
+      .map((m) => [m.id, m.name, m.short, m.price, m.colour].join('\u0001'))
       .join('\u0002');
     if (signature === tileSignature && tileNodes.size === state.menu.length) return;
     tileSignature = signature;
@@ -302,6 +580,9 @@ export function mountCash(outlet, ctx) {
         el('span', { class: 'visually-hidden', text: 'Add ' }),
         svgNode(itemIcon(item.id, 72)),
         el('span', { class: 'tile__name', text: item.name }),
+        // The small screen shows the short name instead (hotfix H3 2); which
+        // one is on screen is pure CSS, so a resize can never strand a tile.
+        el('span', { class: 'tile__short', 'aria-hidden': 'true', text: item.short || item.name }),
         el('span', { class: 'tile__price', text: formatPence(item.price) })
       ]);
       tileNodes.set(item.id, { tile, badge });
@@ -347,8 +628,9 @@ export function mountCash(outlet, ctx) {
       if (!node) {
         const qtyEl = el('span', { class: 'line__qty', testid: `line-qty-${line.id}`, text: String(line.qty) });
         const amountEl = el('span', { class: 'line__amount' });
+        const nameEl = el('span', { class: 'line__name', text: line.name });
         const row = el('div', { class: 'line', testid: `line-${line.id}` }, [
-          el('span', { class: 'line__name', text: line.name }),
+          nameEl,
           el('button', {
             type: 'button', class: 'stepper', testid: `line-dec-${line.id}`,
             'aria-label': `Remove one ${line.name}`, text: '−',
@@ -362,9 +644,13 @@ export function mountCash(outlet, ctx) {
           }),
           amountEl
         ]);
-        node = { row, qtyEl, amountEl };
+        node = { row, nameEl, qtyEl, amountEl };
         lineNodes.set(line.id, node);
       }
+      // The narrow sheet uses the menu's short name, the tablet panel the
+      // full one (design/CashCounterSmall.dc.html). The stepper aria-labels
+      // keep the full name either way.
+      setText(node.nameEl, isSmall() ? shortOf(line.id, line.name) : line.name);
       setText(node.qtyEl, String(line.qty));
       setText(node.amountEl, formatPence(line.qty * line.price));
       if (linesBox.children[index] !== node.row) linesBox.appendChild(node.row);
@@ -441,7 +727,46 @@ export function mountCash(outlet, ctx) {
     changeValue.hidden = cash.state === 'empty';
     setText(changeValue, phone.matches ? cash.shortMessage : cash.message);
 
+    // The Other amount box stays revealed while it holds something.
+    const otherShown = state.otherOpen || state.other.trim() !== '';
+    tenderBlock.dataset.other = otherShown ? 'open' : 'closed';
+    otherToggle.setAttribute('aria-expanded', otherShown ? 'true' : 'false');
+
+    syncPhone(items, total, empty);
     renderRecent();
+  }
+
+  /** Order bar, sheet header and the small-screen open/closed state (H3 3, 4). */
+  function syncPhone(items, total, empty) {
+    const count = items.reduce((n, line) => n + line.qty, 0);
+    const countText = `${count} ${count === 1 ? 'item' : 'items'}`;
+
+    // Removing the last item closes the sheet (H3 4). Done in place rather
+    // than through closeSheet(), which would re-enter update().
+    if (empty && state.sheet) {
+      state.sheet = false;
+      if (pushed) {
+        pushed = false;
+        try { history.back(); } catch { /* nothing to go back to */ }
+      }
+    }
+
+    setText(barLabel, `${countText} · ${formatPence(total)}`);
+    setText(sheetCount, `Order · ${countText}`);
+
+    main.dataset.sheet = state.sheet ? 'open' : 'closed';
+    main.dataset.cart = empty ? 'empty' : 'full';
+    orderBar.hidden = empty || state.sheet;
+    backdrop.hidden = !state.sheet;
+
+    // With an empty cart there is no way to send on a small screen: the order
+    // bar is gone and the sheet with it, so the Send button leaves the page
+    // altogether rather than sitting there hidden (H3 3).
+    if (isSmall() && empty) {
+      if (sendButton.parentNode) sendButton.remove();
+    } else if (!sendButton.parentNode) {
+      panelFoot.insertBefore(sendButton, panelFoot.firstChild);
+    }
   }
 
   /* ---------------------------------------------------------- listeners */
@@ -464,16 +789,54 @@ export function mountCash(outlet, ctx) {
     ? ctx.setUnsentGuard(() => currentItems().length > 0)
     : null;
 
-  // The change line has a long form on tablet and a short one on phone.
-  const onBreakpoint = () => update();
+  // The change line has a long form on tablet and a short one on phone, and
+  // the toast and the recent strip live in different places at each size.
+  const onBreakpoint = () => { placeChrome(); update(); };
   if (typeof phone.addEventListener === 'function') phone.addEventListener('change', onBreakpoint);
 
+  // Escape closes the top-most layer: recent sheet, then ☰ menu, then sheet.
+  function onKeyDown(event) {
+    if (event.key !== 'Escape') return;
+    if (state.recent) { event.preventDefault(); closeRecent(); return; }
+    if (state.appMenu) { event.preventDefault(); closeAppMenu(); menuButton.focus({ preventScroll: true }); return; }
+    if (state.sheet) { event.preventDefault(); closeSheet(); }
+  }
+
+  // Outside tap closes the ☰ menu (H3 1).
+  function onDocClick(event) {
+    if (!state.appMenu) return;
+    const target = event.target;
+    if (appMenu.contains(target) || menuButton.contains(target)) return;
+    closeAppMenu();
+  }
+
+  // The browser Back button closes the sheet instead of leaving the screen.
+  function onPopState() {
+    if (state.sheet) closeSheet({ fromPop: true });
+  }
+
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('click', onDocClick);
+  window.addEventListener('popstate', onPopState);
+
   buildTiles();
+  placeChrome();
   update();
 
   return () => {
     if (state.toastTimer) clearTimeout(state.toastTimer);
     if (typeof phone.removeEventListener === 'function') phone.removeEventListener('change', onBreakpoint);
+    document.removeEventListener('keydown', onKeyDown);
+    document.removeEventListener('click', onDocClick);
+    window.removeEventListener('popstate', onPopState);
+    // Leaving the screen with the sheet open: drop the state, but leave the
+    // history entry alone (the navigation that unmounted us owns it now).
+    state.sheet = false;
+    pushed = false;
+    // Hand the version pill back to the header before the menu goes.
+    placeVersion(false);
+    menuButton.remove();
+    appMenu.remove();
     if (stopGuard) stopGuard();
     stopMenu();
     stopOrders();

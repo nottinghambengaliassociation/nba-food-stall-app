@@ -173,16 +173,16 @@ class Component extends DCLogic {
   renderVals() {
     const PRICE = 500;
     const DAYS = [
-      { dow: 'Fri', date: '16 Oct', orders: 62,  cash: 34000,  peak: '18:30–19:00', items: { fuchka: 35, momo: 31, chat: 19, sweet_box: 8, samosa_only: 6, choc_strawberry: 7, marshmallow: 4, fountain: 8 } },
-      { dow: 'Sat', date: '17 Oct', orders: 171, cash: 93000,  peak: '15:00–15:30', items: { fuchka: 96, momo: 84, chat: 52, sweet_box: 22, samosa_only: 16, choc_strawberry: 18, marshmallow: 12, fountain: 22 } },
-      { dow: 'Sun', date: '18 Oct', orders: 208, cash: 110500, peak: '13:30–14:00', items: { fuchka: 120, momo: 104, chat: 65, sweet_box: 27, samosa_only: 20, choc_strawberry: 22, marshmallow: 15, fountain: 28 } },
-      { dow: 'Mon', date: '19 Oct', orders: 154, cash: 82000,  peak: '19:00–19:30', items: { fuchka: 86, momo: 75, chat: 47, sweet_box: 20, samosa_only: 14, choc_strawberry: 16, marshmallow: 11, fountain: 20 } },
-      { dow: 'Tue', date: '20 Oct', orders: 97,  cash: 50500,  peak: '17:30–18:00', items: { fuchka: 53, momo: 46, chat: 28, sweet_box: 12, samosa_only: 9, choc_strawberry: 10, marshmallow: 6, fountain: 12 } }
+      { dow: 'Fri', date: '16 Oct', orders: 62,  cash: 34000,  peak: '18:30–19:00', items: { fuchka: 35, momo: 31, chat: 19, sweet_box: 8, samosa_only: 6, choc_strawberry: 7, marshmallow: 4 } },
+      { dow: 'Sat', date: '17 Oct', orders: 171, cash: 93000,  peak: '15:00–15:30', items: { fuchka: 96, momo: 84, chat: 52, sweet_box: 22, samosa_only: 16, choc_strawberry: 18, marshmallow: 12 } },
+      { dow: 'Sun', date: '18 Oct', orders: 208, cash: 110500, peak: '13:30–14:00', items: { fuchka: 120, momo: 104, chat: 65, sweet_box: 27, samosa_only: 20, choc_strawberry: 22, marshmallow: 15 } },
+      { dow: 'Mon', date: '19 Oct', orders: 154, cash: 82000,  peak: '19:00–19:30', items: { fuchka: 86, momo: 75, chat: 47, sweet_box: 20, samosa_only: 14, choc_strawberry: 16, marshmallow: 11 } },
+      { dow: 'Tue', date: '20 Oct', orders: 97,  cash: 50500,  peak: '17:30–18:00', items: { fuchka: 53, momo: 46, chat: 28, sweet_box: 12, samosa_only: 9, choc_strawberry: 10, marshmallow: 6 } }
     ];
     const ITEMS = [
       { id: 'fuchka', name: 'Fuchka / Gol Gappa' }, { id: 'momo', name: 'Momo' }, { id: 'chat', name: 'Papri Chat' },
       { id: 'sweet_box', name: 'Sweet Box' }, { id: 'samosa_only', name: 'Samosa' }, { id: 'choc_strawberry', name: 'Choc Strawberry' },
-      { id: 'marshmallow', name: 'Marshmallow' }, { id: 'fountain', name: 'Choc Fountain' }
+      { id: 'marshmallow', name: 'Choc Marshmallow' }
     ];
     const gbp = (p) => '£' + (p / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const gbp0 = (p) => '£' + Math.round(p / 100).toLocaleString('en-GB');

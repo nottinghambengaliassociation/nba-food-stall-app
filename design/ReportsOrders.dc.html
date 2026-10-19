@@ -160,20 +160,20 @@ class Component extends DCLogic {
     this.state = { sel: 'A-041', status: 'all', pay: 'all', q: '' };
   }
   renderVals() {
-    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow (V)', fountain: 'Choc Fountain' };
-    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Marshmallow', fountain: 'Choc Fountain' };
+    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Chocolate Marshmallow (V)' };
+    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow' };
     // no, time, name, till, pay, status, items, [start, ready, collected] minute offsets
     const RAW = [
       ['A-044', '15:08', 'Guest', 'A', 'card', 'cancelled', { samosa_only: 2 }, [null, null, null]],
       ['B-019', '15:07', 'Ahmed', 'B', 'cash', 'new', { momo: 2, chat: 1 }, [null, null, null]],
-      ['A-043', '15:06', 'Meera', 'A', 'cash', 'preparing', { fountain: 1, sweet_box: 1 }, [2, null, null]],
+      ['A-043', '15:06', 'Meera', 'A', 'cash', 'preparing', { chat: 1, sweet_box: 1 }, [2, null, null]],
       ['A-042', '15:05', 'Sam', 'A', 'card', 'ready', { fuchka: 1, choc_strawberry: 1 }, [1, 4, null]],
       ['B-018', '15:03', 'Josh', 'B', 'card', 'collected', { chat: 1, marshmallow: 2 }, [1, 5, 2]],
       ['A-041', '15:02', 'Priya', 'A', 'cash', 'collected', { fuchka: 2, momo: 1 }, [1, 4, 1]],
       ['A-040', '14:58', 'Lucy', 'A', 'cash', 'collected', { sweet_box: 2, samosa_only: 1 }, [1, 3, 1]],
       ['B-017', '14:55', 'Tom', 'B', 'card', 'collected', { fuchka: 3 }, [2, 5, 1]],
       ['A-039', '14:51', 'Anika', 'A', 'cash', 'collected', { momo: 1, choc_strawberry: 2 }, [1, 6, 2]],
-      ['B-016', '14:47', 'Dev', 'B', 'cash', 'collected', { fountain: 2 }, [1, 4, 1]],
+      ['B-016', '14:47', 'Dev', 'B', 'cash', 'collected', { choc_strawberry: 2 }, [1, 4, 1]],
       ['A-038', '14:44', 'Guest', 'A', 'card', 'collected', { chat: 2, fuchka: 1 }, [1, 3, 1]],
       ['A-037', '14:40', 'Sohini', 'A', 'cash', 'collected', { marshmallow: 1, sweet_box: 1 }, [2, 5, 3]]
     ];

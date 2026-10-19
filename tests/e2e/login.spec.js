@@ -15,7 +15,8 @@ import { seedSession, readSession, SESSION_KEY } from './session.js';
 import {
   clearFirestore, attachConsole, expectNoConsoleErrors, realErrors, heightOf, boxOf,
   loginUserField, loginPassField, loginSubmit, signIn, signOutButton, firstOf, anyOf,
-  tid, addItem, gotoRoute, shot, SHOTS, placeOrder, waitForOrders, readCollection, setTill, londonDay
+  tid, addItem, gotoRoute, shot, SHOTS, placeOrder, waitForOrders, readCollection, setTill, londonDay,
+  openCashPanel, closeCashPanel
 } from './helpers.js';
 
 const C = creds();
@@ -426,10 +427,41 @@ test.describe('Phase II A — sign out', () => {
   test('G-13 Sign out is last in the dark header on every screen', async ({ page, context }, info) => {
     await signedInPage(page, context, '#/');
     const phone = info.project.name === 'phone';
+    const small = (page.viewportSize()?.width ?? 1280) < 700;
     for (const route of GUARDED) {
       await gotoRoute(page, route);
       await expect(page.locator('header').first()).toBeVisible();
       await page.waitForTimeout(300);
+
+      // Hotfix H3 1: below 700 px the cash counter's header is one 52 px row
+      // (till picker, connection, next number, ☰) and Sign out moves into the
+      // ☰ dropdown, red, still keeping the unsent-order confirm. Everything
+      // else keeps the Login 7 header button.
+      if (small && route === '#/cash') {
+        const menuButton = tid(page, 'menu-button');
+        await expect(menuButton, 'CLAUDE.md H3 1: the small cash header carries ☰').toBeVisible();
+        expect(await menuButton.getAttribute('aria-expanded')).toBe('false');
+        await menuButton.click();
+        const item = tid(page, 'menu-signout');
+        await expect(item, 'CLAUDE.md H3 1: ☰ lists Sign out').toBeVisible();
+        expect(norm(await item.innerText())).toMatch(/Sign out/i);
+        const geo = await item.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const menu = el.closest('[data-testid="app-menu"]');
+          const siblings = [...menu.querySelectorAll('button, a[href]')];
+          return {
+            height: r.height,
+            lastInteractive: siblings[siblings.length - 1] === el,
+            colour: getComputedStyle(el).color
+          };
+        });
+        expect(geo.height, 'the menu item is a 48px touch target').toBeGreaterThanOrEqual(47.5);
+        expect(geo.lastInteractive, 'CLAUDE.md H3 1 lists Sign out last in the ☰ menu').toBe(true);
+        const [r, g, b] = (geo.colour.match(/\d+/g) || []).map(Number);
+        expect(r > 120 && g < 90 && b < 90, `Sign out is ${geo.colour}; CLAUDE.md H3 1 draws it red`).toBe(true);
+        await page.keyboard.press('Escape');
+        continue;
+      }
 
       const inHeader = page.locator('header').first().locator(
         '[data-testid="sign-out"], [aria-label="Sign out"], button:has-text("Sign out"), a:has-text("Sign out")'
@@ -539,8 +571,10 @@ test.describe('Phase II A — sign out', () => {
     });
 
     await addItem(page, 'fuchka', 2);
+    await openCashPanel(page);
     await tid(page, 'customer-name').fill('G17-DISCARD');
     const total = norm(await tid(page, 'order-total').innerText());
+    await closeCashPanel(page);
 
     await (await signOutButton(page)).click();
     await page.waitForTimeout(400);
@@ -565,7 +599,9 @@ test.describe('Phase II A — sign out', () => {
     await page.waitForTimeout(400);
     expect(await readSession(page), 'Cancel must not sign the volunteer out').toBeTruthy();
     expect(await page.evaluate(() => window.location.hash)).toBe('#/cash');
+    await openCashPanel(page);
     expect(norm(await tid(page, 'order-total').innerText()), 'Cancel must keep the unsent order').toBe(total);
+    await closeCashPanel(page);
     expect(await tid(page, 'qty-fuchka').count()).toBeGreaterThan(0);
 
     // G-17 confirm the sign out

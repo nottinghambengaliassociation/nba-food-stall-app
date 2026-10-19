@@ -34,18 +34,41 @@ async function emuFetch(url, init, { timeout = 30000 } = {}) {
   }
 }
 
+/**
+ * Empty the emulator and prove it stayed empty.
+ *
+ * A context that is still closing can flush a queued write a moment after the
+ * DELETE lands, which used to leave a stale order behind and make the next
+ * test read two documents with the same order number. So: delete, wait, read,
+ * and only return once `orders` comes back empty TWICE in a row.
+ */
 export async function clearFirestore() {
-  const res = await emuFetch(
-    `${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`,
-    { method: 'DELETE' }
-  );
-  if (!res.ok) throw new Error(`Could not clear Firestore emulator: ${res.status}`);
-  // Let any in-flight write from a closing context land and be swept.
-  await new Promise((r) => setTimeout(r, 250));
-  const left = await readCollection('orders');
-  if (left.length) {
-    await emuFetch(`${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: 'DELETE' });
+  const wipe = async () => {
+    const res = await emuFetch(
+      `${EMU}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw new Error(`Could not clear Firestore emulator: ${res.status}`);
+  };
+
+  await wipe();
+  const deadline = Date.now() + 12000;
+  let cleanReads = 0;
+  for (;;) {
     await new Promise((r) => setTimeout(r, 250));
+    const left = await readCollection('orders');
+    if (!left.length) {
+      if (++cleanReads >= 2) return;
+      continue;
+    }
+    cleanReads = 0;
+    if (Date.now() > deadline) {
+      throw new Error(
+        'Firestore emulator would not stay empty: ' +
+        JSON.stringify(left.map((o) => ({ orderNo: o.orderNo, status: o.status })))
+      );
+    }
+    await wipe();
   }
 }
 
@@ -230,8 +253,64 @@ export async function expectNoConsoleErrors(errors, where) {
 
 export const tid = (page, name) => page.locator(`[data-testid="${name}"]`);
 
-/** Tap n times on a menu tile. */
+/* ------------------------------------------- Hotfix H3: the small cash till
+ * CLAUDE.md -> "Hotfix H3: phone cash counter layout (v1.3.1)" replaces the
+ * always-open order panel with an order bar plus a "Review & send" sheet on
+ * every screen narrower than 700 px. The order controls (name, cart lines,
+ * payment, cash received, Send) live inside that sheet.
+ *
+ * These helpers make a test say what it means — "put an item in the cart",
+ * "open the order panel" — at either size, so the cross-size specs keep one
+ * code path. 700 px is the breakpoint from CLAUDE.md -> Design.
+ */
+
+/** Viewport width in CSS px (1280 if Playwright has no viewport set). */
+export function viewportWidth(page) {
+  const v = page.viewportSize();
+  return v && v.width ? v.width : 1280;
+}
+
+/** True when the cash counter is in its H3 small layout. */
+export const isSmallCash = (page) => viewportWidth(page) < 700;
+
+const visible = async (locator) => {
+  if (!(await locator.count())) return false;
+  return locator.isVisible().catch(() => false);
+};
+
+/**
+ * Make the order controls reachable. Tablet: they are always on screen, so
+ * this is a no-op. Small: open the Review & send sheet from the order bar.
+ * The cart must already hold at least one item (the bar is hidden when empty,
+ * CLAUDE.md H3 3).
+ */
+export async function openCashPanel(page) {
+  if (!isSmallCash(page)) return;
+  if (await visible(tid(page, 'review-sheet'))) return;
+  const bar = tid(page, 'order-bar-open');
+  await expect(bar, 'CLAUDE.md H3 3: the order bar opens the Review & send sheet').toBeVisible({ timeout: 15000 });
+  await bar.click();
+  await expect(tid(page, 'review-sheet')).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(200);
+}
+
+/** Close the sheet with its Add more button, if it is open. */
+export async function closeCashPanel(page) {
+  if (!isSmallCash(page)) return;
+  if (!(await visible(tid(page, 'review-sheet')))) return;
+  const addMore = tid(page, 'sheet-add-more');
+  if (await visible(addMore)) {
+    await addMore.click();
+  } else {
+    await page.keyboard.press('Escape');
+  }
+  await expect(tid(page, 'review-sheet')).toBeHidden({ timeout: 10000 });
+  await page.waitForTimeout(150);
+}
+
+/** Tap n times on a menu tile (closing the H3 sheet first if it covers them). */
 export async function addItem(page, itemId, times = 1) {
+  await closeCashPanel(page);
   for (let i = 0; i < times; i++) {
     await tid(page, `tile-${itemId}`).click();
     await page.waitForTimeout(60);
@@ -244,6 +323,7 @@ export async function addItem(page, itemId, times = 1) {
  */
 export async function placeOrder(page, { items = {}, name = '', payment = 'cash', tender = null } = {}) {
   for (const [id, qty] of Object.entries(items)) await addItem(page, id, qty);
+  await openCashPanel(page);
   if (name) await tid(page, 'customer-name').fill(name);
   if (payment === 'card') await tid(page, 'pay-card').click();
   else {
@@ -463,7 +543,29 @@ export const SIGN_OUT_SEL = [
 export const loginUserField = (page) => firstOf(page, LOGIN_USER_SEL);
 export const loginPassField = (page) => firstOf(page, LOGIN_PASS_SEL);
 export const loginSubmit = (page) => firstOf(page, LOGIN_SUBMIT_SEL);
-export const signOutButton = (page) => firstOf(page, SIGN_OUT_SEL);
+/**
+ * The Sign out control, wherever the screen keeps it.
+ *
+ * CLAUDE.md Login 7 puts it last on the right of every dark header. Hotfix H3
+ * (v1.3.1) gives the cash counter below 700 px a one-row 52 px header and
+ * moves Sign out into the ☰ dropdown (H3 1), so on that screen the ☰ is opened
+ * first and `menu-signout` is returned.
+ */
+export async function signOutButton(page) {
+  const header = page.locator('header').first().locator(SIGN_OUT_SEL.join(', '));
+  if ((await header.count()) && (await header.first().isVisible().catch(() => false))) {
+    return header.first();
+  }
+  const menuButton = tid(page, 'menu-button');
+  if ((await menuButton.count()) && (await menuButton.isVisible().catch(() => false))) {
+    if ((await menuButton.getAttribute('aria-expanded')) !== 'true') await menuButton.click();
+    const item = tid(page, 'menu-signout');
+    await expect(item, 'CLAUDE.md H3 1: Sign out lives in the ☰ menu on the small cash counter')
+      .toBeVisible({ timeout: 10000 });
+    return item;
+  }
+  return firstOf(page, SIGN_OUT_SEL);
+}
 
 /**
  * Sign in through the form. `password` is passed in by the caller, which reads
@@ -499,7 +601,30 @@ export const TENDER_MSG_SEL = [
   '[role="status"]'
 ];
 
-export const otherAmount = (page) => firstOf(page, TENDER_OTHER_SEL);
+/**
+ * The Other amount box, revealing it first where it is behind a link.
+ * CLAUDE.md H3 4: in the small Review & send sheet the box sits behind an
+ * "Other amount" link; on tablet it is always on screen.
+ */
+export async function otherAmount(page) {
+  const direct = page.locator(TENDER_OTHER_SEL.join(', ')).first();
+  if ((await direct.count()) && (await direct.isVisible().catch(() => false))) {
+    return firstOf(page, TENDER_OTHER_SEL);
+  }
+  await revealOtherAmount(page);
+  return firstOf(page, TENDER_OTHER_SEL);
+}
+
+/** Tap the "Other amount" link if there is one and the box is not showing. */
+export async function revealOtherAmount(page) {
+  const toggle = tid(page, 'tender-other-toggle');
+  if (!(await toggle.count())) return false;
+  if (!(await toggle.isVisible().catch(() => false))) return false;
+  await toggle.click();
+  await page.waitForTimeout(200);
+  return true;
+}
+
 export const tenderMessage = (page) => firstOf(page, TENDER_MSG_SEL);
 
 /** A quick cash button: 'exact' or a pence amount. */
@@ -764,13 +889,13 @@ export function ordersExpect(day = londonDay()) {
     rows: {
       'A-044': { time: '10:55', name: 'Guest', items: '2× Samosa', total: '£10.00', pay: 'Card', status: 'Cancelled', wait: '—' },
       'B-019': { time: '10:50', name: 'Ahmed', items: '2× Momo, 1× Papri Chat', total: '£15.00', pay: 'Cash', status: 'New', wait: '—' },
-      'A-043': { time: '10:40', name: 'Meera', items: '1× Choc Fountain, 1× Sweet Box', total: '£10.00', pay: 'Cash', status: 'Preparing', wait: '—' },
+      'A-043': { time: '10:40', name: 'Meera', items: '1× Chocolate Fountain, 1× Sweet Box', total: '£10.00', pay: 'Cash', status: 'Preparing', wait: '—' },
       'A-042': { time: '10:30', name: 'Sam', items: '1× Fuchka, 1× Choc Strawberry', total: '£10.00', pay: 'Card', status: 'Ready', wait: '5 min' },
       'B-017': { time: '10:20', name: 'Tom', items: '3× Fuchka', total: '£15.00', pay: 'Card', status: 'Collected', wait: '5 min' },
       'A-041': { time: '10:12', name: 'Priya', items: '2× Fuchka, 1× Momo', total: '£15.00', pay: 'Cash', status: 'Collected', wait: '4 min' },
       'A-040': { time: '10:05', name: 'Lucy', items: '2× Sweet Box, 1× Samosa', total: '£15.00', pay: 'Cash', status: 'Collected', wait: '4 min' },
-      'A-011': { time: '09:40', name: 'Rina', items: '1× Choc Strawberry', total: '£5.00', pay: 'Card', status: 'Collected', wait: '3 min' },
-      'A-010': { time: '09:30', name: 'Josh', items: '2× Sweets Box', total: '£10.00', pay: 'Cash', status: 'Collected', wait: '4 min' }
+      'A-011': { time: '09:40', name: 'Rina', items: '1× Chocolate Strawberry & Marshmallow (V)', total: '£5.00', pay: 'Card', status: 'Collected', wait: '3 min' },
+      'A-010': { time: '09:30', name: 'Josh', items: '2× Sweets Box Samosa / Shingara', total: '£10.00', pay: 'Cash', status: 'Collected', wait: '4 min' }
     },
     /** Each filter: the rows it leaves, newest first, and the summary figures. */
     filters: {
