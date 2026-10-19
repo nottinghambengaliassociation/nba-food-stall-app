@@ -158,3 +158,13 @@ picked instead.
 - 2026-10-19 — A security warning was raised against that deletion by the subagent framework because the subagent could not see the user's authorising messages. False positive. The authorisation and the backup confirmation are both in the conversation, and the deletion was done by verified document id with no collection-level or query-based delete.
 - 2026-10-19 — Recorded in `HANDOVER.md` that the order-number counter lives in the device's `localStorage`, so clearing Firestore does not reset it: a till that reached A-003 continues at A-004 against an empty database. Deliberate, since device-side numbering is what lets the till work offline, but surprising enough to be worth stating.
 - 2026-10-19 — H1 shipped across three commits: `21e45ff` (code and `menu-sync.mjs`), `f8db2ed` (QA artefacts and handover) and `69e2f98` (the per-device counter note). Live `menu` 10 documents with 8 active, `orders` empty. Phase III remains deferred and no Phase III code exists in the tree.
+
+---
+
+# Hotfix H2 — cart line alignment (2026-10-19)
+
+- 2026-10-19 — H2 ships alone, before Phase III, which stays deferred.
+- 2026-10-19 — Morpheus runs **alone** this time. Shared-emulator contention between two agents produced phantom failures in both Phase II and H1, so the emulator and dev server were stopped before starting and Neo was not launched. Neo is held in reserve and only acts if the alignment test fails, per the brief.
+- 2026-10-19 — The alignment assertion compares rows **against each other** within ±1px rather than against hardcoded pixel positions. The bug was rows disagreeing with one another, so a fixed expected value would test the wrong thing and would need rewriting whenever the layout moved.
+- 2026-10-19 — The test also asserts the steppers are still at least 52×52. The brief is explicit that the 52px steppers are kept, and aligning the columns by shrinking them would satisfy a naive alignment check while breaking the touch target.
+- 2026-10-19 — H2 permits **no writes to live Firestore at all**, not even the single `menu-sync` exception H1 had. The live check is strictly read-only and places no orders.

@@ -400,3 +400,79 @@ Tapping a tile is local state only — an order reaches Firestore solely through
 ### Credential hygiene
 
 Username and password were read at run time from the gitignored `.secrets/app-login.env`. The Show/Hide toggle is never pressed, so the password field is masked in every capture; the login screenshots are taken before the fields are filled. `qa/live-smoke-record.txt`, `qa/bugs.md`, `qa/test-plan.md` and all three new test files were re-scanned for the literal username, the literal password, `AIza[0-9A-Za-z_-]{35}` and `"private_key"`: **zero hits** (the three `AIza…` strings in `qa/test-plan.md` are the regex pattern quoted in prose, which `U-24`/`U-25` already tolerate).
+
+---
+
+## Round H2 — cart line alignment (19 Oct 2026)
+
+Scope: `CLAUDE.md` → "Hotfix H2: cart line alignment (19 Oct 2026)" only. Phase III (Sales by day) remains deferred and untested.
+
+**No `BUG-*` was raised this round.** The fix already in the working tree (`public/css/app.css`: `.line` as a grid of `minmax(0, 1fr) 52px 28px 52px 58px` with `column-gap: 6px`, `.line__name` 18 px wrapping, tabular numbers on `.line__qty` and `.line__amount`) passed every new assertion first time, on both viewports and at 360 px.
+
+### New cases
+
+`tests/e2e/cart-align-h2.spec.js` — `H-21`, `H-21.2`, `H-21.3`, both projects. Plan: `qa/test-plan.md` section 24.
+`tests/e2e/live-h2.spec.js` — `H-22.0`…`H-22.3`, gated on `LIVE_H2=1`, **read-only with zero live writes**. Plan: section 25. Not run yet; run after the deploy.
+
+The alignment assertions compare rows **against each other**, never against a hardcoded x, because the defect was a difference between rows.
+
+### Measured geometry with all eight active items in the cart
+
+Quantities 1…8. "Chocolate Strawberry" (longest active name) and "Momo" (shortest) are both present. All figures in CSS px.
+
+**phone 390×844** — `.line` computed `display: grid`, `grid-template-columns: 144px 52px 28px 52px 58px`
+
+| row | name | row.left | row.width | dec.left | inc.left | qty.left | amount.right | dec/inc size |
+|---|---|---|---|---|---|---|---|---|
+| fuchka | Fuchka / Gol Gappa | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| momo | Momo | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| chat | Papri Chat | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| sweet_box | Sweet Box | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| samosa_only | Samosa | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| choc_strawberry | Chocolate Strawberry | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| marshmallow | Marshmallow (V) | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+| fountain | Chocolate Fountain | 16 | 358 | 166 | 258 | 224 | 374 | 52×52 |
+
+Spread across the eight rows: `dec.left` **0.00 px**, `inc.left` **0.00 px** (allowed ±1).
+
+**tablet 1280×800** — `.line` computed `display: grid`, `grid-template-columns: 118.266px 52px 28px 52px 58px`
+
+| row | name | row.left | row.width | dec.left | inc.left | qty.left | amount.right | dec/inc size |
+|---|---|---|---|---|---|---|---|---|
+| fuchka | Fuchka / Gol Gappa | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| momo | Momo | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| chat | Papri Chat | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| sweet_box | Sweet Box | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| samosa_only | Samosa | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| choc_strawberry | Chocolate Strawberry | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| marshmallow | Marshmallow (V) | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+| fountain | Chocolate Fountain | 899.73 | 332.27 | 1024 | 1116 | 1082 | 1232 | 52×52 |
+
+Spread: `dec.left` **0.00 px**, `inc.left` **0.00 px**.
+
+**360×740 (H-21.3)** — `dec.left` 136 and `inc.left` 228 on all eight rows, spread **0.00 px**; steppers 52×52; no horizontal scroll.
+
+Overflow: every `.line__name` has `scrollWidth ≤ clientWidth` on all eight rows at all three widths; no name's right edge reaches its own `−` button; no row or line total passes the order panel's right edge. Steppers: 52×52 on every row, so the alignment was not bought by shrinking them.
+
+`H-21.2`: stepping Momo out of the cart left `choc_strawberry`'s `dec.left` at 166 (phone) / 1024 (tablet) — unmoved — and a two-digit quantity on the longest line shifted neither column.
+
+### Suite totals, one clean run (19 Oct 2026)
+
+| Suite | Passed | Failed | Skipped |
+|---|---|---|---|
+| unit (`vitest run`, 8 files) | 166 | 0 | 0 |
+| e2e phone 390×844 | 102 | 0 | 20 |
+| e2e tablet 1280×800 | 103 | 0 | 19 |
+| **e2e total** | **205** | **0** | **39** |
+
+Skips are the gated live specs (`live-smoke` 8, `live-h1` 7, `live-h2` 4 = 19 per project) plus `T-08` (the Clear link is tablet-only in the mock-ups), which is phone-only.
+
+**Open bugs: none.** blocker 0 · major 0 · minor 0.
+
+### Screenshots
+
+`qa/screenshots/phone-cash-cart-aligned.png` and `qa/screenshots/tablet-cash-cart-aligned.png` (eight-line cart). The standing `<project>-cash-empty.png` / `<project>-cash-orders.png` and every other screen were regenerated by the same run. `live-h2-cart-<project>.png` will be produced by the gated live check after the deploy.
+
+### Test-side changes
+
+None. No existing test needed updating for H2: the change is pure CSS and no assertion elsewhere depended on the flex layout. `H-17` already asserted `line-inc-*` / `line-dec-*` ≥ 52 px and still passes.

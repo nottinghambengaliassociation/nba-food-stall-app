@@ -147,6 +147,17 @@ The menu change itself may already have been made by hand in the Firebase consol
 
 Ship H1 on its own, before Phase III: build, test, push to `main`, run `menu-sync`, live check (read-only apart from `menu-sync`).
 
+### Hotfix H2: cart line alignment (19 Oct 2026)
+Cosmetic bug on the cash counter: the − / + buttons sat at different positions on each cart row because each row was a flex row sized by its item name ("Chocolate Strawberry" pushed its buttons right, "Momo" didn't).
+
+The fix is **already in the working tree, uncommitted**: `public/css/app.css`, `.line` is now a grid with fixed columns `minmax(0, 1fr) 52px 28px 52px 58px`, `column-gap: 6px`; `.line__name` 18 px and wraps; `.line__qty` and `.line__amount` use tabular numbers. Don't redesign it; keep the 52 px steppers.
+
+1. Morpheus: add an e2e test (phone and tablet) that fills the cart with all active menu items and asserts every row's `line-dec-*` and `line-inc-*` share the same left x (±1 px), no `.line__name` overflows, and the steppers stay at least 52 px. Rerun the full suite.
+2. Neo: only if that test fails, adjust the column widths in `.line`. No other changes.
+3. Trinity: commit `public/css/app.css` and the test with message `fix(cash): align cart line steppers in fixed columns`, push to `main`, watch the deploy.
+4. Morpheus: read-only live check of `#/cash` with items in the cart, both viewports, screenshot `qa/screenshots/live-h2-cart-*.png`. Place no orders.
+5. Add a line to `HANDOVER.md` under "What changed". Remind volunteers to refresh open tills.
+
 ### Phase III: Sales by day report
 Mock-ups: `design/ReportsByDay.dc.html` and the One day / Sales by day toggle in `design/Reports.dc.html`. Read-only: no change to how orders are stored.
 

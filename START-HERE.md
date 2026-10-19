@@ -67,16 +67,22 @@ The app has one shared login. The username and password are kept only in `.secre
 
 To change the password later: edit `.secrets/app-login.env`, then ask Claude Code: "Use the trinity subagent to rotate the login: rerun write-login-config, update the APP_LOGIN secrets and redeploy."
 
+**Hotfix H2 (cart rows misaligned on the cash counter). The CSS fix is already on disk; this tests, commits and deploys it:**
+
+```
+caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Ship Hotfix H2 only: the fix in public/css/app.css is already in the working tree. Morpheus: add the H2 alignment test and rerun everything. Neo: only adjust .line columns if that test fails. Trinity: commit and push to main, watch the deploy. Morpheus: read-only live check. Update HANDOVER.md. Do not ask me anything."
+```
+
 **Hotfix H1 (split Sweets Box/Samosa and Choc Strawberry/Marshmallow into four items):**
 
 ```
 caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Phases I and II are built and live. Ship Hotfix H1 only. Neo: menu seed, icons, station, phone layout for 8 tiles. Trinity: scripts/menu-sync.mjs. Morpheus: H1 tests and rerun everything. Then Trinity commits and pushes to main, watches the deploy, runs menu-sync against live once, and Morpheus does a read-only live check. Update HANDOVER.md. Do not ask me anything."
 ```
 
-**Phase III follow-up run (Sales by day report), after the day's trading has finished.** Phase II (login, sign out, Cash received calculator) is already built and live.
+**Phase III (Sales by day report), shipping Hotfix H2 first if it's still uncommitted.** Phases I, II and Hotfix H1 are live.
 
 ```
-caffeinate -dims claude --permission-mode auto "Read CLAUDE.md. Phases I and II are built and live. Build Phase III (Sales by day report) only. Neo: build it. Morpheus: add the Phase III tests and rerun everything, then a read-only live check (no orders written to the live database). Trinity: commit and push to main, watch the deploy. Update HANDOVER.md. Do not ask me anything."
+caffeinate -dims claude --permission-mode auto "Read CLAUDE.md and HANDOVER.md. Phases I, II and Hotfix H1 are live. Step 1, Hotfix H2: if public/css/app.css is still uncommitted, Morpheus adds the H2 alignment test and reruns everything, Trinity commits and pushes to main and watches the deploy. Step 2, Phase III (Sales by day report) exactly as specified in CLAUDE.md, matching design/ReportsByDay.dc.html and the toggle in design/Reports.dc.html: Neo builds it; Morpheus adds the Phase III unit and e2e tests and reruns everything until green; Trinity commits and pushes to main and watches the deploy; Morpheus runs a read-only live check with no writes to live Firestore. Update HANDOVER.md with a What changed section for H2 and Phase III. Do not ask me anything; log decisions in DECISIONS.md."
 ```
 
 ## Keys and secrets

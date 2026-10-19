@@ -778,3 +778,61 @@ Run on 2026-10-19 against deploy `21e45ff` (Pages run `39177899282`), after Trin
 4. **Existing fixtures that carry `samosa`** (the Phase I report day) are kept deliberately: they are now backwards-compatibility fixtures and exercise H-05/H-12 for free.
 5. **Six-tile assertions from Phase I are updated to eight.** That is the hotfix landing, not a defect, and is recorded in `qa/bugs.md` under "Test-side changes".
 6. **Live retired rows keep their pre-hotfix `sort`** (4 and 5 rather than the table's 90 and 91). `menu-sync` is forbidden from overwriting an existing value, both rows are inactive, and reporting groups by id — so the live check records the difference instead of failing on it. A *fresh* seed must still follow the brief, which `H-01` and `H-07` enforce at 90/91.
+
+## 24. H2 end-to-end cases — cart line alignment (both projects)
+
+Spec: `CLAUDE.md` → "Hotfix H2: cart line alignment (19 Oct 2026)" and "Cash counter 2" ("line items with − and + (each at least 52×52 px)"). File: `tests/e2e/cart-align-h2.spec.js`.
+
+The defect was cosmetic but real: each cart row was a flex row sized by its item name, so "Chocolate Strawberry" pushed its − / + buttons further right than "Momo" did and the steppers did not line up down the column. **The assertions therefore compare the rows against each other, never against a hardcoded x.** A test pinned to a number would pass or fail for the wrong reason at a different viewport or font fallback, and would not describe the bug. Tolerance ±1 px, as the hotfix brief states.
+
+Every case fills the cart with **all eight active menu items** (quantities 1…8, so the longest name "Chocolate Strawberry" and the shortest "Momo" are both in, and the quantity and line-total columns vary too).
+
+### H-21 Steppers line up, nothing overflows, 52 px kept
+**Steps** `#/cash`, tap each of the eight tiles (1…8 times), measure the whole cart in one layout pass.
+**Expected**
+1. **Alignment.** The spread of `line-dec-*` left x across the eight rows is ≤ 1 px, and likewise for `line-inc-*`. Spelled out for the two ends of the bug: `choc_strawberry` and `momo` have the same `dec.left` and the same `inc.left`. The quantity column's left edge and the line-total's right edge are also identical across rows (fixed columns plus tabular numbers), and every row starts at the same x with the same width.
+2. **No overflow.** For every row, `.line__name` has `scrollWidth ≤ clientWidth` (it wraps, it does not clip or spill), the name's right edge is left of its own − button, the row is no wider than the container it sits in, and neither the row nor the line total spills past the order panel's right edge. The document still has no horizontal scroll.
+3. **52 px kept.** Every `line-dec-*` and `line-inc-*` is ≥ 52 px wide **and** ≥ 52 px tall. `CLAUDE.md` → Cash counter 2 and the H2 note "keep the 52 px steppers" mean a fix that aligned the columns by shrinking the buttons would be wrong, so this is asserted explicitly rather than assumed.
+
+A full geometry table (row left/width, dec and inc left/width/height, qty left, amount right) is printed for both viewports so the measured positions are in the run log whether the case passes or fails, and is embedded in every failure message.
+
+### H-21.2 The column survives an edit
+**Steps** From the full cart, step Momo down to zero so its row leaves, then push `choc_strawberry` to a two-digit quantity.
+**Expected** Removing the shortest row does not move the stepper column (`choc_strawberry`'s `dec.left` is unchanged, ±1 px) and the remaining seven rows stay aligned. A two-digit quantity does not shift either column — the quantity has its own fixed track with `font-variant-numeric: tabular-nums` — and no row grows wider than its container.
+
+### H-21.3 Alignment at 360 px
+**Steps** Viewport 360×740, full cart.
+**Expected** Both stepper columns still line up to ±1 px, no `.line__name` overflows, both steppers are still ≥ 52 px, no row spills past the panel, and there is no horizontal scroll (`CLAUDE.md` → Design).
+
+### H-21 screenshots
+`qa/screenshots/<project>-cash-cart-aligned.png` for both projects, showing the eight-line cart.
+
+## 25. H2 live check (gated, **read-only, zero writes**) — `tests/e2e/live-h2.spec.js`
+
+**Gate** `LIVE_H2=1`. Not run as part of `npm run test:e2e`; run after the deploy with `LIVE_H2=1 npx playwright test tests/e2e/live-h2.spec.js`.
+
+**Write discipline — stricter than H1.** H2 permits **no write to live Firestore at all**, not even the single `menu-sync` exception H1 had. Every Firestore call in the spec is a GET. No order is placed (`send-order` is never clicked), no status is changed, nothing is cancelled, no menu document is touched. Tapping a till tile mutates the in-page order panel only — local state that reaches Firestore solely through `send-order` — and the panel is cleared again afterwards. `H-22.0` and `H-22.3` bracket the run with a fingerprint of the orders collection (document id, orderNo, status, total, day and every line's `id|name|qty|price`) to prove it.
+
+**Credentials** read at run time from the gitignored `.secrets/app-login.env`. Never in a test file, a log line, a screenshot or `qa/live-smoke-record.txt`. The Show/Hide toggle is never pressed, so the password field stays masked in every capture.
+
+### H-22.0 Snapshot the live orders collection first
+**Expected** A fingerprint is taken before anything else, for `H-22.3` to compare against.
+
+### H-22.1 The live cart lines up with every active item in it
+**Steps** Sign in, open `#/cash`, tap each of the eight tiles (local state only), measure the cart. Both viewports.
+**Expected** The same three groups as `H-21`: stepper columns aligned to ±1 px row against row (spelled out for "Chocolate Strawberry" vs "Momo"), no `.line__name` overflow and no row past the panel edge, steppers still ≥ 52×52, no horizontal scroll, no "Storage not configured" banner and zero console errors. Screenshots `qa/screenshots/live-h2-cart-<project>.png`. Finishes by clearing the panel and asserting `order-toast` is hidden and holds no order number.
+
+### H-22.2 The deployed stylesheet really carries the fixed-column rule
+**Expected** On the deployed page, the computed style of a cart row is `display: grid` with **five** tracks, the second and fourth ≥ 52 px. Measurement alone could in principle pass on a stale cached bundle that happened to line up; this reads the resolved rule.
+
+### H-22.3 Nothing was written
+**Expected** The orders collection is the same length and a byte-identical fingerprint to `H-22.0`; the menu still holds its ten documents.
+
+## 26. H2 deliberate readings of the brief
+
+1. **Row-against-row, not against a number.** The brief describes the defect as a *difference between rows*, so every alignment assertion is a spread across the eight rows. No expected x is hardcoded anywhere in `cart-align-h2.spec.js`.
+2. **Quantities 1…8, all single digit, in the main case.** The brief's grid gives the quantity a fixed 28 px track and the line total 58 px. Varying the quantity proves the steppers do not move when the numbers change width, without asking those two tracks to hold more than the brief sizes them for. The two-digit case is kept in `H-21.2`, where only the stepper columns and the row width are asserted.
+3. **52 px is asserted on width *and* height.** `CLAUDE.md` → Cash counter 2 says "each at least 52×52 px"; the H2 note says keep them. A fix that aligned the columns by narrowing the buttons would satisfy alignment and break the brief, so both dimensions are checked on all eight rows.
+4. **Overflow is checked three ways** — `scrollWidth` vs `clientWidth` on the name, the name's right edge against its own − button, and the row's right edge against the order panel's — because a grid track with `minmax(0, 1fr)` can clip content without ever widening the row.
+5. **H2 adds no unit case.** The change is pure CSS; `logic.js` is untouched, so there is nothing new to unit-test. The existing `U-*` suite is unchanged.
+6. **Phase III (Sales by day) is still deferred** and has no test plan section yet.
