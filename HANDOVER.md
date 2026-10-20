@@ -13,6 +13,7 @@ Phase I prototype built 17 October 2026; shared login, sign out and the Cash rec
 | Reports, one day | [`#/reports`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports) | Organisers |
 | Reports, sales by day | [`#/reports/days`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/days) | Organisers |
 | Reports, orders | [`#/reports/orders`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/orders) | Organisers |
+| Reports, order history | [`#/reports/history`](https://nottinghambengaliassociation.github.io/nba-food-stall-app/#/reports/history) | Organisers |
 
 Repo: https://github.com/nottinghambengaliassociation/nba-food-stall-app
 Firebase project: `nba-food-stall-9fec6`, Firestore `(default)` in `europe-west2` (London).
@@ -70,17 +71,35 @@ An order that has already been sent can still be put right. **Open orders** on t
 
 Reports give total sales, order count, items sold, average order, average wait, sales per item, orders per 30 minutes with the peak highlighted, the cash-versus-card split, and a CSV export with one row per order line. Cancelled orders are excluded from every figure.
 
-There are three report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
+There are four report screens now, with a toggle at the top of each. **One day** is the screen above. **Sales by day** covers a range of dates: pick From and To, or tap Today, Last 7 days or This event, and it shows the totals across the range, a bar chart of sales per day with the best day picked out, a day-by-day table with an Open day button that jumps straight to that day's one-day report, and a grid of every menu item against every day with each item's best day shaded. Only days that actually traded appear. The range is capped at 31 days. Its CSV export covers every order line in the range, the same columns as the one-day export, named `nba-food-stall_<from>_<to>.csv`.
 
 **Orders** lists a single day's orders one by one, which is the screen to open when somebody is standing in front of you asking what was in order A-041. Pick a day, search by order number or by name, and narrow by status or by how it was paid. Tap an order and you get everything about it: till, payment, when it was placed, how long it waited, the full Placed → Started → Ready → Collected timeline with the actual times, and every item with its quantity and price. On a phone the order opens full screen and the usual Back button returns you to the list. It updates itself live, so an order taken at the till appears while the screen is open. It is read-only: nothing on it changes an order, which makes it safe to hand to anyone who needs to look something up. Cancelled orders are listed, so you can see that an order existed and was cancelled, but they are left out of the total. Its CSV export covers whatever the filters are currently showing, named `nba-food-stall_orders_<day>.csv`, and that one does include the cancelled rows, with `cancelled` in the status column.
 
-Every screen now shows the app version. The login card carries a line reading `Version 1.3.2 · build <7 characters> · updated <date>`, and every dark header carries a `v1.3.2` pill. On the small-phone cash counter the version is inside the ☰ menu rather than the header. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
+**Order history** is the same question asked across a range of days rather than one. Pick From and To, or tap Today, Last 7 days, Last 30 days, This year or This event, up to a year and a day at a time, and it lists every order grouped by day with the newest first. Search a number or a name, and narrow by status, by cash or card, by till, by which item was on the order, or to only the orders that were edited after sending. Opening an order gives you the full detail, plus two things the one-day screen has no room for: why and when a cancelled order was cancelled, and a Changes list showing what each edit did to the order and to the money. Copy link to this order hands somebody else the exact view you are looking at. Its export is named `nba-food-stall_history_<from>_<to>.csv` and covers every order the filters match, not just the first hundred on screen. Like the Orders screen it writes nothing, so it is safe to hand to anybody who needs to look something up.
+
+Every screen now shows the app version. The login card carries a line reading `Version 1.5.0 · build <7 characters> · updated <date>`, and every dark header carries a `v1.5.0` pill. On the small-phone cash counter the version is inside the ☰ menu rather than the header. The version is the release, so it only moves when a phase or a hotfix ships; the build is the exact commit the site was published from, so it changes on every deploy, documentation included. If a volunteer reports something odd, ask them what their screen says: the version tells you whether they are on a stale tab.
 
 ---
 
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**20 October 2026, v1.5.0 — Order history: find any order from any day without knowing which day it was.**
+
+The Orders screen answers "what was in A-041" perfectly well, as long as you already know which day A-041 was taken. For anything older than this morning you were guessing dates one at a time. A fourth report screen, **Order history**, takes a date range instead.
+
+Pick From and To, or tap Today, Last 7 days, Last 30 days, This year or This event, and it loads every order in that range, grouped under a heading for each day, newest day first. The range can be up to a year and a day; ask for more and it tells you to narrow it rather than quietly loading half. Then narrow it however you like: search an order number or a name, filter by status, by cash or card, by till letter, by which item was on the order, or show only the orders that were edited after they were sent. Order numbers restart every day, so `A-001` is not unique and every result shows its date.
+
+Tap an order and the detail opens beside the list, or full screen on a phone. It carries everything the Orders screen shows — till, payment, wait, the full timeline with real times, every item and its price — and two things only history has. A cancelled order gets a red line saying when it was cancelled, why, and what status it was in when somebody cancelled it. An order that was edited after it was sent gets a **Changes** section: one box per edit, what the order was before, what it became, and what that meant for the money, in the same words the till used at the time. Orders placed before v1.4.0 have no edit history to show and simply show none.
+
+**Copy link to this order** puts the whole view in the clipboard — range, filters, the open order, all of it — so a link pasted into a message opens on exactly what you were looking at. **Open this day in Orders** jumps to that day's Orders screen.
+
+The export is **Export these orders (CSV)**, named `nba-food-stall_history_<from>_<to>.csv`. It covers every order the filters currently match, not just the hundred on screen, with the same columns as the other exports.
+
+Long ranges load a hundred orders at a time, with a **Show 100 more** button, so a year's worth does not stall the screen. Pass five thousand orders in one range and it suggests narrowing it.
+
+The screen never writes anything. No order can be changed, cancelled or re-sent from it, which is what makes it the safe one to hand to a trustee asking a question. Everything else in the app is untouched: the tills, the food counter and the other three report screens work exactly as they did in v1.4.0, apart from gaining the fourth tab.
 
 **20 October 2026, v1.4.0 — an order can be changed or cancelled after it has been sent, and Samosa Chat joins the menu.**
 
@@ -161,22 +180,24 @@ Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, 
 
 Phase V took one round. Fifteen e2e cases failed on the first full run and all fifteen came from two accessibility defects rather than from the feature: the Open orders button's spoken name did not start with the words printed on it, and the cancelled food-counter card used a grey too faint against its pink background. Both were fixed and re-verified. The second of them is worth recording, because the fix that was proposed was not the fix that shipped: the suggested grey measured 4.39:1 against that card, just under the 4.5:1 the text size requires, and would have re-opened the bug on the exact card it was raised against. A darker grey at 6.97:1 went in instead, and the measurement was redone independently before it was accepted. No defect was found in the Phase V build itself.
 
+Phase VI took no rounds against the app at all. The only red test on the first full run was the version bump, which is Trinity's step rather than a defect, and five first-round failures that were all defects in the new tests rather than in the screen: a cancelled order that had reached Ready keeps its wait time, the phone sheet correctly says "Show 1 order" in the singular, and three cases had mis-read how the list pages. Each was checked against the brief before being changed. Two findings from this round are worth recording because neither was about Phase VI. Proving the new screen opens no live listener meant decoding the Firestore WebChannel payloads properly, and doing that exposed that the Phase IV check for accidental writes had been matching against a percent-encoded body since it was written, so it could never have failed. It was rewritten and both screens still show zero writes. The second is BUG-14, below: extending the touch-target check to the Orders route for the first time found 44px buttons that have been there since v1.3.0.
+
 Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. Hotfix H4 took none against the app either: Neo's change was green on its first full run, and the only red test was the version bump itself, which is Trinity's step rather than a defect. The numbers below come from a clean run on the bumped tree, plus a separate read-only live check against the deployed v1.4.0.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
-| Unit (Vitest) | 370 | 370 | 0 |
-| E2E (Playwright), five viewports | 534 | 534 | 0 |
-| Live check on v1.4.0 (against the deployed site) | 26 | 26 | 0 |
-| **Total** | **930** | **930** | **0** |
+| Unit (Vitest) | 468 | 468 | 0 |
+| E2E (Playwright), five viewports | 586 | 586 | 0 |
+| Live check on v1.5.0 (against the deployed site) | 18 | 18 | 0 |
+| **Total** | **1072** | **1072** | **0** |
 
 The e2e suite now runs five viewports rather than two. The original phone 390×844 and tablet 1280×800 projects still run everything; three new projects model the phones H3 was built for — **iPhone 13 at 390×664, iPhone 17 at 402×694 and a Pro Max at 430×752**, each being the device width less the 180px of Safari chrome that gives the brief's figures. Those three run the H3 cash counter spec only, because the rest of the suite already covers the new layout through the 390×844 phone project and tripling a 286-case suite would make the fix loop unusable.
 
-A further 208 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+A further 249 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
 
 The v1.3.2 live check was read-only, as every live check since Phase I has been. It signed in, loaded all six screens on a tablet and an iPhone 13, exercised the cart and the Review & send sheet by adding items and taking them out again, and read the live database before and after to prove nothing was written: `orders` empty both times, `menu` the same seven documents, `settings` untouched. One thing cannot be checked that way — that the panel returns to Card **after an order is sent**, which needs a real order. That case is covered on the emulator and is recorded as untestable live rather than quietly skipped.
 
-Also clean: zero axe accessibility violations on all seven routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
+Also clean: zero axe accessibility violations on all eight routes at both sizes, zero console errors, no horizontal scroll at 360px, and every interactive control at or above the 48px minimum (re-measured independently at 390, 360 and 1280 wide).
 
 - Test plan: [`qa/test-plan.md`](qa/test-plan.md)
 - Bug log with the final status of every bug: [`qa/bugs.md`](qa/bugs.md)
@@ -188,6 +209,16 @@ To run the tests yourself: `npm install`, then `npm test`. Needs Java 21 for the
 ### Live smoke test
 
 Run against the deployed site, not the emulator, after each phase.
+
+**Phase VI (20 October 2026), 18 checks passed, 0 failed, read-only.** On the deployed build `d834045` at 1280×800 and 390×664, with zero console errors on any route at either size and the pill reading Online. Every screen reads `v1.5.0` and the login card reads `Version 1.5.0 · build d834045 · updated 20 Oct 2026`. The fourth tab is on all four report screens, reading "Order history" on a tablet and "History" on a phone, and the tab row scrolls sideways rather than pushing the page wide. Signed out, `#/reports/history` redirects to the login screen without showing anything first.
+
+Last 30 days over the live data returned 128 orders across two trading days, a hundred on the first screen with **Show 100 more (28 left)** below them, and the summary tiles matched figures read independently out of the database over REST rather than out of the screen itself. A range of 367 days showed "Pick 366 days or fewer" and, checked at the network level, made no query at all.
+
+The one live order that had been edited was opened to exercise the part of the screen that only exists for Phase V orders: its Changes box reads "Edited 09:39 at till A while Preparing" with the before and after items, the totals and the money line, and the edit appears as its own step in the timeline. Copy link to this order put the view on the clipboard and the label changed to "Link copied"; the copied link was reopened in a fresh page and came back to the same order. Open this day in Orders landed on the right day. The export came down as `nba-food-stall_history_2026-09-21_2026-10-20.csv` with 15 columns ending `waitSeconds, edited, cancelReason` and 170 lines, one per line of all 128 matched orders rather than the hundred on screen.
+
+Nothing was written. The whole signed-in session was watched at the network level, with the Firestore payloads decoded rather than pattern-matched, and it made zero document writes on either viewport; `orders` held 128 documents before and after with the same fingerprint and `menu` the same eight ids. No order was placed, edited or cancelled, and edit mode was never entered.
+
+Three things could not be checked live and are recorded rather than quietly skipped. The live database holds no cancelled order, so the red "Cancelled · was Preparing" box has no real example to show; every live range in the last 30 days has orders in it, so the empty state never appeared; and the "Couldn't load orders" box cannot be reached at all from a browser that has the data cached, which is the intended behaviour rather than a gap in the screen. All three are covered on the emulator.
 
 **Phase V (20 October 2026), 26 checks passed, 0 failed, read-only.** On the deployed build `6394978` at 1280×800 and 390×664, with zero console errors on any route at either size and the pill reading Online. Eight tiles with Samosa Chat last in its own colour and its own icon, all eight inside an iPhone 13 screen without scrolling. Open orders in both headers with its count, the drawer 480px on a tablet and a full-width sheet on a phone, closing on Close, a backdrop tap and Escape. The Recent strip is gone, and "Next A-001" now sits inside the ☰ menu above the version line, checked by measuring where it is rather than where it appears in the markup. Every screen reads `v1.4.0` and the login card reads `Version 1.4.0 · build 6394978 · updated 20 Oct 2026`. All three CSV exports end `…,waitSeconds,edited,cancelReason`, proved against 168 real order lines from 19 October rather than against an empty day. Zero serious or critical accessibility violations on the live cash counter and food counter.
 
@@ -250,6 +281,8 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 ## Known issues and Phase I limits
 
+**The order-number buttons on the Orders screen are 44px, not the 48px the design calls for.** They are comfortably tappable and have been since v1.3.0; the equivalent buttons on the new Order history screen are 48px. It surfaced during this release only because the automated target check was extended to cover the Orders route for the first time, having never reached it before. It is logged as BUG-14. Phase VI was explicitly scoped to change nothing that was already live, so it was left for the next release rather than touched on the way out of the door, the same call that was made for BUG-12.
+
 **The browser Back button while editing an order drops the edit without asking.** Sign out, the header and ☰ navigation links, and starting Edit on a second order all show a confirm first. Back does not, because intercepting it needs a history entry that collides with the one the phone's Review & send sheet already uses. Nothing is written either way, so the worst case is retyping a change, not a wrong order. Use Discard changes rather than Back.
 
 **Greyed-out lines under a station filter are too faint.** On the food counter, lines belonging to another station are shown in a grey that measures 2.52:1 against white, below the accessibility minimum. It has been there since v1.0.0 and Phase V did not touch it; it is logged as BUG-12 with the fix and the missing test case written up. It was left out of this release rather than changing untested v1.0.0 code on the way out of the door.
@@ -275,9 +308,7 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 
 **Prices are edited in the Firebase console, not in the app.** There is no price-editing screen in Phase I.
 
-**Multi-day reporting is capped at 31 days** on the Sales by day screen. For longer periods, export each range's CSV and combine them in Google Sheets.
-
-**The Orders screen covers one day at a time.** There is no way to list orders across a date range; use Sales by day for that and open a single day from it.
+**Sales by day is still capped at 31 days.** Order history goes up to a year and a day, so for a longer stretch of *totals* either export each 31-day range's CSV and combine them in Google Sheets, or export the range from Order history, which gives you the order lines to total yourself.
 
 **The Orders CSV button appears on a phone, although the phone mock-up does not show one.** It works, and it is the export an organiser checking Reports on a phone would want, so it was kept rather than removed to match the drawing. It is the one Phase IV control the automated checks skip on a phone.
 

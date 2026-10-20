@@ -1730,12 +1730,15 @@ export async function countOrders() {
  *
  * CLAUDE.md Phase VI 3: the history screen makes one query per range change,
  * is not a listener, and never writes.
+ *
+ * `host` selects which backend to watch: the emulator by default, or
+ * /firestore\.googleapis\.com/ for the read-only live checks.
  */
-export function watchFirestore(page) {
+export function watchFirestore(page, host = /127\.0\.0\.1:8080|localhost:8080/) {
   const messages = [];
   page.on('request', (req) => {
     const url = req.url();
-    if (!/127\.0\.0\.1:8080|localhost:8080/.test(url)) return;
+    if (!host.test(url)) return;
     let body = '';
     try { body = req.postData() || ''; } catch { body = ''; }
     if (!body) return;

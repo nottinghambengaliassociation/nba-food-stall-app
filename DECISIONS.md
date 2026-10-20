@@ -336,3 +336,9 @@ picked instead.
 - 2026-10-20 (Morpheus) — `history-error` has no reachable trigger in the emulator: with `persistentLocalCache` an aborted request and a 403 both resolve `getDocs` from cache, which is the orchestrator's ruling that offline is not an error. `P6-12` therefore asserts the box exists with `role="alert"` and the exact wording, is hidden on a healthy load, never leaves a blank screen behind an unreachable backend, and clears on Refresh; `P6-U-10` pins the string. No code change asked for.
 - 2026-10-20 (Morpheus) — `P4-U-09` and `P5-U-09` were relaxed to "never goes backwards from 1.4.0" and the version number is pinned once, in `P6-U-09`. A single pending release bump was otherwise failing three unit cases at once, which says nothing three times.
 - 2026-10-20 (Morpheus) — Two of my own expectations were wrong against the brief, not the build: a cancelled order that had reached Ready keeps its 6 min wait (Phase IV 5), and the phone sheet correctly reads "Show 1 order" in the singular.
+
+## Phase VI close-out
+
+- 2026-10-20 (orchestrator) — BUG-14 (44 px order-number buttons on the Phase IV Orders screen, against Design's 48 px) is left open and out of v1.5.0. It has been live since v1.3.0 and surfaced only because the touch-target check reached that route for the first time this round. The run was scoped to change nothing already live, so the same call was made as for BUG-12: write the fix and the failing case into qa/bugs.md and let the next release take it.
+- 2026-10-20 (orchestrator) — Phase VI needs no live Firestore write, so neither `menu-sync.mjs` nor `reset-live.mjs` was run. The release adds no menu item and the new screen is read-only.
+- 2026-10-20 (orchestrator) — The "Orders screen covers one day at a time" known issue is removed from HANDOVER.md rather than reworded: Order history is the answer to it. The 31-day Sales by day cap stays, now pointing at Order history for longer ranges.

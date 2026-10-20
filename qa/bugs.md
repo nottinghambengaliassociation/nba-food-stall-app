@@ -1443,7 +1443,7 @@ re-ran green after Neo's additive change to `orderChanges()`
 (`reports-orders.spec.js`, `reports-p5.spec.js`, `cash-p5.spec.js`,
 `kitchen-p5.spec.js`: no failures).
 
-### BUG-13 | minor | Platform — `package.json` version | status: **open (Trinity)**
+### BUG-13 | minor | Platform — `package.json` version | status: **verified** (round P6-live)
 
 **Steps** `npx vitest run tests/unit/history.test.js`.
 
@@ -1453,6 +1453,11 @@ of truth for every version label (Phase III part 2, 1).
 
 **Actual** — `package.json` is still `1.4.0`, so `P6-U-09` fails:
 `expected '1.4.0' to be '1.5.0'`.
+
+**Verified 20 Oct 2026** — Trinity bumped `package.json` to `1.5.0` for build
+`d834045`; `npx vitest run` is now **468 / 468**, and the live check read
+`1.5.0 / d834045 / 2026-10-20` off the deployed `js/version.js`, the login card
+and every dark header.
 
 **Owner** Trinity, as part of the release — the same sequence as BUG-8 in Phase
 IV. Not a Neo defect and not a blocker for the build review. `P4-U-09` and
@@ -1537,6 +1542,68 @@ After the `X-02` correction and the stronger read-only classifier:
 | Full e2e, 835 cases over five projects | **586 pass, 249 skipped, 0 fail** (exit 0, 34.7 min) |
 | `reports-orders.spec.js -g P4-15` with the decoded classifier | **2 / 2 pass** — still no write from the Orders screen |
 
-Open at the end of this round: **BUG-13** (Trinity, the version bump) and
-**BUG-14** (minor, pre-existing Phase IV button height). Nothing open against
-the Phase VI build.
+Open at the end of this round: **BUG-13** (Trinity, the version bump — closed
+the same day by the v1.5.0 deploy, see "Round P6-live") and **BUG-14** (minor,
+pre-existing Phase IV button height). Nothing open against the Phase VI build.
+
+---
+
+## Round P6-live — 2026-10-20, read-only check of v1.5.0, build `d834045`
+
+`LIVE_P6=1 EXPECT_BUILD=d834045 npx playwright test tests/e2e/live-p6.spec.js --project=tablet --project=iphone13`
+
+**18 / 18 passed** (9 cases × 2 viewports), **0 failed**, no bug raised.
+Evidence lines are appended to `qa/live-smoke-record.txt`; screenshots are
+`qa/screenshots/live-p6-*.png` (15 files).
+
+### Write discipline — the strongest evidence available
+
+| Check | Result |
+|---|---|
+| `watchFirestore(page, /firestore\.googleapis\.com/)` over the whole signed-in session, decoding the WebChannel `req<n>___data__` messages | **0 document writes** on both viewports |
+| `orders` count before → after (REST GET) | **128 → 128** |
+| `orders` fingerprint (`id\|orderNo\|status\|total\|day\|editCount`) before → after | identical |
+| `menu` document ids before → after | identical, 8 documents |
+
+No order was placed, edited or cancelled. `send-order`, `save-changes`,
+`cancel-confirm`, `got-it-*` and `remove-*` were never clicked; edit mode was
+never entered; no till tile was tapped.
+
+### What live actually holds
+
+128 orders over two trading days (2026-10-19, 2026-10-20), till A only,
+**0 cancelled**, **1 edited**, `settings/event` absent. So the H3 reset no
+longer leaves the reports empty, and most data cases ran against real orders.
+
+### Result per case
+
+| Case | Result |
+|---|---|
+| P6L-00 snapshot | PASS — 128 orders, 8 menu documents, `settings/event` absent |
+| P6L-01 `version.js` + signed-out guard | PASS — `1.5.0 / d834045 / 2026-10-20`; `#/reports/history` redirects to `#/login`; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026" |
+| P6L-02/03 seven routes, pill, header label | PASS — Online, `v1.5.0` in every dark header (in ☰ on the small cash counter), **0 console errors** |
+| P6L-04 the fourth tab | PASS — "Order history" (tablet) / "History" (iphone13) on all four report screens, ≥ 48 px, filled ink with `aria-current`, no sideways page scroll |
+| P6L-05 Last 30 days | PASS — `2026-09-21..2026-10-20`, first page 100, "Show 100 more (28 left)" → all 128, summary `128 orders · £965.00`, tiles matching REST; default range Last 7 days; "This event" correctly hidden; 367 days → "Pick 366 days or fewer" **with no query** |
+| P6L-06 one live order | PASS — opened the live **edited** order A-001 (2026-10-20); every field matched its document; Changes box reads "Edited 09:39 at till A while Preparing", Before `1× Momo, 1× Samosa, 1× Samosa Chat · £15.00`, After and the money line; timeline carries an `edited-1` step; read-only note verbatim; Copy link → "Link copied"; "Open this day in Orders" → `#/reports/orders?day=2026-10-20`; phone back button and browser Back both return to the list |
+| P6L-07 the history CSV | PASS — `nba-food-stall_history_2026-09-21_2026-10-20.csv`, **15 columns**, **170 body rows** (one per line of all 128 matched orders, not the 100 on screen), `lineTotal = qty × price` on every row, `edited` yes/no, `cancelReason` blank, no `tendered` |
+| P6L-08 axe + phone sheet | PASS — **0 serious/critical** on the list and on the phone filter sheet; the sheet is `role="dialog"` with "Show 128 orders"; tablet Clear filters keeps the range; nothing under 44 px |
+| P6L-09 sign out + write proof | PASS — back to `#/login`, session cleared, guard holds; 0 writes; orders and menu unchanged |
+
+### Gaps recorded, not worked around
+
+| What | Why | Emulator cover |
+|---|---|---|
+| The red "Cancelled HH:MM · reason · was <status>" detail box | live holds **no cancelled order**; nothing was cancelled to make it appear | `P6-26` in `tests/e2e/reports-history.spec.js` |
+| A range with no orders (the "No orders match these filters." empty state) | every live range in the last 30 days has data | `P6-14…P6-17`, `P6-23` |
+| The `history-error` failure box | unreachable by design (see Observation 1, round P6) | `P6-12`, `P6-U-10` |
+
+### Two test corrections during the live run (no app defect)
+
+1. `P6L-05` first asserted 128 rows on screen; the brief caps the first page at
+   100 (`CLAUDE.md` Phase VI 6). Corrected to assert 100, then
+   "Show 100 more (28 left)", then all 128 — which is a better check than the
+   original.
+2. `P6L-06` (phone) expected the full list back after the detail; the list
+   renders its first page again. The brief fixes the cap and says nothing about
+   holding a paged-out position across a detail, so the first page is the
+   expectation. Corrected.

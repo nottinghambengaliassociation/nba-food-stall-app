@@ -1182,3 +1182,156 @@ P5L-11 iphone13: axe food counter -> 0 serious/critical
 P5L-11 iphone13: PASS - no serious or critical axe violations on the live Phase V surfaces
 P5L-12 iphone13: live orders = 127 document(s) after the check (was 127)
 P5L-12 iphone13: PASS - signed out, orders unchanged, menu unchanged
+P6L-00 tablet: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 tablet: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 tablet: PASS - snapshot taken
+P6L-01 tablet: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 tablet: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 tablet: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 tablet: PASS - "Order history" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-00 tablet: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 tablet: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 tablet: PASS - snapshot taken
+P6L-01 tablet: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 tablet: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 tablet: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 tablet: PASS - "Order history" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 tablet: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 tablet: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 tablet: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 tablet: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 tablet: axe the list -> 0 serious/critical
+P6L-08 tablet: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 tablet: write classifier -> 0 document write(s) seen in the browser
+P6L-09 tablet: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 iphone13: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 iphone13: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 iphone13: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 iphone13: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 iphone13: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 iphone13: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 iphone13: axe the list -> 0 serious/critical
+P6L-08 iphone13: axe the filter sheet -> 0 serious/critical
+P6L-08 iphone13: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 iphone13: write classifier -> 0 document write(s) seen in the browser
+P6L-09 iphone13: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 tablet: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 tablet: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 tablet: PASS - snapshot taken
+P6L-01 tablet: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 tablet: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 tablet: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 tablet: PASS - "Order history" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 tablet: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 tablet: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 tablet: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 tablet: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 tablet: axe the list -> 0 serious/critical
+P6L-08 tablet: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 tablet: write classifier -> 0 document write(s) seen in the browser
+P6L-09 tablet: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 iphone13: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 iphone13: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 iphone13: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 iphone13: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 iphone13: axe the list -> 0 serious/critical
+P6L-08 iphone13: axe the filter sheet -> 0 serious/critical
+P6L-08 iphone13: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 iphone13: write classifier -> 0 document write(s) seen in the browser
+P6L-09 iphone13: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 tablet: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 tablet: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 tablet: PASS - snapshot taken
+P6L-01 tablet: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 tablet: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 tablet: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 tablet: PASS - "Order history" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 tablet: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 tablet: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 tablet: Changes verified on a real edited order -> "Edited 09:39 at till A while Preparing Before: 1× Momo, 1× Samosa, 1× Samosa Chat · £15.00 After: 1× Momo, 1× Samosa Cha"
+P6L-06 tablet: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 tablet: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 tablet: axe the list -> 0 serious/critical
+P6L-08 tablet: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 tablet: write classifier -> 0 document write(s) seen in the browser
+P6L-09 tablet: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 iphone13: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 iphone13: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 iphone13: Changes verified on a real edited order -> "Edited 09:39 at till A while Preparing Before: 1× Momo, 1× Samosa, 1× Samosa Chat · £15.00 After: 1× Momo, 1× Samosa Cha"
+P6L-06 iphone13: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 iphone13: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 iphone13: axe the list -> 0 serious/critical
+P6L-08 iphone13: axe the filter sheet -> 0 serious/critical
+P6L-08 iphone13: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 iphone13: write classifier -> 0 document write(s) seen in the browser
+P6L-09 iphone13: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 tablet: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 tablet: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 tablet: PASS - snapshot taken
+P6L-01 tablet: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 tablet: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 tablet: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 tablet: PASS - "Order history" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 tablet: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 tablet: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 tablet: Changes verified on a real edited order -> "Edited 09:39 at till A while Preparing Before: 1× Momo, 1× Samosa, 1× Samosa Chat · £15.00 After: 1× Momo, 1× Samosa Cha"
+P6L-06 tablet: GAP - no cancelled order in range, so the red "Cancelled HH:MM · reason · was <status>" box could not be seen live. Nothing was cancelled to make it appear. Emulator cover: P6-26 in tests/e2e/reports-history.spec.js.
+P6L-06 tablet: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 tablet: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 tablet: axe the list -> 0 serious/critical
+P6L-08 tablet: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 tablet: write classifier -> 0 document write(s) seen in the browser
+P6L-09 tablet: PASS - signed out, zero writes, orders (128) and menu (8) unchanged
+P6L-00 iphone13: live orders = 128 document(s) over days [2026-10-19, 2026-10-20]; menu = 8 document(s); settings/event absent
+P6L-00 iphone13: Last 30 days (2026-09-21..2026-10-20) holds 128 order(s) over 2 trading day(s); cancelled = 0, edited = 1, tills [A]
+P6L-00 iphone13: PASS - snapshot taken
+P6L-01 iphone13: published js/version.js -> 1.5.0 / d834045 / 2026-10-20
+P6L-01 iphone13: PASS - #/reports/history redirects to #/login; card reads "Version 1.5.0 · build d834045 · updated 20 Oct 2026"
+P6L-02/03 iphone13: PASS - 7 routes, Online pill, v1.5.0 in every header, 0 console error(s)
+P6L-04 iphone13: PASS - "History" on all four report screens, filled ink on its own, no sideways page scroll
+P6L-05 iphone13: PASS - 128 live order(s) over 2 day(s), first page 100, then "Show 100 more (28 left)" to all 128, summary "128 orders · £965.00"
+P6L-05 iphone13: range rules PASS - default Last 7 days, Last 30 days 2026-09-21..2026-10-20, "This event" hidden, 367 days blocked with no query
+P6L-06 iphone13: Changes verified on a real edited order -> "Edited 09:39 at till A while Preparing Before: 1× Momo, 1× Samosa, 1× Samosa Chat · £15.00 After: 1× Momo, 1× Samosa Cha"
+P6L-06 iphone13: GAP - no cancelled order in range, so the red "Cancelled HH:MM · reason · was <status>" box could not be seen live. Nothing was cancelled to make it appear. Emulator cover: P6-26 in tests/e2e/reports-history.spec.js.
+P6L-06 iphone13: PASS - opened A-001 (2026-10-20), every field matched its document
+P6L-07 iphone13: PASS - "nba-food-stall_history_2026-09-21_2026-10-20.csv", 15 columns, 170 body row(s)
+P6L-08 iphone13: axe the list -> 0 serious/critical
+P6L-08 iphone13: axe the filter sheet -> 0 serious/critical
+P6L-08 iphone13: PASS - zero serious/critical axe violations, no control under 44 px
+P6L-09 iphone13: write classifier -> 0 document write(s) seen in the browser
+P6L-09 iphone13: PASS - signed out, zero writes, orders (128) and menu (8) unchanged

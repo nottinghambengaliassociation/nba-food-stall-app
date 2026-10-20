@@ -2414,3 +2414,23 @@ three days, written through the emulator's `documents:batchWrite` in two calls,
 with a per-document fallback). New harness helpers: `watchFirestore`,
 `grantClipboard`, `breakFirestore` / `mendFirestore`, `slowFirestore`,
 `countOrders`.
+
+### 63.1 Phase VI live verification, as run (20 Oct 2026, build `d834045`)
+
+`tests/e2e/live-p6.spec.js`, gated behind `LIVE_P6=1`, run on `tablet` and
+`iphone13`: **18 / 18 passed**, zero writes, zero console errors. Full record in
+`qa/bugs.md` → "Round P6-live" and `qa/live-smoke-record.txt`; screenshots
+`qa/screenshots/live-p6-*.png` (15 files).
+
+Two changes to the plan's section 63, both because live now holds **128 real
+orders** rather than the empty collection the H3 reset left:
+
+- `P6L-05` pages the list out (100, then "Show 100 more (28 left)", then all
+  128) instead of expecting every matched order on the first screen —
+  `CLAUDE.md` Phase VI 6.
+- `P6L-06` picks the live **edited** order in preference to the newest one, so
+  the Changes boxes, the money line and the `edited-1` timeline step are proved
+  against real data rather than recorded as a gap.
+
+`playwright.config.js` adds `live-p6.spec.js` to the `iphone13` project's
+`testMatch`, the same way `live-p5.spec.js` was added for Phase V.
