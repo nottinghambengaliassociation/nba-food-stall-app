@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1/H2 + Phase III + Phase IV
+# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1–H4 + Phase III + Phase IV + Phase V
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -1580,3 +1580,253 @@ Rule for later phases: a live spec asserts `PKG_VERSION` for the exact value
 and a floor for "this release or later". Never a bare version literal — it
 rots at the next bump. `live-p4.spec.js` already follows this (only its
 message string names a version) and was left alone.
+
+---
+
+# Phase V — edit or cancel an open order, plus Samosa Chat (v1.4.0)
+
+Spec: `CLAUDE.md` → "Phase V: Edit or cancel an open order, plus Samosa Chat
+(v1.4.0)", items 1–8, and the mock-ups `design/OrderChangesRules.dc.html`
+(rules, money prompts, data fields), `design/CashOpenOrders.dc.html`
+(tablet/desktop), `design/CashOpenOrdersSmall.dc.html` (iPhone 13),
+`design/FoodCounterChanges.dc.html` (food counter cards) and
+`design/ItemIcon.dc.html` (the `samosa_chat` icon).
+
+**This plan tests the brief.** Where the app and `CLAUDE.md` disagree, the app
+is wrong.
+
+## 46. Phase V scope and where it runs
+
+| Suite | File | Projects |
+|---|---|---|
+| Unit — the new pure logic, the 8-item seed, the CSV columns | `tests/unit/edit-cancel.test.js` | node |
+| Unit — the menu table and icons (updated) | `tests/unit/menu.test.js` | node |
+| E2E — Open orders, edit, cancel, offline, the 8th tile | `tests/e2e/cash-p5.spec.js` | `tablet`, `phone`, `iphone13` (added to its `testMatch`) |
+| E2E — food counter sees the change | `tests/e2e/kitchen-p5.spec.js` | `tablet`, `phone` |
+| E2E — reports: Edited tag, timeline, Changes, CSV | `tests/e2e/reports-p5.spec.js` | `tablet`, `phone` |
+
+`iphone13` (390×664) is included for the cash spec because Phase V 1 moves two
+controls into the one-row 52 px H3 header ("Orders" with its badge, and "Next
+A-045" into ☰), which is a geometry claim only the small phone can falsify.
+The live check (`live-p5.spec.js`) is written after the deploy, not here.
+
+## 47. The DOM contract this suite assumes
+
+`CLAUDE.md` Phase V names only three test ids — `open-orders`, `edit-delta`
+and `cancel-reason-<key>`. The rest follow the existing naming conventions in
+`.claude/agents/neo.md`; every locator also falls back to the role, the
+`aria-label` or the button wording the brief and the mock-ups fix, so a case
+fails on behaviour rather than on a spelling.
+
+| Element | Preferred test id | Fallback the test accepts |
+|---|---|---|
+| Header button + count badge | `open-orders` | header button named/labelled "Open orders" or "Orders" |
+| Count badge | `open-orders-count` | the digits in the button's text |
+| Drawer (tablet) / sheet (phone) | `open-orders-drawer` | `open-orders-panel`, `[role="dialog"][aria-label*="Open orders"]` |
+| Close button | `open-orders-close` | a "Close" button inside the panel |
+| Search box | `open-orders-search` | `input` labelled "Search open orders" / placeholder "Search order number or name" |
+| One row | `open-order-<orderNo>` | `open-row-<orderNo>`, `open-orders-row-<orderNo>` |
+| Row buttons | `edit-<orderNo>`, `cancel-<orderNo>` | `open-edit-<orderNo>`, `open-cancel-<orderNo>` |
+| Offline note | `open-orders-offline` | the text "Needs a connection" in the panel |
+| Nothing matched | `open-orders-empty` | panel text "No open orders match." |
+| Edit banner | `edit-banner` | the panel text "Editing A-041" |
+| Payment prompt | `edit-delta` (**brief**) | — |
+| Save / Discard | `save-changes`, `discard-changes` | `edit-save`, `edit-discard`, buttons named "Save changes…" / "Discard changes" |
+| Changed cart line | `line-change-<itemId>`, `line-removed-<itemId>` | the tag text in the line |
+| No items left offer | `edit-empty` + `edit-empty-cancel` | `edit-cancel-order`, panel text "No items left. Cancel the order instead?" |
+| Status-moved-on alert | `edit-blocked` | `edit-conflict`, a `role="alert"` holding "is now Ready" |
+| Cancel dialog | `cancel-dialog` | `[role="alertdialog"]` |
+| Reason buttons | `cancel-reason-<key>` (**brief**) | — |
+| Refund line / buttons | `cancel-refund`, `cancel-keep`, `cancel-confirm` | dialog text, buttons "Keep order" / "Cancel order" |
+| Food counter cards | `changed-banner-<orderNo>`, `cancelled-banner-<orderNo>`, `changed-tag-<orderNo>`, `change-note-<orderNo>`, `cancel-note-<orderNo>`, `line-tag-<orderNo>-<itemId>`, `tab-dot-<lane>` | the card's own text and `role="alert"` |
+| Food counter buttons | `got-it-<orderNo>`, `remove-<orderNo>` | buttons named "Got it" / "Remove" inside `order-card-<orderNo>` |
+| The next order number on phone | `menu-next` (inside `app-menu`) | the ☰ menu's text |
+| Orders-list Edited tag | `edited-tag-<orderNo>` | the row/card text "Edited" |
+| Detail timeline + changes | `order-detail-timeline`, `order-detail-changes`, `order-change-<n>` | detail panel text |
+
+## 48. Phase V unit cases — `tests/unit/edit-cancel.test.js` (`P5-U-*`)
+
+`CLAUDE.md` fixes the **wording**, not the function names, so each case
+resolves the function from a short list of names (and, for two of them, from
+two possible call shapes) and then asserts the brief's exact strings. A
+missing export fails with the list of names it looked for.
+
+| id | Case | Expected (CLAUDE.md) |
+|---|---|---|
+| P5-U-01 | The 8-item seed | `MENU` is exactly the table in `CLAUDE.md` → Menu, 8 rows, sorts 1–8 with no gaps; `samosa_chat` = name "Samosa Chat", short "Samosa Chat", 500, `#A5F3FC`, `chaat`, `active: true`, `sort: 8`; `stationOf('samosa_chat') === 'chaat'`, `inStation('samosa_chat','chaat')`; `samosa`, `straw`, `fountain` still absent (Phase V 7, Menu table) |
+| P5-U-02 | The payment prompt, six cases | up + cash "Take £5.00 more"; up + card "Take £5.00 more on the card machine"; down + cash "Give back £5.00"; down + card "Refund £5.00 on the card machine"; same total "No payment change"; nothing changed at all "No changes yet". A name-only or payment-only change is a change but still "No payment change" (Phase V 2) |
+| P5-U-03 | Line diffing | was 0 → "added"; 2 → 3 "+1 (was 2)"; 2 → 1 "−1 (was 2)" (ASCII `-` accepted); → 0 "removed"/"REMOVED"; unchanged → no tag. Food-counter forms NEW / REMOVED accepted case-insensitively (Phase V 2, 4) |
+| P5-U-04 | `history` keeps the last 10 | appending to a 10-entry history leaves 10, drops the **oldest**, keeps the newest; entries keep `atMs`, `action`, `till`, `fromStatus`, `before`, `deltaPence`; a missing/garbage history is treated as empty (Phase V 6) |
+| P5-U-05 | The refund wording | cash "Give back £15.00 cash"; card "Refund £15.00 on the card machine"; £0 and odd pence formatted the same way (Phase V 3) |
+| P5-U-06 | Cancel reasons | the five keys `mistake`, `changed_mind`, `out_of_stock`, `not_collected`, `other` with the brief's labels; `not_collected` only offered for `ready` (Phase V 3) |
+| P5-U-07 | CSV gains two last columns | `ordersToCsv`, `exportOrdersCsv` and the range export all end `…,waitSeconds,edited,cancelReason`; `edited` is `yes` when `editCount > 0` else `no`; `cancelReason` is blank unless the order is cancelled, and then the stored reason; every body row has 15 fields; the other 13 columns and their values are untouched (Phase V 5) |
+| P5-U-08 | Timeline | an order with `editedAtMs`/`history` gains an "Edited HH:MM" step; a cancelled order's step carries the reason; an order with neither is unchanged from Phase IV (Phase V 5) |
+| P5-U-09 | `package.json` version | `1.4.0` (Phase V 8). **This replaces the 1.3.2 assertion in `P4-U-09`** |
+| P5-U-10 | Edits are counted at their final value | `buildReport` / `buildRangeReport` over an edited order use the stored `items`/`total`, and a cancelled order stays excluded whatever its `history` says (Phase V 5) |
+
+## 49. Phase V cash-counter cases — `tests/e2e/cash-p5.spec.js` (`P5-*`)
+
+The scripted open day (`p5Fixture()` in `tests/e2e/helpers.js`, pinned to
+today's London date, mirroring `design/CashOpenOrders.dc.html`):
+
+| orderNo | till | name | status | pay | items | total | placed |
+|---|---|---|---|---|---|---|---|
+| A-044 | A | Josh | new | card | 1× Papri Chat, 2× Choc Marshmallow | £15.00 | 14:09 |
+| B-012 | B | Meera | new | cash | 1× Momo, 1× Samosa Chat | £10.00 | 14:07 |
+| A-042 | A | Sam | ready | card | 1× Fuchka, 1× Choc Strawberry | £10.00 | 14:03 |
+| A-041 | A | Ahmed | preparing | cash | 2× Momo, 1× Papri Chat | £15.00 | 14:01 |
+| A-040 | A | Lucy | collected | cash | 2× Sweet Box | £10.00 | 13:50 |
+| A-039 | A | Dev | cancelled | card | 1× Fuchka | £5.00 | 13:40 |
+
+Open = the first four, newest first `A-044, B-012, A-042, A-041`; the badge
+reads **4**.
+
+| id | Case | Expected (CLAUDE.md) |
+|---|---|---|
+| P5-01 | The header button and its badge | Tablet: an "Open orders" button in the dark header with the count **4**, at least 48 px. Phone: an "Orders" button with the badge, in the header between the connection dot and ☰, header still one row and ≤ 56 px. The count tracks the data live (cancel one → 3) (Phase V 1) |
+| P5-02 | What Phase V removes | Tablet: no recent-orders strip (`recent-list`, `recent-A-0NN` absent/hidden). Phone: no `menu-recent` item in ☰; "Next A-0NN" is **inside** the ☰ menu, above the version line, and no longer in the header bar (Phase V 1) |
+| P5-03 | The drawer and the sheet | `role="dialog"`, labelled "Open orders". Tablet: 480 px wide, anchored right, dimmed backdrop. Phone: bottom sheet in the Review & send style. Closes on Close, on a backdrop tap and on Escape; focus is inside it while open (Phase V 1) |
+| P5-04 | What it lists | Today's `new`, `preparing`, `ready` from **all tills**, newest first (`A-044, B-012, A-042, A-041`); `A-040` (collected) and `A-039` (cancelled) are absent; a B-till order is listed on an A till (Phase V 1) |
+| P5-05 | Search | "a-04" → A-044, A-042, A-041; "B-0" → B-012; "ahmed" and "AHMED" and " ahmed " → A-041; "zzz" → "No open orders match." (Phase V 1) |
+| P5-06 | A row | order number, name, status pill, items "2× Momo, 1× Papri Chat" (menu `short` names), meta line with HH:MM, "till A", "Cash"/"Card" and the total. Edit and Cancel… both at least 48 px; Cancel… is the red-outlined one (Phase V 1) |
+| P5-07 | Ready: cancel only | `open-edit-A-042` is **disabled** with `title="Ready: cancel only"`; `open-cancel-A-042` is enabled. Edit is enabled for `new` and `preparing` (Phase V 1, the status table) |
+| P5-08 | Edit mode opens | Tapping Edit closes the panel and loads the order: name "Ahmed", lines 2× Momo + 1× Papri Chat, total £15.00, payment Cash. Amber banner "Editing A-041 · Ahmed" with the Preparing pill and "Was 2× Momo, 1× Papri Chat, £15.00, Cash". Tablet: the order panel has a 3 px #B45309 border. Phone: an amber strip under the header with **Discard**, and the order bar is amber and reads "Review changes ›" (Phase V 2) |
+| P5-09 | Cash received is hidden in edit mode | No part of the Cash received block is visible while editing a Cash order, and the words "Cash received" are not in the page text (Phase V 2) |
+| P5-10 | Changed lines are tagged | Adding a Fuchka → that line reads "added"; +1 Momo → "+1 (was 2)"; −1 Momo → "−1 (was 2)"; removing Papri Chat → a struck-through "1× Papri Chat" with "removed". Unchanged lines carry no tag (Phase V 2) |
+| P5-11 | `edit-delta`, all six | no change → "No changes yet"; +1 item, Cash → "Take £5.00 more"; switch to Card → "Take £5.00 more on the card machine"; remove an item (−£5 against the original), Card → "Refund £5.00 on the card machine"; Cash → "Give back £5.00"; name-only change → "No payment change" (Phase V 2) |
+| P5-12 | Save is disabled until something changes | On entering edit mode Save is disabled; one + enables it; undoing the change disables it again. Its label reads "Save changes · £x.xx" and it is ≥ 80 px on tablet, ≥ 60 px on phone (Phase V 2) |
+| P5-13 | Every item removed | Save stays disabled and the panel offers "No items left. Cancel the order instead?" with a **Cancel order…** button that opens the cancel dialog for that order (Phase V 2) |
+| P5-14 | Discard writes nothing | Change items, name and payment, tap Discard changes → edit mode ends, the panel is a new empty order with **Card** selected, and the Firestore document is byte-for-byte what it was (items, total, name, payment, status, no `editCount`, no `history`) (Phase V 2) |
+| P5-15 | Leaving edit mode asks first | With edit mode on: (a) Sign out, (b) navigating to `#/kitchen` through the header/☰, (c) tapping Edit on another order — each shows an in-page confirm first (never `window.confirm`); Cancel keeps edit mode and the draft; confirming leaves it with nothing written (Phase V 2) |
+| P5-16 | No new order while editing | While editing, there is no "Send to food counter" control, and tiles add to the **edited** order, not to a second one (Phase V 2) |
+| P5-17 | Save writes the edit | A-041 → 3× Momo, name "Ahmed B", still Cash. Firestore: `items` = the new lines, `total` 2000, `name` "Ahmed B", `payment` "cash", `editCount` 1, `editedAtMs` a number ≥ the test start, `history` one entry `{action:"edit", till:"A", fromStatus:"preparing", before:{items,total,name,payment}, deltaPence: 500}`; `orderNo`, `till`, `day`, `createdAtMs`, `status` and `startedAtMs` **unchanged**. Toast "A-041 updated. Take £5.00 more." Then the panel is a new empty order on **Card** (Phase V 2, H4 1) |
+| P5-18 | Blank name saves as Guest | Clearing the name and saving writes `name: "Guest"` (Phase V 2, Data model) |
+| P5-19 | The status moved on under us | Open Edit on A-041, then from a second context take it to `ready`, then Save → **nothing is written** (`editCount` absent, items unchanged) and an amber `role="alert"` reads "A-041 is now Ready, so it can't be edited. Cancel it or start a new order." (Phase V 2) |
+| P5-20 | The cancel dialog | `role="alertdialog"`, heading "Cancel A-041 for Ahmed?", the items, the total and the status; for `preparing`/`ready` the extra line "The food counter has already started this. They'll see a red Stop making card."; absent for `new`. Refund line "Give back £15.00 cash" (cash) / "Refund £10.00 on the card machine" (card). **Keep order** closes it with nothing written (Phase V 3) |
+| P5-21 | Reasons | The five reason buttons by `cancel-reason-<key>`; `not_collected` is offered **only** for `ready` (absent/disabled for `new` and `preparing`); **Cancel order** is disabled until one is picked, and is #B91C1C once enabled (Phase V 3) |
+| P5-22 | Cancel writes | Confirming with `changed_mind` on A-041 writes `status: "cancelled"`, `cancelledAtMs` (number), `cancelReason: "changed_mind"`, `cancelledFrom: "preparing"` and appends a `history` entry `{action:"cancel", till, fromStatus:"preparing", reason:"changed_mind"}`; `items` and `total` are untouched. The toast repeats the refund line. The order leaves the Open orders list and the badge drops to 3 (Phase V 3) |
+| P5-23 | Cancelling an order that was collected meanwhile | A second context takes A-042 to `collected` while the dialog is open; confirming writes nothing and shows "A-042 was already collected" (Phase V 3) |
+| P5-24 | Offline | `context.setOffline(true)` → every Edit and Cancel… button is disabled and the note "Needs a connection" is on screen; back online they enable again. While offline a **new** order still sends and the pill shows it queued (Phase V 1) |
+| P5-25 | Samosa Chat on the till | 8 tiles, `tile-samosa_chat` last, its own icon (not the plate fallback), £5; tapping it adds a line named "Samosa Chat"; the sent order stores `{id:"samosa_chat", name:"Samosa Chat", qty, price:500}`; at 390×664 all 8 tiles are still fully inside the viewport with an empty cart and none is covered by the order bar (Phase V 7, H3 2) |
+| P5-26 | Layout, console and axe | No horizontal scroll at 360 px with the drawer/sheet and the cancel dialog open; zero serious/critical axe violations on the Open orders panel, edit mode and the cancel dialog; no console errors through the whole edit and cancel flow. Screenshots `qa/screenshots/<project>-cash-open-orders.png`, `-cash-edit.png`, `-cash-cancel.png` |
+
+## 50. Phase V food-counter cases — `tests/e2e/kitchen-p5.spec.js` (`P5-K-*`)
+
+| id | Case | Expected (CLAUDE.md) |
+|---|---|---|
+| P5-K-01 | The food counter never edits or cancels | No Edit, no Cancel and no `open-orders` control anywhere on `#/kitchen`, in any column, for any status, phone or tablet. Only Start/Ready/Collected, Undo last tap, the station filter and the sound toggle (Phase V, the rules table) |
+| P5-K-02 | A **new** order edited | The card updates in place (same column, same position, new items and total) within 2 s without a reload, and carries a small "Changed" tag; the tag goes once Start is tapped (Phase V 4) |
+| P5-K-03 | A **preparing** order edited | Amber card with the header "ORDER CHANGED · CHECK ITEMS"; lines tagged NEW / "+1 (was 2)" / "−1 (was 2)" / struck-through REMOVED from the latest `history` entry's `before`; the note "Changed at till A" with an age; the Ready button is **replaced** by **Got it** (≥ 64 px, #B45309). Got it writes `changeSeenAtMs`, the card goes back to normal and Ready returns (Phase V 4) |
+| P5-K-04 | Edited again after Got it | A second edit with `editedAtMs > changeSeenAtMs` brings the amber card back (Phase V 4) |
+| P5-K-05 | Cancelled from preparing or ready | Red card in the column it was in, header "CANCELLED · STOP MAKING", items struck through, "Cancelled by cash counter, till A: Customer changed mind." and a **Remove** button; the card is **not** counted in that column's total; Remove writes `kitchenClearedAtMs` and the card goes (Phase V 4) |
+| P5-K-06 | Cancelled from new | The card simply disappears, with no red card and no Remove (Phase V 4, the rules table) |
+| P5-K-07 | Phone tabs | The same cards inside the New/Preparing/Ready tabs; a tab holding an unseen change or cancel shows a dot (Phase V 4) |
+| P5-K-08 | Samosa Chat is a Chaat line | With the Chaat station filter on, a `samosa_chat` line is **not** greyed and a `marshmallow` line is; under All, neither is (Phase V 7, Food counter 4) |
+| P5-K-09 | Console and axe | Zero console errors and zero serious/critical axe violations with a changed card and a cancelled card on screen. Screenshot `qa/screenshots/<project>-kitchen-changed.png` |
+
+## 51. Phase V reports cases — `tests/e2e/reports-p5.spec.js` (`P5-R-*`)
+
+| id | Case | Expected (CLAUDE.md) |
+|---|---|---|
+| P5-R-01 | The Edited tag | On `#/reports/orders`, an order with `editCount > 0` shows a small "Edited" tag after its status pill; an unedited order does not (Phase V 5) |
+| P5-R-02 | The detail timeline | "Edited HH:MM" step(s) for each edit, in London time; for a cancelled order "Cancelled HH:MM · Customer changed mind" (the reason's label) (Phase V 5) |
+| P5-R-03 | The Changes list | The detail shows each edit's before and after items and totals ("Was 2× Momo, 1× Papri Chat · £15.00" → "Now 3× Momo · £15.00") (Phase V 5) |
+| P5-R-04 | The detail note | Reads "Read-only. Orders are edited and cancelled from the cash counter; status changes happen on the food counter." (Phase V 5) |
+| P5-R-05 | Totals use the stored order | The one-day KPIs, the per-item rows and the Sales by day figures use the **edited** items and total, and cancelled orders stay out of every total (Phase V 5) |
+| P5-R-06 | All three CSVs | One day, Sales by day and Orders exports all end `…,waitSeconds,edited,cancelReason`; the edited order's row reads `yes` and a blank reason; the cancelled order's row (Orders export only) reads its `cancelReason`; the other columns are unchanged (Phase V 5) |
+
+## 52. Existing cases changed for Phase V, and why
+
+| File | Case | Change | Why (CLAUDE.md) |
+|---|---|---|---|
+| `tests/e2e/helpers.js` | — | new Phase V helpers and the `p5Fixture()` open-day fixture: `openOpenOrders`, `listedOpenOrders`, `startEdit`, `saveEdit`, `openCancelDialog`, `cancelOrderWithReason`, `patchDoc`, `orderSnapshot`, `waitForOrder` | one place says "open the Open orders list" / "cancel with a reason", at either size |
+| `tests/unit/menu.test.js` | H-01, H-02, H-03, H-04 | seven rows → **eight**, sorts 1–8, `samosa_chat` in the table, its own icon, station `chaat` | Phase V 7 and the Menu table ("7 items from v1.3.1, plus `samosa_chat` … so 8") |
+| `tests/unit/menu.test.js` | H-06 | CSV header → 15 columns | Phase V 5 |
+| `tests/unit/csv.test.js` | U-20, U-21 | header constant and the 13-field row check → 15 | Phase V 5 |
+| `tests/unit/orders.test.js` | P4-U-07 | orders CSV header → 15 columns | Phase V 5 |
+| `tests/unit/orders.test.js` | P4-U-09 | version `1.3.2` → **`1.4.0`** | Phase V 8 |
+| `tests/unit/range.test.js` | range CSV header | → 15 columns | Phase V 5 |
+| `tests/e2e/cash.spec.js` | C-01, C-02 | seven tiles / seven menu documents → **eight**, `samosa_chat` last | Phase V 7 |
+| `tests/e2e/cash.spec.js` | C-10 | "recent orders keeps the last five from this till" → **Open orders lists today's open orders from every till**, newest first, with no five-order limit | Phase V 1: Open orders replaces the Recent strip, and lists "today's orders from all tills" |
+| `tests/e2e/cash.spec.js` | C-11 | Cancel from the recent strip → Cancel from an Open orders row, through the reason dialog | Phase V 1, 3 |
+| `tests/e2e/cash.spec.js` | C-12 | "cancel disappears once the kitchen has started" → **cancel stays** for `preparing` and `ready`, and the order leaves the list only when it is `collected` or `cancelled` | Phase V status table: Cancel is Yes for new, preparing and ready |
+| `tests/e2e/cash-h3.spec.js` | H3-a2 | the header carries the Orders button; "Next A-0NN" is no longer in the header bar but in ☰ | Phase V 1 |
+| `tests/e2e/cash-h3.spec.js` | H3-a3, H3-a4 | the till letter and the next number are read from the ☰ menu | Phase V 1 |
+| `tests/e2e/cash-h3.spec.js` | H3-a5, H3-a6, H3-a7 | ☰ lists Food counter, Reports, Sign out, "Next A-0NN" and the version — **no Recent orders**; the close-on-choosing case uses Food counter | Phase V 1 ("The ☰ Recent orders item is removed") |
+| `tests/e2e/cash-h3.spec.js` | H3-b1, H3-b2, H3-i1, H3-j | `MENU_IDS` gains `samosa_chat`: 8 tiles, still 3 columns, still no scrolling at 390×664 | Phase V 7 |
+| `tests/e2e/cash-h3.spec.js` | H3-g | "☰ → Recent orders" → the **Open orders** sheet from the header button; last-five limit dropped; Cancel goes through the reason dialog | Phase V 1, 3, 6 |
+| `tests/e2e/cash-h3.spec.js` | H3-h | the tablet "recent strip is unchanged" assertion → the tablet **Open orders** button and drawer | Phase V 1 |
+| `tests/e2e/cash-h4.spec.js` | — | **not changed.** The Card default after an edit is asserted by P5-14 and P5-17 instead, so the H4 file stays as it was | H4 1 + Phase V 2 |
+| `tests/e2e/cart-align-h2.spec.js` | H2-01..H2-03 | `ACTIVE_IDS` gains `samosa_chat` (8 rows in the cart) | Phase V 7 |
+| `tests/e2e/menu-h1.spec.js` | H-07..H-09, H-17 | seven → eight tiles and eight menu documents | Phase V 7 |
+| `tests/e2e/kitchen.spec.js` | K-09 | cancelling from the recent strip → cancelling from Open orders with a reason | Phase V 1, 3 |
+| `tests/e2e/offline.spec.js` | persistence case | the recent list after a reload → the Open orders list | Phase V 1 |
+| `tests/e2e/crosscutting.spec.js` | X-06 | the icon list gains `samosa_chat` | Phase V 7 |
+| `tests/e2e/reports.spec.js`, `reports-days.spec.js`, `reports-orders.spec.js`, `menu-h1.spec.js` | CSV header and field-count assertions | 13 → 15 columns | Phase V 5 |
+| `tests/e2e/live-h1/h2/h3/h4/p3/p4/smoke.spec.js` | menu-count and CSV-header assertions | seven → eight documents, 13 → 15 columns | Phase V 5, 7 — what the deployed build looks like after `menu-sync` adds `samosa_chat` |
+| `playwright.config.js` | `iphone13` | also matches `cash-p5.spec.js` | Phase V 1 moves controls into the 52 px one-row header |
+
+Nothing was deleted: every case above still asserts the same **behaviour** in
+its Phase V form.
+
+## 53. Phase V deliberate readings of the brief
+
+1. **`samosa_chat` station.** The Menu table says `chaat`; the H1 rule "all
+   four new ids are sweets" applied to the H1 batch only. Tested as Chaat.
+2. **Open orders replaces the Recent strip everywhere.** Phase V 1 says
+   "replacing the Recent strip" for tablet and "The ☰ Recent orders item is
+   removed" for phone, so `recent-*` is asserted **absent** on both.
+3. **Cancel while `new` keeps working.** Phase I's Cash 5 Cancel is subsumed by
+   the Phase V dialog: the brief gives one Cancel path with a required reason,
+   so C-11 now expects the dialog rather than a one-tap cancel. A one-tap
+   cancel with no reason would leave `cancelReason` unset, which Phase V 3 and
+   the CSV column forbid.
+4. **"Keep the last 10" history.** Read as the ten **most recent** entries,
+   oldest dropped, newest last — the order the detail "Changes" list reads in.
+5. **The minus sign.** The brief writes "−1 (was 2)" (U+2212); the mock-up
+   renders a JavaScript number, giving "-1". Both are accepted.
+6. **`reset-live.mjs` and the menu table.** H3 7 says "make `menu` exactly the
+   7-item table"; the table is now 8 rows. Read as "exactly the `MENU` table in
+   `CLAUDE.md` / `logic.js`", so the script is expected to write 8 documents
+   after Phase V. Raised with Trinity rather than asserted here.
+7. **Which till's letter goes into `history.till`.** Phase V 6 lists `till` on
+   the history entry and Phase V 1 allows any till to edit any order, so it is
+   read as the till that **made the change**, not the order's own till (the
+   food counter note "Changed at till A" is the same value).
+8. **Offline Edit/Cancel.** "Disabled with the note 'Needs a connection'" is
+   asserted as the buttons being `disabled` and the note being visible
+   somewhere in the panel, not as one note per row.
+
+## 54. Phase V test corrections, round P5a (2026-10-20)
+
+Twelve of the sixteen first-run failures, and the one flake, were defects in
+these tests rather than in the app. Each is corrected against `CLAUDE.md` and
+the mock-up it misread; no assertion was dropped, and every correction is
+listed here so the weakening (if any) is visible.
+
+| Case | Was | Now | Why |
+|---|---|---|---|
+| P5-03 | backdrop tap at `(8, viewport/2)` on every project | tablet keeps mid-screen; phone taps `(8, 8)` | `design/CashOpenOrdersSmall.dc.html` puts the sheet at `top: 40px; left/right/bottom: 0` over a backdrop at `inset: 0`, so on phone the only backdrop a finger can reach is the 40 px strip above the sheet. Mid-screen is *inside* the sheet. Raised by Neo; Neo was right |
+| P5-08 | expected the status pill and the "Was …" line in the banner on every project | tablet asserts them in the panel banner; phone asserts the strip the mock-up draws ("Editing A-041 · Ahmed" + Discard) and then the pill and "Was …" with the Review sheet open | `CLAUDE.md` Phase V 2 says "Phone: an amber strip under the header with **Discard**", and `design/CashOpenOrdersSmall.dc.html` draws exactly that — no pill, no "Was" line in the strip. Both facts are still asserted, in the places the brief puts them |
+| P5-14 | clicked Discard with the Review sheet open | closes the sheet first | Same clause: on phone Discard lives in the strip under the header, which the sheet covers. A volunteer taps Add more first |
+| P5-19, P5-23 | clicked `action-<no>` on a second food-counter context | goes through the new `kitchenAdvance(page, no, lane)` helper, which selects the lane first | `CLAUDE.md` Food counter 1: below 700 px the board is tabs, so a card in another lane is not rendered at all. The old form only ever worked for a `new` order |
+| C-12 (`cash.spec.js`) | three `action-A-001` clicks in a row | the same helper, lane by lane | Same reason; introduced when C-12 was rewritten for Phase V |
+| `cancelDialog()` helper | `[data-testid="cancel-dialog"]` first, `[role="alertdialog"]` second | the role first, the testid as the fallback | The app puts `cancel-dialog` on the backdrop wrapper and `role="alertdialog"` on the card inside it, which satisfies `CLAUDE.md` Phase V 3 ("Confirm dialog (`role="alertdialog"`)"). The role assertion still fails if no element carries the role |
+| P5-R-05 | read `kpi-sales` once, immediately after it became visible | `expect.poll` | The KPI tiles render empty and fill from the day's `onSnapshot`. Same pattern as the Phase I reports cases |
+
+A second pass over the **whole** suite found four more, all knock-on effects of
+the Phase V changes rather than new app behaviour:
+
+| Case | Was | Now | Why |
+|---|---|---|---|
+| H3-d6 (`cash-h3.spec.js`) | expected the pinned Send footer to read `£35.00` with one of every item in the cart | the total is computed from `MENU_IDS.length × £5`, so `£40.00` | The literal was written when the menu had seven items. Phase V 7 adds Samosa Chat, so one of each is eight. The assertion (the footer stays visible and carries the total) is unchanged |
+| X-02 (`crosscutting.spec.js`) | the 44 px exception list covered Sign out, the quick cash buttons, the Clear link, ☰ and the till picker | the phone **Orders** button joins it | `CLAUDE.md` H3 1 fixes that header at one 52 px row with a 44 px ☰, and `design/CashOpenOrdersSmall.dc.html` draws the Orders button at 44 px beside it. The general 48 px floor still applies everywhere else, including the tablet Open orders button, which P5-01 checks |
+| P4-09 (`reports-orders.spec.js`) and P4L-06 (`live-p4.spec.js`) | the Phase IV detail note "Read-only. Orders are **cancelled** from the cash counter…" | the Phase V wording "Orders are **edited and cancelled** from the cash counter…" | `CLAUDE.md` Phase V 5: "Update the detail note to …". The app is right; this was a Phase IV literal I missed in the first pass |
+| V-01, V-03 (`version.spec.js`) | — (no test change) | **the local generated `public/js/version.js` was stale** (1.3.2) and was regenerated with `node scripts/write-version.mjs` | `CLAUDE.md` Phase III part 2, 1-2: `package.json` is the single source of truth and `version.js` is generated and gitignored, the same class of local artefact as `login-config.js`, which the QA setup already regenerates before e2e. The tests were right to fail |
+
+**Not tested, by instruction (known deviation, recorded in `DECISIONS.md` and
+`HANDOVER.md`):** the browser **Back** button while editing does not show the
+in-page confirm — intercepting it needs a history entry that collides with the
+one the H3 Review sheet already pushes. Nothing is written either way, so Back
+drops the edit. P5-15 asserts the three paths that do confirm: Sign out,
+navigating away through the header/☰, and starting Edit on another order.

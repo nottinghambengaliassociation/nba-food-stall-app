@@ -2,13 +2,16 @@
 // "Export CSV downloads one row per order line: day, orderNo, till, name, item,
 //  qty, price, lineTotal, payment, status, createdAt, readyAt, waitSeconds".
 // Requirement change 2026-10-18: Cash received is screen-only, so the two
-// Phase II columns are NOT added; the header stays exactly as in Phase I.
+// Phase II columns are NOT added.
+// Phase V (v1.4.0): "All CSVs gain two last columns: `edited` (yes/no) and
+// `cancelReason` (blank unless cancelled)" — the thirteen Phase I columns keep
+// their order and their values, and two are appended. Plan: section 48, P5-U-07.
 import { describe, it, expect } from 'vitest';
 import { ordersToCsv, csvEscape } from '../../public/js/logic.js';
 import { REPORT_ORDERS, parseCsv, londonMs, DAY } from './fixtures.js';
 
-const HEADER = 'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds';
-const COLUMNS = HEADER.split(',').length; // 13
+const HEADER = 'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason';
+const COLUMNS = HEADER.split(',').length; // 15 after Phase V
 
 describe('U-20 CSV header', () => {
   it('is exactly the column list from the brief, in order', () => {
@@ -36,7 +39,7 @@ describe('U-21 one row per order line', () => {
     expect(cancelledRows.length === 0 || cancelledRows.length === 1).toBe(true);
   });
 
-  it('gives every row exactly 13 fields', () => {
+  it('gives every row exactly 15 fields', () => {
     for (const r of body) expect(r).toHaveLength(COLUMNS);
   });
 
@@ -164,7 +167,7 @@ describe('U-23 cancelled rows', () => {
 });
 
 describe('U-28 the CSV carries no cash-received columns', () => {
-  it('has exactly the thirteen Phase I columns and nothing about the tender', () => {
+  it('has the thirteen Phase I columns plus the two Phase V ones, and nothing about the tender', () => {
     const rows = parseCsv(ordersToCsv(REPORT_ORDERS));
     expect(rows[0]).toHaveLength(COLUMNS);
     expect(rows[0], 'cash received is screen-only (requirement change 2026-10-18)').not.toContain('tendered');

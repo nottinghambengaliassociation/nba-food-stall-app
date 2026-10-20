@@ -322,6 +322,7 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
   flex: 1 1 380px;
   min-width: 0;
   background: var(--card);
+  border: 3px solid transparent;
   border-radius: 22px;
   padding: 24px;
   display: flex;
@@ -495,42 +496,6 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
   text-decoration: underline;
 }
 
-.recent {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 0 0 8px;
-}
-.recent__items { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.recent__label { font-size: 16px; font-weight: 700; color: var(--ink-2); }
-.recent__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--line);
-  color: var(--ink);
-  font-size: 17px;
-}
-.recent__item[data-status='new'] { background: var(--marigold); }
-.recent__item[data-status='preparing'] { background: var(--blue-pale); }
-.recent__item[data-status='ready'] { background: var(--teal); color: #FFFFFF; }
-.recent__item[data-status='cancelled'] { background: #FFFFFF; border: 2px solid var(--red); color: var(--red); }
-.recent__cancel {
-  min-height: 48px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 2px solid var(--ink);
-  background: #FFFFFF;
-  color: var(--ink);
-  font-size: 15px;
-  font-weight: 700;
-}
-.recent__empty { font-size: 17px; color: var(--muted); }
-
 /* ------------------------------------ hotfix H3: small cash counter (v1.3.1)
    Everything here belongs to the layout below 700px (design/CashCounterSmall
    .dc.html). At 700px and wider the wrapper is display:contents, so the order
@@ -540,8 +505,6 @@ h1, h2, h3 { font-family: var(--font-head); font-weight: 800; margin: 0; }
 .sheet__head { display: none; }
 .sheet__backdrop,
 .order-bar,
-.mini-sheet,
-.mini-sheet__backdrop,
 .app-menu,
 .menu-btn { display: none; }
 
@@ -1704,46 +1667,6 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
   .field input[type='text'] { height: 48px; font-size: 20px; border-radius: 12px; }
   .send-btn { min-height: 60px; height: 60px; border-radius: 14px; font-size: 20px; }
 
-  /* Recent orders: ☰ → Recent orders opens them in their own small sheet
-     (H3 6), so the till screen itself is just tiles. */
-  .mini-sheet__backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 45;
-    background: rgba(28, 25, 23, 0.45);
-  }
-  .mini-sheet__backdrop[hidden] { display: none; }
-  .mini-sheet {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 46;
-    max-height: 70dvh;
-    padding: 0 16px calc(14px + env(safe-area-inset-bottom));
-    border-radius: 18px 18px 0 0;
-    background: var(--card);
-    animation: sheet-up 180ms ease-out;
-  }
-  .mini-sheet[hidden] { display: none; }
-  .mini-sheet:focus { outline: none; }
-  .mini-sheet__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 12px 0 8px;
-  }
-  .mini-sheet__title { font-size: 20px; }
-  .mini-sheet__body { overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
-  .mini-sheet .recent { flex-direction: column; align-items: stretch; padding: 0; gap: 8px; }
-  .mini-sheet .recent__label { display: none; }
-  .mini-sheet .recent__items { flex-direction: column; align-items: stretch; gap: 8px; }
-  .mini-sheet .recent__item { justify-content: space-between; border-radius: 14px; }
-
   /* A fade, not a slide: a moving box would report a moving position to
      anything measuring the sheet the moment it opens. */
   @keyframes sheet-up {
@@ -1751,7 +1674,7 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
     to { opacity: 1; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .sheet, .mini-sheet { animation: none; }
+    .sheet, .drawer { animation: none; }
   }
 
   .header__slot--stations {
@@ -1862,4 +1785,485 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
   .reports-orders[data-view='detail'] .orders-filters,
   .reports-orders[data-view='detail'] .orders-summary,
   .reports-orders[data-view='detail'] .orders-list-card { display: none; }
+}
+
+/* ===========================================================================
+   Phase V (v1.4.0): Open orders, edit mode, cancel dialog, food counter
+   changes. design/CashOpenOrders.dc.html, design/CashOpenOrdersSmall.dc.html,
+   design/FoodCounterChanges.dc.html.
+   =========================================================================== */
+
+/* ------------------------------------- Open orders button and drawer */
+
+.open-orders-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 8px 0 16px;
+  border: 2px solid var(--marigold);
+  border-radius: 12px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: 700;
+}
+.open-orders-btn[aria-expanded='true'] { background: var(--marigold); color: var(--ink); }
+.open-orders-btn__short { display: none; }
+.open-orders__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--marigold);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.drawer__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: rgba(28, 25, 23, 0.4);
+}
+.drawer__backdrop[hidden] { display: none; }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  width: 480px;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  box-shadow: -8px 0 24px rgba(28, 25, 23, 0.2);
+}
+.drawer[hidden] { display: none; }
+.drawer:focus { outline: none; }
+.drawer__head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer__headrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.drawer__title { font-size: 26px; }
+.drawer__search {
+  height: 50px;
+  padding: 0 14px;
+  border: 2px solid var(--stone-400);
+  border-radius: 12px;
+  font-size: 18px;
+  color: var(--ink);
+}
+.drawer__note { margin: 0; font-size: 14px; line-height: 19px; color: var(--muted); }
+.drawer__offline {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--amber-pale);
+  color: #78350F;
+  font-size: 15px;
+  font-weight: 700;
+}
+.drawer__offline[hidden] { display: none; }
+.drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 20px 20px;
+}
+.drawer__list { display: flex; flex-direction: column; gap: 12px; }
+.drawer__empty { margin: 0; padding: 24px 0; text-align: center; font-size: 17px; color: var(--muted); }
+.drawer__empty[hidden] { display: none; }
+
+.open-order {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+}
+.open-order__top { display: flex; align-items: center; gap: 10px; }
+.open-order__no { font-family: var(--font-head); font-weight: 800; font-size: 26px; }
+.open-order__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 20px;
+  font-weight: 700;
+}
+.open-order__items { font-size: 16px; line-height: 21px; color: var(--ink-2); }
+.open-order__meta { font-size: 15px; color: var(--muted); }
+.open-order__actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.open-order__edit,
+.open-order__cancel {
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: 2px solid var(--ink);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+.open-order__cancel { border-color: var(--red); color: var(--red); }
+.open-order__edit:disabled,
+.open-order__cancel:disabled { border-color: var(--stone-300); color: var(--stone-400); }
+
+/* ------------------------------------------------------- cash edit mode */
+
+.panel[data-mode='edit'] { border-color: var(--amber); }
+
+.edit-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -24px -24px 0;
+  padding: 14px 22px;
+  border-radius: 19px 19px 0 0;
+  background: var(--amber-pale);
+}
+.edit-banner[hidden] { display: none; }
+.edit-banner__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.edit-banner__title { font-size: 20px; font-weight: 700; }
+.edit-banner__was { font-size: 15px; line-height: 20px; color: #78350F; }
+
+.edit-delta {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--page);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 700;
+}
+.edit-delta[hidden] { display: none; }
+.edit-delta[data-tone='up'] { background: var(--amber-pale); color: #78350F; }
+.edit-delta[data-tone='down'] { background: #FEF2F2; color: #7F1D1D; }
+.edit-delta[data-tone='same'] { background: #F0FDFA; color: var(--teal-dark); }
+
+.save-btn {
+  min-height: 80px;
+  border: none;
+  border-radius: 18px;
+  background: var(--amber);
+  color: #FFFFFF;
+  font-size: 25px;
+  font-weight: 700;
+}
+.save-btn:disabled { background: var(--stone-400); }
+
+.edit-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #FEF2F2;
+  color: #7F1D1D;
+  font-size: 17px;
+}
+.edit-empty[hidden] { display: none; }
+.edit-empty__btn {
+  flex: none;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 2px solid var(--red);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--red);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.edit-blocked {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--amber-pale);
+  border: 2px solid var(--amber);
+  color: #78350F;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 700;
+}
+.edit-blocked[hidden] { display: none; }
+
+.line__name { display: block; }
+.line__change { display: block; font-size: 14px; font-weight: 700; color: var(--amber); }
+.line__change[hidden] { display: none; }
+.lines__removed { display: flex; flex-direction: column; gap: 6px; }
+.lines__removed[hidden] { display: none; }
+.line-removed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 17px;
+  color: var(--muted);
+}
+.line-removed b { color: var(--amber); }
+
+/* --------------------------------------------------------- cancel dialog */
+
+.cancel-card { max-width: 560px; gap: 16px; }
+.cancel-card__warn {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--amber-pale);
+  color: #78350F;
+  font-size: 16px;
+  line-height: 22px;
+}
+.cancel-card__reasons { display: flex; flex-direction: column; gap: 8px; }
+.reason-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.reason-btn {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 2px solid var(--stone-400);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.reason-btn[aria-checked='true'] { border-color: var(--ink); background: var(--marigold); }
+.cancel-card__refund {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #FEF2F2;
+  color: #7F1D1D;
+  font-size: 21px;
+  font-weight: 700;
+}
+.modal__btn--ghost { border-color: var(--stone-400); }
+.modal__btn--danger:disabled { background: var(--stone-400); border-color: var(--stone-400); }
+
+/* ------------------------------------------- food counter: changes (P5 4) */
+
+.order-card[data-change='changed'] { background: #FFFBEB; border-color: var(--amber); }
+.order-card[data-change='cancelled'] { background: #FEF2F2; border-color: var(--red); }
+.order-card[data-change='cancelled'] .order-card__no { text-decoration: line-through; }
+/* BUG-11: struck-through text is --muted, not --stone-400. #A8A29E on the
+   cancelled card's #FEF2F2 is 2.3:1, and #78716C only reaches 4.39:1 there,
+   under AA for the 20px regular item lines. --muted clears it at 6.97:1 and
+   still reads as off. */
+.order-card[data-change='cancelled'] .order-card__name { color: var(--muted); }
+
+.order-card__banner {
+  margin: -16px -16px 0;
+  padding: 10px 16px;
+  border-radius: 15px 15px 0 0;
+  color: #FFFFFF;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.order-card__banner--cancel { background: var(--red); }
+.order-card__banner--change { background: var(--amber); }
+
+.order-card__tags { display: inline-flex; align-items: center; gap: 8px; }
+.changed-tag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--amber-pale);
+  color: #78350F;
+  font-size: 15px;
+  font-weight: 700;
+}
+.order-card__note { margin: 0; font-size: 16px; line-height: 22px; }
+.order-card__note--cancel { color: #7F1D1D; }
+.order-card__note--change { color: #78350F; }
+
+.line-tag {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  background: var(--amber-pale);
+  color: #78350F;
+}
+.line-tag[data-tag='new'],
+.line-tag[data-tag='up'] { background: #DCFCE7; color: #14532D; }
+.line-tag[data-tag='removed'] { background: #FEE2E2; color: #7F1D1D; }
+.order-line[data-gone='true'] { color: var(--muted); text-decoration: line-through; }
+.order-card[data-change='cancelled'] .order-line { color: var(--muted); text-decoration: line-through; }
+.order-line > span:not(.line-tag) { flex: 1 1 auto; min-width: 0; }
+
+.action-btn--remove { background: var(--red); }
+.action-btn--gotit { background: var(--amber); }
+
+.tab__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.tab__dot[hidden] { display: none; }
+
+/* --------------------------------------- reports: Edited tag and Changes */
+
+.edited-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--amber-pale);
+  color: #78350F;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.orders-card__pills,
+.order-detail__pills { display: inline-flex; align-items: center; gap: 2px; }
+.timeline__note { color: var(--muted); }
+
+.changes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.changes__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--page);
+  font-size: 15px;
+  line-height: 21px;
+}
+.changes__item[data-action='cancel'] { background: #FEF2F2; color: #7F1D1D; }
+.changes__head { font-size: 16px; }
+.changes__till, .changes__reason { color: var(--muted); }
+.changes__row { display: flex; gap: 8px; }
+.changes__label { flex: none; width: 54px; font-weight: 700; color: var(--muted); }
+
+/* ------------------------------------------------------------- phone */
+
+@media (max-width: 699px) {
+  /* Header: till, connection, Orders (with the count), ☰ (Phase V 1). */
+  body[data-route='/cash'] .open-orders-btn {
+    order: 3;
+    margin-left: auto;
+    height: 44px;
+    gap: 6px;
+    padding: 0 10px;
+    border-width: 1.5px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+  body[data-route='/cash'] .open-orders-btn[aria-expanded='true'] { background: transparent; color: #FFFFFF; }
+  .open-orders-btn__long { display: none; }
+  .open-orders-btn__short { display: inline; }
+  .open-orders__badge { min-width: 24px; height: 24px; padding: 0 5px; font-size: 14px; }
+
+  /* "Next A-045" moved into the ☰ menu, above the version line (Phase V 1). */
+  .app-menu__next { padding: 8px 12px 2px; }
+  body[data-route='/cash'] .app-menu__next .header__sub {
+    display: block;
+    order: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink-2);
+  }
+
+  /* Open orders is a bottom sheet here, the same shape as Review & send. */
+  .drawer {
+    top: 40px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    border-radius: 18px 18px 0 0;
+    box-shadow: none;
+    animation: sheet-up 180ms ease-out;
+  }
+  .drawer__backdrop { background: rgba(28, 25, 23, 0.45); }
+  .drawer__head { padding: 10px 12px 8px 16px; gap: 8px; }
+  .drawer__title { font-size: 22px; }
+  .drawer__search { height: 44px; font-size: 17px; }
+  .drawer__note { display: none; }
+  .drawer__body { padding: 10px 12px 16px; }
+  .drawer__list { gap: 10px; }
+  .open-order { padding: 10px 12px; gap: 6px; border-radius: 14px; }
+  .open-order__no { font-size: 20px; }
+  .open-order__name { font-size: 17px; }
+  .open-order__items, .open-order__meta { font-size: 14px; line-height: 18px; }
+  .open-order__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .open-order__edit, .open-order__cancel { padding: 0 8px; font-size: 16px; }
+
+  /* Edit mode: an amber strip under the header with Discard, and an amber
+     order bar reading "Review changes" (design/CashOpenOrdersSmall.dc.html). */
+  .cash > .edit-banner {
+    flex: none;
+    align-self: stretch;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 0;
+    border-bottom: 2px solid var(--amber);
+  }
+  .cash > .edit-banner .edit-banner__was,
+  .cash > .edit-banner .status-pill { display: none; }
+  .cash > .edit-banner .edit-banner__title { font-size: 16px; }
+  .cash > .edit-banner .edit-discard {
+    flex: none;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 2px solid var(--amber);
+    border-radius: 10px;
+    background: var(--card);
+    color: #78350F;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .order-bar[data-mode='edit'] .order-bar__btn { background: var(--amber); }
+
+  .edit-delta { padding: 12px 14px; border-radius: 12px; font-size: 18px; }
+  .save-btn { min-height: 60px; height: 60px; border-radius: 14px; font-size: 20px; }
+  .edit-empty { flex-direction: column; align-items: stretch; gap: 8px; font-size: 16px; }
+  .edit-blocked { margin: 0 0 10px; font-size: 16px; line-height: 22px; }
+  .line__change { font-size: 13px; }
+  .line-removed { font-size: 15px; }
+
+  .cancel-card {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-width: none;
+    padding: 16px 16px 18px;
+    border-radius: 18px 18px 0 0;
+    gap: 12px;
+  }
+  .cancel-card .modal__title { font-size: 22px; }
+  .cancel-card__refund { font-size: 17px; padding: 10px 12px; }
+  .reason-btn { min-height: 44px; padding: 0 12px; font-size: 15px; }
+
+  .order-card__banner { font-size: 17px; padding: 8px 14px; }
+  .changed-tag { font-size: 13px; }
+  .line-tag { font-size: 13px; padding: 2px 8px; }
+  .tab { position: relative; }
+  .tab__dot { position: absolute; top: 6px; right: 8px; }
 }

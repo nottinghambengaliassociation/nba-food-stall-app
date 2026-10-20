@@ -10,7 +10,9 @@ export const MENU = [
   { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
   { id: 'samosa_only', name: 'Samosa', short: 'Samosa', price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
   { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
+  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
+  // Phase V (v1.4.0): Samosa Chat, last on the till, Chaat station.
+  { id: 'samosa_chat', name: 'Samosa Chat', short: 'Samosa Chat', price: 500, colour: '#A5F3FC', station: 'chaat', active: true, sort: 8 }
 ];
 
 /** The items the till shows as tiles: everything in MENU that is still on sale. */
@@ -409,9 +411,12 @@ export function buildReport(orders) {
 
 // Money columns stay in integer pence. Cash received is an on-screen
 // calculator for the cashier only, so nothing about it reaches the export.
+// Phase V adds `edited` and `cancelReason` as the last two columns, on every
+// export (One day, Sales by day and the orders list).
 export const CSV_HEADER = [
   'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-  'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+  'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+  'edited', 'cancelReason'
 ];
 
 /** Quote a CSV field when it contains a comma, quote, or newline. */
@@ -434,6 +439,10 @@ function csvRowsForOrder(o) {
   const waitSeconds = (Number(o.readyAtMs) && Number(o.createdAtMs) && Number(o.readyAtMs) >= Number(o.createdAtMs))
     ? String(Math.round((Number(o.readyAtMs) - Number(o.createdAtMs)) / 1000))
     : '';
+  // Phase V: `edited` is yes/no from editCount, `cancelReason` is blank unless
+  // the order was cancelled (old orders carry neither field).
+  const edited = Number(o.editCount) > 0 ? 'yes' : 'no';
+  const cancelReason = o.status === 'cancelled' && o.cancelReason ? String(o.cancelReason) : '';
   return items.map((line) => {
     const qty = Math.round(Number(line && line.qty) || 0);
     const price = Math.round(Number(line && line.price) || 0);
@@ -450,7 +459,9 @@ function csvRowsForOrder(o) {
       o.status || '',
       createdAt,
       readyAt,
-      waitSeconds
+      waitSeconds,
+      edited,
+      cancelReason
     ].map(csvEscape).join(',');
   });
 }
@@ -897,20 +908,55 @@ export function orderWaitText(order) {
  */
 export function orderTimeline(order) {
   const o = order || {};
-  const step = (key, label, ms) => {
+  const step = (key, label, ms, note) => {
     const n = Number(ms);
     const reached = Number.isFinite(n) && n > 0;
-    return { key, label, ms: reached ? n : null, time: reached ? formatClock(n) : '—', reached };
+    return {
+      key,
+      label,
+      ms: reached ? n : null,
+      time: reached ? formatClock(n) : '—',
+      reached,
+      note: note || ''
+    };
   };
-  if (o.status === 'cancelled') {
-    return [step('placed', 'Placed', orderTimeMs(o)), step('cancelled', 'Cancelled', o.cancelledAtMs)];
-  }
-  return [
-    step('placed', 'Placed', orderTimeMs(o)),
-    step('started', 'Started', o.startedAtMs),
-    step('ready', 'Ready', o.readyAtMs),
-    step('collected', 'Collected', o.collectedAtMs)
-  ];
+
+  const base = o.status === 'cancelled'
+    ? [
+      step('placed', 'Placed', orderTimeMs(o)),
+      // Phase V: the cancel step carries its reason ("Cancelled 15:02 · Customer changed mind").
+      step('cancelled', 'Cancelled', o.cancelledAtMs, cancelReasonLabel(o.cancelReason))
+    ]
+    : [
+      step('placed', 'Placed', orderTimeMs(o)),
+      step('started', 'Started', o.startedAtMs),
+      step('ready', 'Ready', o.readyAtMs),
+      step('collected', 'Collected', o.collectedAtMs)
+    ];
+
+  // Phase V: every edit becomes its own "Edited HH:MM" step, in the right
+  // place in the run of times. Old orders have no history and no editedAtMs,
+  // so they get exactly the timeline they had before.
+  const edits = editTimes(o).map((ms, i) => step(`edited-${i + 1}`, 'Edited', ms));
+  if (!edits.length) return base;
+
+  const reached = base.filter((s) => s.reached);
+  const pending = base.filter((s) => !s.reached);
+  const merged = reached.concat(edits).sort((a, b) => (a.ms || 0) - (b.ms || 0));
+  return merged.concat(pending);
+}
+
+/** Epoch-ms of each edit, oldest first: from `history`, or the last edit alone. */
+export function editTimes(order) {
+  const o = order || {};
+  const entries = Array.isArray(o.history) ? o.history : [];
+  const fromHistory = entries
+    .filter((h) => h && h.action === 'edit' && Number(h.atMs) > 0)
+    .map((h) => Number(h.atMs))
+    .sort((a, b) => a - b);
+  if (fromHistory.length) return fromHistory;
+  const last = Number(o.editedAtMs);
+  return Number.isFinite(last) && last > 0 ? [last] : [];
 }
 
 /**
@@ -974,4 +1020,350 @@ export function exportOrdersCsv(orders) {
 /** "nba-food-stall_orders_2026-10-17.csv" */
 export function ordersCsvFilename(day) {
   return `nba-food-stall_orders_${day}.csv`;
+}
+
+/* ---------------------------------- Phase V: edit or cancel an open order */
+//
+// Pure helpers behind the Open orders drawer, edit mode, the cancel dialog,
+// the food counter's changed/cancelled cards and the Changes list in the
+// orders report. No Firebase, no DOM: the transaction itself lives in
+// store.js, everything it needs to decide and to say lives here.
+
+/** The statuses the cash counter can still act on (CLAUDE.md Phase V 1). */
+export const OPEN_STATUSES = ['new', 'preparing', 'ready'];
+
+/** Statuses an edit may start from, and the ones a cancel may start from. */
+export const EDITABLE_STATUSES = ['new', 'preparing'];
+export const CANCELLABLE_STATUSES = ['new', 'preparing', 'ready'];
+
+export const HISTORY_MAX = 10;
+
+export const EDIT_READY_TITLE = 'Ready: cancel only';
+export const EDIT_OFFLINE_NOTE = 'Needs a connection';
+export const EDIT_EMPTY_MESSAGE = 'No items left. Cancel the order instead?';
+export const EDIT_NO_CHANGES = 'No changes yet';
+export const EDIT_NO_PAYMENT_CHANGE = 'No payment change';
+
+/** Today's orders the cash counter may still change. */
+export function isOpenOrder(order) {
+  return OPEN_STATUSES.includes((order && order.status) || 'new');
+}
+
+/** Open orders from every till, newest first (CLAUDE.md Phase V 1). */
+export function openOrders(orders, q = '') {
+  const rows = (Array.isArray(orders) ? orders.filter(Boolean) : []).filter(isOpenOrder);
+  return sortOrdersNewestFirst(filterOrders(rows, { q }));
+}
+
+export function canEditOrder(order) {
+  return EDITABLE_STATUSES.includes((order && order.status) || 'new');
+}
+
+export function canCancelOrder(order) {
+  return CANCELLABLE_STATUSES.includes((order && order.status) || 'new');
+}
+
+/* ------------------------------------------------------------- reasons */
+
+export const CANCEL_REASONS = [
+  { key: 'mistake', label: 'Placed by mistake' },
+  { key: 'changed_mind', label: 'Customer changed mind' },
+  { key: 'out_of_stock', label: 'Out of stock' },
+  { key: 'not_collected', label: 'Not collected', readyOnly: true },
+  { key: 'other', label: 'Other' }
+];
+
+/** "Not collected" only makes sense once the food is waiting (Phase V 3). */
+export function cancelReasonsFor(status) {
+  return CANCEL_REASONS.filter((r) => !r.readyOnly || status === 'ready');
+}
+
+/** "Customer changed mind" for a stored reason key; '' when there is none. */
+export function cancelReasonLabel(key) {
+  const found = CANCEL_REASONS.find((r) => r.key === key);
+  return found ? found.label : '';
+}
+
+/* ------------------------------------------------------- item diffing */
+
+/** An order's lines as { id: qty }, ignoring zero and negative quantities. */
+export function itemsToQtyMap(items) {
+  const map = {};
+  for (const line of (Array.isArray(items) ? items.filter(Boolean) : [])) {
+    const qty = Math.round(Number(line.qty) || 0);
+    if (qty > 0 && line.id) map[line.id] = (map[line.id] || 0) + qty;
+  }
+  return map;
+}
+
+/** Same ids, same quantities? */
+export function qtyMapsEqual(a, b) {
+  const left = a || {};
+  const right = b || {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) if ((left[key] || 0) !== (right[key] || 0)) return false;
+  return true;
+}
+
+/**
+ * "added" / "removed" / "+1 (was 2)" / "−1 (was 2)" for one line, as the cash
+ * counter's order panel words it (CLAUDE.md Phase V 2).
+ */
+export function lineDeltaText(before, now) {
+  const was = Math.round(Number(before) || 0);
+  const is = Math.round(Number(now) || 0);
+  if (was === is) return '';
+  if (was === 0) return 'added';
+  if (is === 0) return 'removed';
+  return `${is > was ? '+' : '−'}${Math.abs(is - was)} (was ${was})`;
+}
+
+/** The same thing in the food counter's shoutier wording (Phase V 4). */
+export function lineDeltaTag(before, now) {
+  const was = Math.round(Number(before) || 0);
+  const is = Math.round(Number(now) || 0);
+  if (was === is) return '';
+  if (was === 0) return 'NEW';
+  if (is === 0) return 'REMOVED';
+  return lineDeltaText(was, is);
+}
+
+/**
+ * One row per line in the new order plus one per line that was taken off it.
+ * `kind` is 'added' | 'up' | 'down' | 'same' | 'removed'.
+ */
+export function diffOrderItems(beforeItems, afterItems) {
+  const was = itemsToQtyMap(beforeItems);
+  const now = itemsToQtyMap(afterItems);
+  const nameOf = (id) => {
+    const inAfter = (afterItems || []).find((l) => l && l.id === id);
+    const inBefore = (beforeItems || []).find((l) => l && l.id === id);
+    return lineFullName(inAfter || inBefore || { id });
+  };
+  const rows = [];
+  for (const line of (Array.isArray(afterItems) ? afterItems.filter(Boolean) : [])) {
+    const qty = Math.round(Number(line.qty) || 0);
+    if (qty <= 0) continue;
+    const before = was[line.id] || 0;
+    rows.push({
+      id: line.id,
+      name: lineFullName(line),
+      qty,
+      before,
+      kind: before === 0 ? 'added' : (qty > before ? 'up' : (qty < before ? 'down' : 'same')),
+      text: lineDeltaText(before, qty),
+      tag: lineDeltaTag(before, qty)
+    });
+  }
+  const removed = Object.keys(was)
+    .filter((id) => !now[id])
+    .map((id) => ({
+      id,
+      name: nameOf(id),
+      qty: was[id],
+      before: was[id],
+      kind: 'removed',
+      text: 'removed',
+      tag: 'REMOVED'
+    }));
+  return { rows, removed, changed: !qtyMapsEqual(was, now) };
+}
+
+/* ------------------------------------------------- money and prompts */
+
+/** New total minus old total, in pence. Positive means take more. */
+export function editDelta(beforeTotal, afterTotal) {
+  return Math.round(Number(afterTotal) || 0) - Math.round(Number(beforeTotal) || 0);
+}
+
+/** Has anything the volunteer can change actually changed? */
+export function editHasChanges(before, after) {
+  const a = before || {};
+  const b = after || {};
+  if (!qtyMapsEqual(itemsToQtyMap(a.items), itemsToQtyMap(b.items))) return true;
+  if (String(a.name || '').trim() !== String(b.name || '').trim()) return true;
+  return (a.payment === 'card' ? 'card' : 'cash') !== (b.payment === 'card' ? 'card' : 'cash');
+}
+
+/**
+ * "Take £5.00 more" / "Refund £5.00 on the card machine" / "No payment change"
+ * (CLAUDE.md Phase V 2 and design/OrderChangesRules.dc.html). The app never
+ * moves money: this is a line for the volunteer at the till.
+ */
+export function paymentChangeText(delta, payment) {
+  const d = Math.round(Number(delta) || 0);
+  const card = payment === 'card';
+  if (d > 0) return card ? `Take ${formatPence(d)} more on the card machine` : `Take ${formatPence(d)} more`;
+  if (d < 0) return card ? `Refund ${formatPence(-d)} on the card machine` : `Give back ${formatPence(-d)}`;
+  return EDIT_NO_PAYMENT_CHANGE;
+}
+
+/** The whole `edit-delta` line: its words and the tone to paint it in. */
+export function editPrompt({ changed = false, delta = 0, payment = 'card' } = {}) {
+  if (!changed) return { text: EDIT_NO_CHANGES, tone: 'none' };
+  const d = Math.round(Number(delta) || 0);
+  return { text: paymentChangeText(d, payment), tone: d > 0 ? 'up' : (d < 0 ? 'down' : 'same') };
+}
+
+/** "Give back £15.00 cash" / "Refund £15.00 on the card machine" (Phase V 3). */
+export function refundText(total, payment) {
+  const amount = formatPence(Math.abs(Math.round(Number(total) || 0)));
+  return payment === 'card' ? `Refund ${amount} on the card machine` : `Give back ${amount} cash`;
+}
+
+/** "A-041 updated. Take £5.00 more." */
+export function editToastText(orderNo, delta, payment) {
+  return `${orderNo} updated. ${paymentChangeText(delta, payment)}.`;
+}
+
+/** "A-041 cancelled. Give back £15.00 cash." */
+export function cancelToastText(orderNo, total, payment) {
+  return `${orderNo} cancelled. ${refundText(total, payment)}.`;
+}
+
+/** The order moved on while the panel was open (CLAUDE.md Phase V 2). */
+export function editBlockedMessage(orderNo, status) {
+  return `${orderNo} is now ${statusLabel(status)}, so it can't be edited. Cancel it or start a new order.`;
+}
+
+/** The order is past cancelling (CLAUDE.md Phase V 3). */
+export function cancelBlockedMessage(orderNo, status) {
+  return `${orderNo} was already ${statusLabel(status).toLowerCase()}`;
+}
+
+/** "Was 2× Momo, 1× Papri Chat, £15.00, Cash" for the edit banner. */
+export function orderWasText(order) {
+  const o = order || {};
+  return `${orderSummary(o)}, ${formatPence(orderAmount(o))}, ${paymentLabel(o.payment)}`;
+}
+
+/* ------------------------------------------------------------- history */
+
+/** One `history` row. `before` is the order as it stood before this change. */
+export function buildHistoryEntry({ atMs, action, till, fromStatus, reason, before, deltaPence }) {
+  const entry = {
+    atMs: Math.round(Number(atMs) || 0),
+    action: action === 'cancel' ? 'cancel' : 'edit',
+    till: String(till || ''),
+    fromStatus: String(fromStatus || 'new'),
+    before: {
+      items: Array.isArray(before && before.items) ? before.items : [],
+      total: Math.round(Number(before && before.total) || 0),
+      name: String((before && before.name) || 'Guest'),
+      payment: (before && before.payment) === 'card' ? 'card' : 'cash'
+    },
+    deltaPence: Math.round(Number(deltaPence) || 0)
+  };
+  if (reason) entry.reason = String(reason);
+  return entry;
+}
+
+/** Append and keep the last ten (CLAUDE.md Phase V 6). */
+export function appendHistory(history, entry, max = HISTORY_MAX) {
+  const rows = (Array.isArray(history) ? history.filter(Boolean) : []).concat([entry]);
+  return rows.slice(Math.max(0, rows.length - max));
+}
+
+/** Has this order been edited at least once? */
+export function isEdited(order) {
+  return Number(order && order.editCount) > 0;
+}
+
+/** The items as they stood before the most recent edit, or null. */
+export function lastChangeBefore(order) {
+  const entries = (Array.isArray(order && order.history) ? order.history : [])
+    .filter((h) => h && h.action === 'edit' && h.before);
+  if (!entries.length) return null;
+  const last = entries[entries.length - 1];
+  return Array.isArray(last.before.items) ? last.before.items : [];
+}
+
+/* -------------------------------------------------- food counter cards */
+
+/**
+ * What the food counter should paint for this order (CLAUDE.md Phase V 4):
+ *   'cancelled' red "STOP MAKING" card, waiting for Remove
+ *   'changed'   amber "ORDER CHANGED" card, waiting for Got it
+ *   'tagged'    an ordinary New card with a small "Changed" tag
+ *   'plain'     an ordinary card
+ *   'gone'      not on the board at all
+ */
+export function kitchenCardState(order) {
+  const o = order || {};
+  if (o.status === 'cancelled') {
+    const from = o.cancelledFrom;
+    const cleared = Number(o.kitchenClearedAtMs) > 0;
+    return (from === 'preparing' || from === 'ready') && !cleared ? 'cancelled' : 'gone';
+  }
+  if (o.status === 'preparing' && Number(o.editedAtMs || 0) > Number(o.changeSeenAtMs || 0)) return 'changed';
+  if (o.status === 'new' && isEdited(o)) return 'tagged';
+  return 'plain';
+}
+
+/** The column a card belongs in: its status, or where it was when cancelled. */
+export function kitchenColumnOf(order) {
+  const o = order || {};
+  if (o.status === 'cancelled') return o.cancelledFrom || null;
+  return o.status || null;
+}
+
+/** "Changed at till A, 1 min ago." */
+export function kitchenChangeNote(order, nowMs = Date.now()) {
+  const o = order || {};
+  const till = o.history && o.history.length
+    ? (o.history[o.history.length - 1].till || o.till || 'A')
+    : (o.till || 'A');
+  const mins = ageMinutes(o.editedAtMs, nowMs);
+  return `Changed at till ${till}, ${mins === 0 ? 'just now' : `${mins} min ago`}.`;
+}
+
+/** "Cancelled by cash counter, till A: Customer changed mind." */
+export function kitchenCancelNote(order) {
+  const o = order || {};
+  const entries = (Array.isArray(o.history) ? o.history : []).filter((h) => h && h.action === 'cancel');
+  const till = entries.length ? (entries[entries.length - 1].till || o.till || 'A') : (o.till || 'A');
+  const reason = cancelReasonLabel(o.cancelReason);
+  return `Cancelled by cash counter, till ${till}${reason ? `: ${reason}` : ''}.`;
+}
+
+/* ------------------------------------------- Changes list (orders report) */
+
+/**
+ * Each change on the order, oldest first, with the items and total either
+ * side of it. The "after" of one entry is the "before" of the next, and the
+ * last entry's "after" is the order as it stands now (CLAUDE.md Phase V 5).
+ */
+export function orderChanges(order) {
+  const o = order || {};
+  const entries = (Array.isArray(o.history) ? o.history : []).filter((h) => h && h.before);
+  const now = {
+    items: Array.isArray(o.items) ? o.items : [],
+    total: orderAmount(o),
+    name: o.name || 'Guest',
+    payment: o.payment === 'card' ? 'card' : 'cash'
+  };
+  return entries.map((h, i) => {
+    const next = entries[i + 1];
+    const after = next ? next.before : now;
+    const beforeTotal = Math.round(Number(h.before.total) || orderTotal(h.before.items));
+    const afterTotal = Math.round(Number(after.total) || orderTotal(after.items));
+    const atMs = Math.round(Number(h.atMs) || 0);
+    const action = h.action === 'cancel' ? 'cancel' : 'edit';
+    return {
+      atMs,
+      time: formatClock(atMs),
+      action,
+      till: h.till || o.till || '',
+      reason: h.reason || '',
+      reasonLabel: cancelReasonLabel(h.reason),
+      beforeItems: h.before.items || [],
+      afterItems: action === 'cancel' ? (h.before.items || []) : (after.items || []),
+      beforeTotal,
+      afterTotal: action === 'cancel' ? beforeTotal : afterTotal,
+      beforeSummary: orderSummary({ items: h.before.items || [] }),
+      afterSummary: orderSummary({ items: action === 'cancel' ? (h.before.items || []) : (after.items || []) }),
+      delta: action === 'cancel' ? 0 : editDelta(beforeTotal, afterTotal),
+      label: action === 'cancel' ? 'Cancelled' : 'Edited'
+    };
+  });
 }

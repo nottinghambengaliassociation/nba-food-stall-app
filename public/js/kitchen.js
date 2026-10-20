@@ -4,9 +4,13 @@ import { el, clear, setText, svgNode } from './ui.js';
 import { itemIcon } from './icons.js';
 import {
   STATIONS, STATUS_FLOW, PREV_STATUS, LATE_AFTER_MIN,
-  dayString, ageMinutes, formatAge, stationOf, inStation
+  dayString, ageMinutes, formatAge, stationOf, inStation,
+  kitchenCardState, kitchenColumnOf, kitchenChangeNote, kitchenCancelNote,
+  lastChangeBefore, lineDeltaTag, lineFullName
 } from './logic.js';
-import { watchOrders, setOrderStatus, revertOrderStatus } from './store.js';
+import {
+  watchOrders, setOrderStatus, revertOrderStatus, markChangeSeen, clearKitchenCard
+} from './store.js';
 
 const COLUMNS = [
   { key: 'new', label: 'New', heading: 'New', action: 'Start', actionKey: 'start' },
@@ -22,6 +26,8 @@ export function mountKitchen(outlet, ctx) {
     undoStack: [],
     beep: ctx.settings.beep,
     seenNew: new Set(),
+    // Phase V: "<id>:<editedAtMs>" / "<id>:cancelled" already announced.
+    seenChanges: new Set(),
     firstSnapshot: true
   };
 
@@ -82,6 +88,9 @@ export function mountKitchen(outlet, ctx) {
 
   const tabButtons = COLUMNS.map((col) => {
     const count = el('span', { class: 'tab__count', text: '0' });
+    // Phase V: a dot marks a tab holding a change or cancel nobody has seen.
+    const dot = el('span', { class: 'tab__dot', testid: `tab-dot-${col.key}`, 'aria-hidden': 'true' });
+    dot.hidden = true;
     const button = el('button', {
       type: 'button',
       class: 'tab',
@@ -95,8 +104,8 @@ export function mountKitchen(outlet, ctx) {
         state.tab = col.key;
         render();
       }
-    }, [count, el('span', { class: 'tab__label', text: col.label })]);
-    return { col, button, count };
+    }, [count, el('span', { class: 'tab__label', text: col.label }), dot]);
+    return { col, button, count, dot };
   });
 
   const tabs = el('div', {
@@ -195,6 +204,12 @@ export function mountKitchen(outlet, ctx) {
   }
 
   function card(order, col) {
+    // Phase V: the cash counter may have changed or cancelled this order.
+    // The food counter never edits or cancels; it only sees and acknowledges.
+    const change = kitchenCardState(order);
+    const cancelled = change === 'cancelled';
+    const changed = change === 'changed';
+
     const minutes = ageMinutes(order.createdAtMs);
     const late = minutes >= LATE_AFTER_MIN && col.key !== 'ready';
     const age = el('span', {
@@ -204,30 +219,113 @@ export function mountKitchen(outlet, ctx) {
     });
     ageNodes.push({ node: age, order, col });
 
-    const lines = (order.items || []).map((line) => el('div', {
+    const before = changed ? lastChangeBefore(order) : null;
+    const items = Array.isArray(order.items) ? order.items : [];
+    const rows = [];
+    for (const line of items) {
+      const was = before ? (before.filter((b) => b && b.id === line.id)
+        .reduce((n, b) => n + (Math.round(Number(b.qty) || 0)), 0)) : null;
+      rows.push({ id: line.id, name: line.name, qty: line.qty, tag: before ? lineDeltaTag(was, line.qty) : '' });
+    }
+    if (before) {
+      for (const b of before) {
+        if (!b || !b.id) continue;
+        if (items.some((l) => l && l.id === b.id)) continue;
+        rows.push({ id: b.id, name: lineFullName(b), qty: b.qty, tag: 'REMOVED', gone: true });
+      }
+    }
+
+    const lineNodes = rows.map((row) => el('div', {
       class: 'order-line',
-      testid: `order-line-${order.orderNo}-${line.id}`,
-      dataset: { off: inStation(line.id, state.station) ? 'false' : 'true', station: stationOf(line.id) || 'other' }
+      testid: `order-line-${order.orderNo}-${row.id}`,
+      dataset: {
+        off: inStation(row.id, state.station) ? 'false' : 'true',
+        station: stationOf(row.id) || 'other',
+        gone: row.gone || cancelled ? 'true' : 'false'
+      }
     }, [
-      svgNode(itemIcon(line.id, 28)),
-      el('b', { text: `${line.qty}×` }),
-      el('span', { text: line.name })
+      svgNode(itemIcon(row.id, 28)),
+      el('b', { text: `${row.qty}×` }),
+      el('span', { text: row.name }),
+      row.tag
+        ? el('span', {
+          class: 'line-tag',
+          testid: `line-tag-${order.orderNo}-${row.id}`,
+          dataset: { tag: row.tag === 'NEW' ? 'new' : (row.tag === 'REMOVED' ? 'removed' : (row.tag.startsWith('+') ? 'up' : 'down')) },
+          text: row.tag
+        })
+        : null
     ]));
 
-    return el('article', {
-      class: 'order-card' + (col.key === 'ready' ? ' order-card--ready' : ''),
-      testid: `order-card-${order.orderNo}`,
-      'aria-label': `Order ${order.orderNo} for ${order.name}`
-    }, [
-      el('div', { class: 'order-card__top' }, [
-        el('span', { class: 'order-card__no', text: order.orderNo }),
+    const children = [];
+
+    if (cancelled) {
+      children.push(el('div', {
+        class: 'order-card__banner order-card__banner--cancel',
+        testid: `cancelled-banner-${order.orderNo}`,
+        role: 'alert',
+        text: 'CANCELLED · STOP MAKING'
+      }));
+    } else if (changed) {
+      children.push(el('div', {
+        class: 'order-card__banner order-card__banner--change',
+        testid: `changed-banner-${order.orderNo}`,
+        role: 'alert',
+        text: 'ORDER CHANGED · CHECK ITEMS'
+      }));
+    }
+
+    children.push(el('div', { class: 'order-card__top' }, [
+      el('span', { class: 'order-card__no', text: order.orderNo }),
+      el('span', { class: 'order-card__tags' }, [
+        // A New order that was edited keeps a quiet tag until Start (Phase V 4).
+        change === 'tagged'
+          ? el('span', { class: 'changed-tag', testid: `changed-tag-${order.orderNo}`, text: 'Changed' })
+          : null,
         age
-      ]),
-      col.key === 'ready'
-        ? el('p', { class: 'order-card__call', testid: `call-${order.orderNo}`, text: String(order.name || '').toUpperCase() })
-        : el('p', { class: 'order-card__name', text: order.name }),
-      el('div', { class: 'order-card__lines' }, lines),
-      el('button', {
+      ])
+    ]));
+
+    children.push(col.key === 'ready' && !cancelled
+      ? el('p', { class: 'order-card__call', testid: `call-${order.orderNo}`, text: String(order.name || '').toUpperCase() })
+      : el('p', { class: 'order-card__name', text: order.name }));
+
+    children.push(el('div', { class: 'order-card__lines' }, lineNodes));
+
+    if (cancelled) {
+      children.push(el('p', {
+        class: 'order-card__note order-card__note--cancel',
+        testid: `cancel-note-${order.orderNo}`,
+        text: kitchenCancelNote(order)
+      }));
+      children.push(el('button', {
+        type: 'button',
+        class: 'action-btn action-btn--remove',
+        testid: `remove-${order.orderNo}`,
+        text: 'Remove',
+        'aria-label': `Remove cancelled order ${order.orderNo}`,
+        onclick: () => {
+          clearKitchenCard(order.id).catch((err) => console.error('remove failed', err));
+        }
+      }));
+    } else if (changed) {
+      children.push(el('p', {
+        class: 'order-card__note order-card__note--change',
+        testid: `change-note-${order.orderNo}`,
+        text: `${kitchenChangeNote(order)} Ready unlocks after Got it.`
+      }));
+      children.push(el('button', {
+        type: 'button',
+        class: 'action-btn action-btn--gotit',
+        testid: `got-it-${order.orderNo}`,
+        text: 'Got it',
+        'aria-label': `Got it, order ${order.orderNo} changed`,
+        onclick: () => {
+          markChangeSeen(order.id).catch((err) => console.error('got it failed', err));
+        }
+      }));
+    } else {
+      children.push(el('button', {
         type: 'button',
         class: 'action-btn',
         testid: `action-${order.orderNo}`,
@@ -235,8 +333,15 @@ export function mountKitchen(outlet, ctx) {
         text: col.action,
         'aria-label': `${col.action} order ${order.orderNo}`,
         onclick: () => advance(order)
-      })
-    ]);
+      }));
+    }
+
+    return el('article', {
+      class: 'order-card' + (col.key === 'ready' && !cancelled && !changed ? ' order-card--ready' : ''),
+      testid: `order-card-${order.orderNo}`,
+      dataset: { change },
+      'aria-label': `Order ${order.orderNo} for ${order.name}`
+    }, children);
   }
 
   function render() {
@@ -244,9 +349,13 @@ export function mountKitchen(outlet, ctx) {
     const visible = state.orders.filter(orderMatchesStation);
 
     for (const entry of columns) {
+      // Phase V: a cancelled order stays in the column it was in until the
+      // food counter taps Remove, and never counts towards the column total.
       const list = visible
-        .filter((o) => o.status === entry.col.key)
+        .filter((o) => kitchenCardState(o) !== 'gone' && kitchenColumnOf(o) === entry.col.key)
         .sort((a, b) => (a.createdAtMs || 0) - (b.createdAtMs || 0));
+      const live = list.filter((o) => o.status !== 'cancelled');
+      const unseen = list.some((o) => ['changed', 'cancelled'].includes(kitchenCardState(o)));
 
       clear(entry.body);
       if (!list.length) {
@@ -254,12 +363,15 @@ export function mountKitchen(outlet, ctx) {
       } else {
         for (const order of list) entry.body.appendChild(card(order, entry.col));
       }
-      setText(entry.count, String(list.length));
+      setText(entry.count, String(live.length));
       entry.section.dataset.active = entry.col.key === state.tab ? 'true' : 'false';
 
       const tab = tabButtons.find((t) => t.col.key === entry.col.key);
-      setText(tab.count, String(list.length));
+      setText(tab.count, String(live.length));
       tab.button.setAttribute('aria-selected', entry.col.key === state.tab ? 'true' : 'false');
+      // A tab with an unseen change or cancel shows a dot (Phase V 4).
+      tab.dot.hidden = !unseen;
+      tab.button.dataset.alert = unseen ? 'true' : 'false';
     }
 
     const collected = state.orders.filter((o) => o.status === 'collected').length;
@@ -278,17 +390,26 @@ export function mountKitchen(outlet, ctx) {
 
   const stopOrders = watchOrders(dayString(), (orders) => {
     const fresh = orders.filter((o) => o.status === 'new');
-    let isNew = false;
+    let ring = false;
     for (const order of fresh) {
       if (!state.seenNew.has(order.id)) {
         state.seenNew.add(order.id);
-        if (!state.firstSnapshot) isNew = true;
+        if (!state.firstSnapshot) ring = true;
       }
+    }
+    // Phase V 4: the same short beep for a change or a cancel from the till.
+    for (const order of orders) {
+      const cardState = kitchenCardState(order);
+      if (cardState !== 'changed' && cardState !== 'cancelled') continue;
+      const key = `${order.id}:${cardState === 'cancelled' ? 'cancelled' : order.editedAtMs}`;
+      if (state.seenChanges.has(key)) continue;
+      state.seenChanges.add(key);
+      if (!state.firstSnapshot) ring = true;
     }
     state.firstSnapshot = false;
     state.orders = orders;
     render();
-    if (isNew) playBeep();
+    if (ring) playBeep();
   });
 
   render();

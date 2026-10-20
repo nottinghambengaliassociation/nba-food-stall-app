@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // menu-sync.mjs — bring the Firestore `menu` collection in line with the menu
-// table in CLAUDE.md. General-purpose and idempotent: run it after any menu edit
-// in the table to create documents that are missing.
+// table. General-purpose and idempotent: run it after any menu edit to create
+// documents that are missing.
+//
+// The table is read from the MENU seed in public/js/logic.js (via menu-table.mjs)
+// — the single source of truth for the menu. This script keeps no copy of its own.
 //
 // Uses the Firebase web SDK and the generated public/js/firebase-config.js, the
 // same config the deployed app uses. It never prints a config value.
@@ -34,6 +37,8 @@ import { fileURLToPath } from 'node:url';
 import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 
+import { FIELDS, MENU_SOURCE, loadMenuTable } from './menu-table.mjs';
+
 import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
@@ -50,20 +55,6 @@ const CONFIG_PATH = resolve(ROOT, 'public/js/firebase-config.js');
 const COLLECTION = 'menu';
 const EMULATOR_PROJECT = 'demo-food-stall';
 const EMULATOR_DEFAULT = '127.0.0.1:8080';
-
-const FIELDS = ['name', 'short', 'price', 'colour', 'station', 'active', 'sort'];
-
-// The menu table from CLAUDE.md (v1.3.1: 7 items, the whole menu).
-// Ids are permanent and never reused — don't reuse samosa, straw or fountain.
-const MENU = [
-  { id: 'fuchka',          name: 'Fuchka / Gol Gappa',        short: 'Fuchka',           price: 500, colour: '#FDE68A', station: 'chaat',  active: true, sort: 1 },
-  { id: 'momo',            name: 'Momo',                      short: 'Momo',             price: 500, colour: '#BFDBFE', station: 'momo',   active: true, sort: 2 },
-  { id: 'chat',            name: 'Papri Chat',                short: 'Papri Chat',       price: 500, colour: '#FECACA', station: 'chaat',  active: true, sort: 3 },
-  { id: 'sweet_box',       name: 'Sweet Box',                 short: 'Sweet Box',        price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
-  { id: 'samosa_only',     name: 'Samosa',                    short: 'Samosa',           price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
-  { id: 'choc_strawberry', name: 'Chocolate Strawberry',      short: 'Choc Strawberry',  price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow',     name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
-];
 
 const argv = process.argv.slice(2);
 const DRY_RUN = argv.includes('--dry-run');
@@ -128,14 +119,14 @@ async function readMenu(db) {
 }
 
 // Work out everything to do without writing anything.
-function buildPlan(stored) {
+function buildPlan(stored, menu) {
   const creates = [];
   const updates = [];   // fields absent from an existing document
   const differs = [];   // present, different, not ours to change
   const matches = [];
   const extras = [];
 
-  for (const want of MENU) {
+  for (const want of menu) {
     const have = stored.get(want.id);
     if (!have) {
       const data = {};
@@ -161,7 +152,7 @@ function buildPlan(stored) {
     if (!touched) matches.push(want.id);
   }
 
-  const known = new Set(MENU.map((m) => m.id));
+  const known = new Set(menu.map((m) => m.id));
   for (const id of stored.keys()) if (!known.has(id)) extras.push(id);
 
   return { creates, updates, differs, matches, extras };
@@ -221,13 +212,16 @@ async function applyUpdate(db, u) {
 }
 
 async function main() {
+  const menu = await loadMenuTable();
   const { db, target } = await connect();
   console.log(`menu-sync — target: ${target}`);
+  console.log(`Menu table: ${MENU_SOURCE} — ${menu.length} item(s) to ensure`);
+  console.log(`  ${menu.map((m) => m.id).join(', ')}`);
   console.log(DRY_RUN ? 'Mode: dry run (no writes)' : 'Mode: apply');
   console.log('');
 
   const stored = await readMenu(db);
-  const plan = buildPlan(stored);
+  const plan = buildPlan(stored, menu);
   printPlan(plan, stored.size);
 
   let created = 0;

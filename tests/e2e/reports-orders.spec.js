@@ -396,8 +396,11 @@ test.describe('Phase IV — Orders list and order detail', () => {
 
     if (!isPhone(info)) {
       const note = await detailField(page, 'order-detail-note');
-      expect(note, 'CLAUDE.md Phase IV 6: the read-only note').toBe(
-        'Read-only. Orders are cancelled from the cash counter; status changes happen on the food counter. ' +
+      // CLAUDE.md Phase V 5 rewrites this note: "Update the detail note to
+      // 'Read-only. Orders are edited and cancelled from the cash counter;
+      // status changes happen on the food counter.'"
+      expect(note, 'CLAUDE.md Phase IV 6 as amended by Phase V 5: the read-only note').toBe(
+        'Read-only. Orders are edited and cancelled from the cash counter; status changes happen on the food counter. ' +
         'Cancelled orders are listed but excluded from every total.'
       );
     }
@@ -557,7 +560,7 @@ test.describe('Phase IV — Orders list and order detail', () => {
 
     const text = readFileSync(await download.path(), 'utf8');
     expect(text.split(/\r?\n/)[0], 'same columns as the One day CSV')
-      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
     const rows = parseCsv(text);
     const col = (n) => rows[0].indexOf(n);
     const body = rows.slice(1);
@@ -569,7 +572,7 @@ test.describe('Phase IV — Orders list and order detail', () => {
       'the status column says it was cancelled').toBe('cancelled');
     expect(body.map((r) => r[col('orderNo')]), "yesterday's order is not in today's export").not.toContain('A-900');
     for (const r of body) {
-      expect(r).toHaveLength(13);
+      expect(r).toHaveLength(15);
       expect(r[col('day')]).toBe(X.day);
       expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     }
@@ -600,7 +603,7 @@ test.describe('Phase IV — Orders list and order detail', () => {
     ]);
     const cancelledText = readFileSync(await cancelledDownload.path(), 'utf8');
     expect(cancelledText.split(/\r?\n/)[0], 'the same columns').toBe(
-      'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+      'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
     const cancelledRows = parseCsv(cancelledText).slice(1);
     expect(cancelledRows, 'a Cancelled-only view exports its row, not an empty file')
       .toHaveLength(X.csvLines.cancelled);

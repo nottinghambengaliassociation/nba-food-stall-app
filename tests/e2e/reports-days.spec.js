@@ -377,7 +377,7 @@ test.describe('Phase III — Sales by day', () => {
 
     const text = readFileSync(await download.path(), 'utf8');
     expect(text.split(/\r?\n/)[0], 'same columns as the One day CSV')
-      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
 
     const rows = parseCsv(text);
     const col = (n) => rows[0].indexOf(n);
@@ -389,7 +389,7 @@ test.describe('Phase III — Sales by day', () => {
     expect(body.some((r) => r[col('orderNo')] === 'B-003'), 'the cancelled order is excluded').toBe(false);
     expect(new Set(body.map((r) => r[col('day')])).size).toBe(X.trading.length);
     for (const r of body) {
-      expect(r).toHaveLength(13);
+      expect(r).toHaveLength(15);
       expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     }
     expect(rows[0], 'CLAUDE.md Phase III 10: the legacy tendered field never appears').not.toContain('tendered');

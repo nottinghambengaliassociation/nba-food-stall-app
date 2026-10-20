@@ -1,13 +1,24 @@
 // Cash counter: build an order, take payment, send it to the food counter.
+// Phase V (v1.4.0) adds Open orders: today's unfinished orders from every
+// till, with Edit and Cancel… on each. The Recent orders strip it replaces is
+// gone from both layouts (CLAUDE.md Phase V 1).
 
 import { el, clear, setText, svgNode } from './ui.js';
 import { itemIcon } from './icons.js';
 import {
   ACTIVE_MENU, QUICK_CASH, formatPence, orderTotal,
   parseAmountToPence, cashReceivedState,
-  dayString, nextOrderNo
+  dayString, nextOrderNo,
+  openOrders, canEditOrder, orderSummary, orderAmount, orderTimeMs, formatClock,
+  statusLabel, paymentLabel, orderWasText, editHasChanges, editDelta, editPrompt,
+  diffOrderItems, refundText, cancelReasonsFor, editToastText, cancelToastText,
+  editBlockedMessage, cancelBlockedMessage,
+  EDIT_READY_TITLE, EDIT_OFFLINE_NOTE, EDIT_EMPTY_MESSAGE
 } from './logic.js';
-import { watchMenu, watchOrders, createOrder, cancelOrder, isReady } from './store.js';
+import {
+  watchMenu, watchOrders, createOrder, saveOrderEdit, cancelOrderWithReason,
+  isReady, onConnection
+} from './store.js';
 import { clearSession, openSignOutConfirm } from './login.js';
 import { href } from './router.js';
 import { loadVersion } from './app-version.js';
@@ -17,18 +28,21 @@ const TOAST_MS = 4000;
 const MENU_ICON = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>`;
 const CHEVRON_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6"></path></svg>`;
 
-const STATUS_LABEL = {
-  new: 'New',
-  preparing: 'Preparing',
-  ready: 'Ready',
-  collected: 'Collected',
-  cancelled: 'Cancelled'
+// Leaving edit mode any other way than Discard asks first, like the
+// unsent-order confirm (CLAUDE.md Phase V 2).
+const LEAVE_EDIT_CONFIRM = {
+  title: 'Discard the changes to this order?',
+  note: 'Nothing has been saved yet. The order stays exactly as the food counter has it.',
+  confirmLabel: 'Discard changes'
 };
 
 export function mountCash(outlet, ctx) {
   const state = {
     menu: ACTIVE_MENU.slice(),
     cart: {},
+    // Names and prices for cart ids the live menu no longer carries, so an
+    // older order can still be edited line by line.
+    lineInfo: {},
     // Hotfix H4: every new order starts on Card. Not remembered between orders.
     payment: 'card',
     // Cash received (optional): either a quick button ('exact' | pence) or
@@ -37,14 +51,19 @@ export function mountCash(outlet, ctx) {
     other: '',
     orders: [],
     toastTimer: null,
-    // Hotfix H3: small-screen chrome. The sheet, the ☰ menu and the recent
-    // orders sheet only exist below 700px; above it these stay false and the
-    // tablet panel is simply always on screen.
+    // Hotfix H3: small-screen chrome. The sheet and the ☰ menu only exist
+    // below 700px; above it these stay false and the tablet panel is simply
+    // always on screen.
     sheet: false,
     appMenu: false,
-    recent: false,
     // The phone sheet hides the Other amount box behind a link.
-    otherOpen: false
+    otherOpen: false,
+    // Phase V: Open orders drawer, edit mode and the cancel dialog.
+    drawer: false,
+    drawerQuery: '',
+    edit: null,
+    blocked: '',
+    online: typeof navigator === 'undefined' ? true : navigator.onLine !== false
   };
 
   const phone = typeof window.matchMedia === 'function'
@@ -53,6 +72,9 @@ export function mountCash(outlet, ctx) {
 
   /** True while the H3 small-screen cash layout is the one on screen. */
   const isSmall = () => phone.matches === true;
+
+  /** True while an existing order is loaded into the panel (Phase V 2). */
+  const editing = () => state.edit !== null;
 
   /* ---------------------------------------------------------- structure */
 
@@ -71,7 +93,8 @@ export function mountCash(outlet, ctx) {
     testid: 'customer-name',
     placeholder: 'e.g. Priya',
     autocomplete: 'off',
-    maxlength: '40'
+    maxlength: '40',
+    oninput: () => update()
   });
 
   const linesBox = el('div', { class: 'lines', testid: 'order-lines' });
@@ -195,8 +218,66 @@ export function mountCash(outlet, ctx) {
     onclick: () => { resetOrder(); update(); }
   });
 
+  /* --------------------------------------------- Phase V: edit mode bits */
+
+  // The payment prompt: "Take £5.00 more", "Refund £5.00 on the card
+  // machine", "No payment change" or "No changes yet" (CLAUDE.md Phase V 2).
+  const deltaLine = el('p', {
+    class: 'edit-delta',
+    testid: 'edit-delta',
+    role: 'status',
+    'aria-live': 'polite',
+    dataset: { tone: 'none' }
+  });
+
+  const saveButton = el('button', {
+    type: 'button',
+    class: 'save-btn',
+    testid: 'save-changes',
+    text: 'Save changes',
+    disabled: true,
+    onclick: saveEdit
+  });
+
+  const discardButton = el('button', {
+    type: 'button',
+    class: 'link-btn edit-discard',
+    testid: 'discard-changes',
+    text: 'Discard changes',
+    onclick: () => { leaveEdit(); update(); }
+  });
+
+  // The order moved on while the panel was open: nothing was written.
+  const blockedNote = el('p', {
+    class: 'edit-blocked',
+    testid: 'edit-blocked',
+    role: 'alert'
+  });
+  blockedNote.hidden = true;
+
+  const emptyEditRow = el('div', { class: 'edit-empty', testid: 'edit-empty' }, [
+    el('span', { text: EDIT_EMPTY_MESSAGE }),
+    el('button', {
+      type: 'button',
+      class: 'edit-empty__btn',
+      testid: 'edit-empty-cancel',
+      text: 'Cancel order…',
+      onclick: () => { if (state.edit) openCancelDialog(state.edit.order); }
+    })
+  ]);
+  emptyEditRow.hidden = true;
+
+  const editTitle = el('span', { class: 'edit-banner__title', testid: 'edit-banner-title' });
+  const editStatus = el('span', { class: 'status-pill', testid: 'edit-status' });
+  const editWas = el('span', { class: 'edit-banner__was', testid: 'edit-banner-was' });
+  const editBanner = el('div', { class: 'edit-banner', testid: 'edit-banner' }, [
+    el('span', { class: 'edit-banner__head' }, [editTitle, editStatus]),
+    editWas
+  ]);
+  editBanner.hidden = true;
+
   // Send and Clear ride together so the phone sheet can pin them to its
-  // bottom edge.
+  // bottom edge. In edit mode it carries Save (and Discard on tablet).
   const panelFoot = el('div', { class: 'panel__foot' }, [sendButton, clearButton]);
 
   // Sheet header (phone only): "Order · 3 items" and the Add more button that
@@ -214,25 +295,23 @@ export function mountCash(outlet, ctx) {
 
   const panel = el('aside', { class: 'panel', 'aria-label': 'Current order' }, [
     sheetHead,
+    editBanner,
     toast,
+    blockedNote,
     el('div', { class: 'field' }, [
       el('label', { class: 'field-label', for: 'customer-name', text: 'Name to call out' }),
       nameInput
     ]),
     linesBox,
+    emptyEditRow,
     el('div', { class: 'total-row' }, [
       el('span', { class: 'total-row__label', text: 'Total' }),
       totalValue
     ]),
     el('div', { class: 'pay-group', role: 'group', 'aria-label': 'Payment method' }, [payCash, payCard]),
     tenderBlock,
+    deltaLine,
     panelFoot
-  ]);
-
-  const recentList = el('div', { class: 'recent__items', testid: 'recent-list' });
-  const recentSection = el('section', { class: 'recent', 'aria-label': 'Recent orders' }, [
-    el('h2', { class: 'recent__label', text: 'Recent' }),
-    recentList
   ]);
 
   /* ------------------------------------------- hotfix H3: phone chrome */
@@ -247,47 +326,101 @@ export function mountCash(outlet, ctx) {
   });
 
   const barLabel = el('span', { class: 'order-bar__count', text: '0 items · £0.00' });
+  const barCta = el('span', { class: 'order-bar__cta' }, [
+    document.createTextNode('Review & send'),
+    svgNode(CHEVRON_ICON)
+  ]);
   const orderBarButton = el('button', {
     type: 'button',
     class: 'order-bar__btn',
     testid: 'order-bar-open',
     onclick: () => openSheet()
-  }, [
-    barLabel,
-    el('span', { class: 'order-bar__cta' }, [
-      document.createTextNode('Review & send'),
-      svgNode(CHEVRON_ICON)
-    ])
-  ]);
+  }, [barLabel, barCta]);
   const orderBar = el('div', { class: 'order-bar', testid: 'order-bar' }, [orderBarButton]);
   orderBar.hidden = true;
 
-  // Recent orders move off the phone screen into ☰ → Recent orders (H3 6).
-  const recentSheet = el('div', { class: 'mini-sheet', testid: 'recent-sheet', role: 'dialog', 'aria-label': 'Recent orders' }, [
-    el('div', { class: 'mini-sheet__head' }, [
-      el('h2', { class: 'mini-sheet__title', text: 'Recent orders' }),
-      el('button', {
-        type: 'button',
-        class: 'sheet__more',
-        testid: 'recent-close',
-        text: 'Close',
-        onclick: () => closeRecent()
-      })
-    ]),
-    el('div', { class: 'mini-sheet__body', testid: 'recent-sheet-body' })
-  ]);
-  recentSheet.hidden = true;
-  const recentSheetBody = recentSheet.querySelector('.mini-sheet__body');
-
-  const recentBackdrop = el('div', { class: 'mini-sheet__backdrop', onclick: () => closeRecent() });
-  recentBackdrop.hidden = true;
-
-  const scroller = el('div', { class: 'cash__scroll' }, [tilesSection, recentSection]);
-  const main = el('main', { class: 'cash' }, [
-    scroller, backdrop, sheet, orderBar, recentBackdrop, recentSheet
-  ]);
+  const scroller = el('div', { class: 'cash__scroll' }, [tilesSection]);
+  const main = el('main', { class: 'cash' }, [scroller, backdrop, sheet, orderBar]);
   main.dataset.sheet = 'closed';
   outlet.appendChild(main);
+
+  /* ------------------------------ Phase V: Open orders drawer and dialog */
+
+  const drawerCount = el('span', { class: 'open-orders__badge', testid: 'open-orders-count', text: '0' });
+  const openOrdersButton = el('button', {
+    type: 'button',
+    class: 'open-orders-btn',
+    testid: 'open-orders',
+    // No aria-label: the visible wording differs either side of 700px
+    // ("Open orders" / "Orders"), so any single label would stop being a
+    // superstring of what is on screen and fail WCAG 2.5.3 "Label in Name".
+    // The spans and the count badge name the button between them.
+    'aria-expanded': 'false',
+    'aria-haspopup': 'dialog',
+    onclick: () => { state.drawer ? closeDrawer() : openDrawer(); }
+  }, [
+    el('span', { class: 'open-orders-btn__long', text: 'Open orders' }),
+    el('span', { class: 'open-orders-btn__short', text: 'Orders' }),
+    drawerCount
+  ]);
+
+  const drawerTitle = el('h2', { class: 'drawer__title', text: 'Open orders · 0' });
+  const drawerSearch = el('input', {
+    type: 'search',
+    id: 'open-orders-search',
+    class: 'drawer__search',
+    testid: 'open-orders-search',
+    autocomplete: 'off',
+    placeholder: 'Search order number or name',
+    'aria-label': 'Search open orders',
+    oninput: () => { state.drawerQuery = drawerSearch.value; renderDrawer(); }
+  });
+  const drawerOffline = el('p', {
+    class: 'drawer__offline',
+    testid: 'open-orders-offline',
+    text: `${EDIT_OFFLINE_NOTE}. Edit and Cancel need the network; new orders still queue.`
+  });
+  drawerOffline.hidden = true;
+  const drawerList = el('div', { class: 'drawer__list', testid: 'open-orders-list' });
+  const drawerEmpty = el('p', {
+    class: 'drawer__empty',
+    testid: 'open-orders-empty',
+    text: 'No open orders match.'
+  });
+
+  const drawerClose = el('button', {
+    type: 'button',
+    class: 'sheet__more',
+    testid: 'open-orders-close',
+    text: 'Close',
+    onclick: () => closeDrawer()
+  });
+
+  const drawer = el('section', {
+    class: 'drawer',
+    testid: 'open-orders-drawer',
+    role: 'dialog',
+    'aria-modal': 'true',
+    'aria-label': 'Open orders',
+    tabindex: '-1'
+  }, [
+    el('div', { class: 'drawer__head' }, [
+      el('div', { class: 'drawer__headrow' }, [drawerTitle, drawerClose]),
+      drawerSearch,
+      el('p', {
+        class: 'drawer__note',
+        text: 'Today, all tills, not yet collected. Edit while New or Preparing; Ready orders can only be cancelled.'
+      }),
+      drawerOffline
+    ]),
+    el('div', { class: 'drawer__body' }, [drawerList, drawerEmpty])
+  ]);
+  drawer.hidden = true;
+
+  const drawerBackdrop = el('div', { class: 'drawer__backdrop', onclick: () => closeDrawer() });
+  drawerBackdrop.hidden = true;
+
+  main.append(drawerBackdrop, drawer);
 
   /* ---------------------------------------- hotfix H3: header and ☰ menu */
 
@@ -301,43 +434,56 @@ export function mountCash(outlet, ctx) {
     onclick: () => { state.appMenu ? closeAppMenu() : openAppMenu(); }
   }, [svgNode(MENU_ICON)]);
 
-  // The ☰ menu ends with the version line (H3 1). It borrows the header's own
-  // version pill rather than printing a second one, so there is one version
-  // label on the screen wherever it is standing.
+  // The ☰ menu ends with "Next A-045" and the version line (H3 1, Phase V 1).
+  // It borrows the header's own version pill and next-number node rather than
+  // printing second copies, so there is one of each on the screen.
   const menuBuild = el('span', { class: 'app-menu__build', text: '· build dev' });
   loadVersion().then((v) => { menuBuild.textContent = `· build ${v.build}`; });
   const menuVersion = el('div', { class: 'app-menu__version', testid: 'menu-version' }, [menuBuild]);
+  const menuNext = el('div', { class: 'app-menu__next', testid: 'menu-next' });
 
   const versionPill = ctx.headerVersion || null;
   const versionHome = versionPill
     ? { parent: versionPill.parentNode, next: versionPill.nextSibling }
     : null;
+  const subNode = ctx.headerSub || null;
+  const subHome = subNode
+    ? { parent: subNode.parentNode, next: subNode.nextSibling }
+    : null;
 
-  function placeVersion(small) {
-    if (!versionPill) return;
+  /** Put a borrowed header node back where it was found. */
+  function restore(node, home) {
+    if (!node || !home || !home.parent) return;
+    if (node.parentNode === home.parent) return;
+    // The node it used to sit before may itself be on loan right now.
+    const ref = home.next && home.next.parentNode === home.parent ? home.next : null;
+    home.parent.insertBefore(node, ref);
+  }
+
+  function placeBorrowed(small) {
     if (small) {
-      if (versionPill.parentNode !== menuVersion) menuVersion.insertBefore(versionPill, menuBuild);
-    } else if (versionHome && versionHome.parent && versionPill.parentNode !== versionHome.parent) {
-      versionHome.parent.insertBefore(versionPill, versionHome.next);
+      if (versionPill && versionPill.parentNode !== menuVersion) menuVersion.insertBefore(versionPill, menuBuild);
+      if (subNode && subNode.parentNode !== menuNext) menuNext.appendChild(subNode);
+      return;
     }
+    // The next-order line goes back first: the version pill sits before it.
+    restore(subNode, subHome);
+    restore(versionPill, versionHome);
   }
 
   const appMenu = el('nav', { class: 'app-menu', testid: 'app-menu', 'aria-label': 'App menu' }, [
     el('a', { class: 'app-menu__item', testid: 'menu-food', href: href('/kitchen'), text: 'Food counter', onclick: () => closeAppMenu() }),
     el('a', { class: 'app-menu__item', testid: 'menu-reports', href: href('/reports'), text: 'Reports', onclick: () => closeAppMenu() }),
     el('button', {
-      type: 'button', class: 'app-menu__item', testid: 'menu-recent', text: 'Recent orders',
-      onclick: () => { closeAppMenu(); openRecent(); }
-    }),
-    el('button', {
       type: 'button', class: 'app-menu__item app-menu__item--danger', testid: 'menu-signout', text: 'Sign out',
       onclick: () => { closeAppMenu(); signOut(); }
     }),
+    menuNext,
     menuVersion
   ]);
   appMenu.hidden = true;
 
-  if (ctx.headerRight) ctx.headerRight.appendChild(menuButton);
+  if (ctx.headerRight) ctx.headerRight.append(openOrdersButton, menuButton);
   document.body.appendChild(appMenu);
 
   /* -------------------------------------------------------------- state */
@@ -351,15 +497,23 @@ export function mountCash(outlet, ctx) {
   }
 
   function currentItems() {
-    return state.menu
+    const out = state.menu
       .filter((m) => qtyOf(m.id) > 0)
       .map((m) => ({ id: m.id, name: m.name, qty: qtyOf(m.id), price: m.price }));
+    // An id the live menu no longer carries keeps the name and price the
+    // order was written with, so an older order can still be edited.
+    for (const id of Object.keys(state.cart)) {
+      if (state.menu.some((m) => m.id === id)) continue;
+      const info = state.lineInfo[id] || {};
+      out.push({ id, name: info.name || id, qty: state.cart[id], price: Math.round(Number(info.price) || 0) });
+    }
+    return out;
   }
 
   /** The menu's short name for an id, falling back to the full name. */
   function shortOf(id, fallback) {
     const item = state.menu.find((m) => m.id === id);
-    return (item && item.short) || fallback || id;
+    return (item && item.short) || (state.lineInfo[id] && state.lineInfo[id].short) || fallback || id;
   }
 
   /** Cash received resets on Clear, on switching to Card, on send and on clearing the order. */
@@ -372,6 +526,7 @@ export function mountCash(outlet, ctx) {
 
   function resetOrder() {
     state.cart = {};
+    state.lineInfo = {};
     state.payment = 'card';
     resetTender();
     nameInput.value = '';
@@ -385,7 +540,7 @@ export function mountCash(outlet, ctx) {
     return null;
   }
 
-  /* ------------------------------- hotfix H3: sheet, ☰ menu, recent sheet */
+  /* ------------------------------- hotfix H3: sheet, ☰ menu, Open orders */
 
   // The sheet pushes one history entry so the browser Back button closes it
   // (H3 4). `pushed` keeps that entry from being left behind when the sheet
@@ -394,10 +549,10 @@ export function mountCash(outlet, ctx) {
 
   function openSheet() {
     if (state.sheet || !isSmall()) return;
-    if (!currentItems().length) return;
+    if (!currentItems().length && !editing()) return;
     state.sheet = true;
     closeAppMenu();
-    closeRecent();
+    closeDrawer();
     try {
       history.pushState({ nbaSheet: true }, '');
       pushed = true;
@@ -435,20 +590,27 @@ export function mountCash(outlet, ctx) {
     menuButton.setAttribute('aria-expanded', 'false');
   }
 
-  function openRecent() {
-    state.recent = true;
-    recentSheet.hidden = false;
-    recentBackdrop.hidden = false;
-    renderRecent();
-    recentSheet.focus({ preventScroll: true });
+  function openDrawer() {
+    if (state.drawer) return;
+    closeAppMenu();
+    // The phone review sheet and the Open orders sheet are the same surface:
+    // only one of them is ever up.
+    if (state.sheet) closeSheet({ focusBar: false });
+    state.drawer = true;
+    drawer.hidden = false;
+    drawerBackdrop.hidden = false;
+    openOrdersButton.setAttribute('aria-expanded', 'true');
+    renderDrawer();
+    drawer.focus({ preventScroll: true });
   }
 
-  function closeRecent() {
-    if (!state.recent) return;
-    state.recent = false;
-    recentSheet.hidden = true;
-    recentBackdrop.hidden = true;
-    menuButton.focus({ preventScroll: true });
+  function closeDrawer({ focusButton = true } = {}) {
+    if (!state.drawer) return;
+    state.drawer = false;
+    drawer.hidden = true;
+    drawerBackdrop.hidden = true;
+    openOrdersButton.setAttribute('aria-expanded', 'false');
+    if (focusButton) openOrdersButton.focus({ preventScroll: true });
   }
 
   /** ☰ → Sign out. Same in-page confirm as the header button (Cash counter 8). */
@@ -457,45 +619,42 @@ export function mountCash(outlet, ctx) {
       clearSession();
       location.hash = '#/login';
     };
-    if (currentItems().length) openSignOutConfirm(done);
+    const guard = unsentGuardAnswer();
+    if (guard) openSignOutConfirm(done, guard === true ? {} : guard);
     else done();
   }
 
   /**
    * Nodes that sit in a different place on each layout. The toast belongs in
-   * the order panel on tablet and above the order bar on the phone; the
-   * recent strip belongs under the tiles on tablet and in its own sheet on
+   * the order panel on tablet and above the order bar on the phone; the edit
+   * banner is the top of the panel on tablet and a strip under the header on
    * the phone. Moving the one node keeps a single set of test ids.
    */
   function placeChrome() {
     if (isSmall()) {
       if (toast.parentNode !== scroller) scroller.appendChild(toast);
-      if (recentSection.parentNode !== recentSheetBody) recentSheetBody.appendChild(recentSection);
+      if (editBanner.parentNode !== main) main.insertBefore(editBanner, scroller);
+      if (blockedNote.parentNode !== scroller) scroller.insertBefore(blockedNote, scroller.firstChild);
       sheet.setAttribute('role', 'dialog');
       sheet.setAttribute('aria-modal', 'true');
       sheet.setAttribute('aria-label', 'Review order');
       sheet.setAttribute('tabindex', '-1');
       sheet.setAttribute('data-testid', 'review-sheet');
-      recentSheet.setAttribute('tabindex', '-1');
-      placeVersion(true);
+      placeBorrowed(true);
     } else {
-      if (toast.parentNode !== panel) panel.insertBefore(toast, panel.firstChild);
-      if (recentSection.parentNode !== scroller) scroller.appendChild(recentSection);
+      if (editBanner.parentNode !== panel) panel.insertBefore(editBanner, sheetHead.nextSibling);
+      if (toast.parentNode !== panel) panel.insertBefore(toast, editBanner.nextSibling);
+      if (blockedNote.parentNode !== panel) panel.insertBefore(blockedNote, toast.nextSibling);
       sheet.removeAttribute('role');
       sheet.removeAttribute('aria-modal');
       sheet.removeAttribute('aria-label');
       sheet.removeAttribute('tabindex');
       sheet.removeAttribute('data-testid');
-      placeVersion(false);
+      placeBorrowed(false);
       // Tablet never shows the phone-only chrome; make sure nothing is stuck
       // open after a resize across 700px.
       if (state.sheet) { state.sheet = false; pushed = false; }
       closeAppMenu();
-      if (state.recent) {
-        state.recent = false;
-        recentSheet.hidden = true;
-        recentBackdrop.hidden = true;
-      }
     }
   }
 
@@ -509,6 +668,7 @@ export function mountCash(outlet, ctx) {
   }
 
   function send() {
+    if (editing()) return;
     const items = currentItems();
     if (!items.length) return;
     const total = orderTotal(items);
@@ -552,6 +712,255 @@ export function mountCash(outlet, ctx) {
     ctx.refreshHeaderSub();
   }
 
+  /* ------------------------------------------------- Phase V: edit mode */
+
+  /** Load an open order into the panel (CLAUDE.md Phase V 2). */
+  function startEdit(order) {
+    const apply = () => {
+      state.edit = {
+        id: order.id,
+        orderNo: order.orderNo,
+        order,
+        before: {
+          items: Array.isArray(order.items) ? order.items : [],
+          total: orderAmount(order),
+          name: order.name || 'Guest',
+          payment: order.payment === 'card' ? 'card' : 'cash'
+        }
+      };
+      state.cart = {};
+      state.lineInfo = {};
+      for (const line of (Array.isArray(order.items) ? order.items : [])) {
+        const qty = Math.round(Number(line && line.qty) || 0);
+        if (!line || !line.id || qty <= 0) continue;
+        state.cart[line.id] = (state.cart[line.id] || 0) + qty;
+        state.lineInfo[line.id] = { name: line.name || line.id, price: Math.round(Number(line.price) || 0) };
+      }
+      state.payment = order.payment === 'card' ? 'card' : 'cash';
+      nameInput.value = order.name === 'Guest' ? '' : (order.name || '');
+      resetTender();
+      state.blocked = '';
+      setText(toast, '');
+      closeDrawer({ focusButton: false });
+      update();
+      // Phone: the sheet is where the changes are made (design/CashOpenOrdersSmall).
+      if (isSmall()) openSheet();
+      else nameInput.focus({ preventScroll: true });
+    };
+
+    // Starting Edit on another order loses the changes in the panel, so ask.
+    if (editing() && state.edit.id !== order.id) {
+      openSignOutConfirm(apply, LEAVE_EDIT_CONFIRM);
+      return;
+    }
+    apply();
+  }
+
+  /** Leave edit mode with nothing written and the panel back to a new order. */
+  function leaveEdit() {
+    state.edit = null;
+    state.blocked = '';
+    resetOrder();
+    if (state.sheet) closeSheet({ focusBar: false });
+  }
+
+  /** The original order as it stood when Edit was tapped. */
+  function editBefore() {
+    return state.edit ? state.edit.before : null;
+  }
+
+  function editState() {
+    const items = currentItems();
+    const total = orderTotal(items);
+    const before = editBefore();
+    if (!before) return { changed: false, delta: 0, prompt: editPrompt({}), total, items };
+    const after = { items, total, name: nameInput.value.trim() || 'Guest', payment: state.payment };
+    const beforeForCompare = { ...before, name: before.name || 'Guest' };
+    const changed = editHasChanges(beforeForCompare, after);
+    const delta = editDelta(before.total, total);
+    return {
+      changed,
+      delta,
+      prompt: editPrompt({ changed, delta, payment: state.payment }),
+      total,
+      items
+    };
+  }
+
+  let saving = false;
+
+  async function saveEdit() {
+    if (!editing() || saving) return;
+    const { changed, delta, items, total } = editState();
+    if (!changed || !items.length) return;
+    const target = state.edit;
+    // The payment as it is being saved: leaveEdit() resets the panel to Card
+    // before the toast is built (hotfix H4), so capture it first.
+    const payment = state.payment === 'card' ? 'card' : 'cash';
+    saving = true;
+    saveButton.disabled = true;
+    try {
+      const res = await saveOrderEdit({
+        id: target.id,
+        items,
+        total,
+        name: nameInput.value.trim() || 'Guest',
+        payment,
+        till: ctx.settings.till
+      });
+      if (res && res.ok === false) {
+        // Nothing written: the food counter moved it on first (Phase V 2).
+        state.blocked = res.reason === 'missing'
+          ? `${target.orderNo} is no longer on today's board.`
+          : editBlockedMessage(target.orderNo, res.status);
+        update();
+        return;
+      }
+      leaveEdit();
+      showToast(editToastText(target.orderNo, delta, payment));
+      update();
+    } catch (err) {
+      console.error('save failed', err);
+      state.blocked = `${target.orderNo} could not be saved. ${EDIT_OFFLINE_NOTE}.`;
+      update();
+    } finally {
+      saving = false;
+    }
+  }
+
+  /* ----------------------------------------------- Phase V: cancel order */
+
+  let closeDialog = null;
+
+  function openCancelDialog(order) {
+    if (closeDialog) closeDialog();
+    const previous = document.activeElement;
+    const status = order.status || 'new';
+    const total = orderAmount(order);
+    const payment = order.payment === 'card' ? 'card' : 'cash';
+    let reason = null;
+
+    const confirmButton = el('button', {
+      type: 'button',
+      class: 'modal__btn modal__btn--danger',
+      testid: 'cancel-confirm',
+      text: 'Cancel order',
+      disabled: true,
+      onclick: () => { if (reason) doCancel(order, reason, close); }
+    });
+
+    const reasonButtons = cancelReasonsFor(status).map((r) => el('button', {
+      type: 'button',
+      class: 'reason-btn',
+      role: 'radio',
+      testid: `cancel-reason-${r.key}`,
+      text: r.label,
+      'aria-checked': 'false',
+      onclick: () => {
+        reason = r.key;
+        for (const b of reasonButtons) {
+          b.setAttribute('aria-checked', b.getAttribute('data-testid') === `cancel-reason-${reason}` ? 'true' : 'false');
+        }
+        confirmButton.disabled = false;
+      }
+    }));
+
+    const started = status === 'preparing' || status === 'ready';
+
+    const card = el('div', {
+      class: 'modal__card cancel-card',
+      role: 'alertdialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'cancel-dialog-title'
+    }, [
+      el('h2', {
+        id: 'cancel-dialog-title',
+        class: 'modal__title',
+        testid: 'cancel-dialog-title',
+        text: `Cancel ${order.orderNo} for ${order.name || 'Guest'}?`
+      }),
+      el('p', {
+        class: 'modal__note',
+        testid: 'cancel-dialog-items',
+        text: `${orderSummary(order)} · ${formatPence(total)} · ${statusLabel(status)}`
+      }),
+      started
+        ? el('p', {
+          class: 'cancel-card__warn',
+          testid: 'cancel-dialog-started',
+          text: "The food counter has already started this. They'll see a red Stop making card."
+        })
+        : null,
+      el('div', { class: 'cancel-card__reasons' }, [
+        el('span', { class: 'field-label', text: 'Reason' }),
+        el('div', {
+          class: 'reason-row',
+          role: 'radiogroup',
+          'aria-label': 'Reason',
+          testid: 'cancel-reasons'
+        }, reasonButtons)
+      ]),
+      el('p', {
+        class: 'cancel-card__refund',
+        testid: 'cancel-refund',
+        text: refundText(total, payment)
+      }),
+      el('div', { class: 'modal__row' }, [
+        el('button', {
+          type: 'button',
+          class: 'modal__btn modal__btn--ghost',
+          testid: 'cancel-keep',
+          text: 'Keep order',
+          onclick: () => close()
+        }),
+        confirmButton
+      ])
+    ]);
+
+    const backdropNode = el('div', { class: 'modal', testid: 'cancel-dialog' }, [card]);
+
+    function onKey(event) {
+      if (event.key === 'Escape') { event.preventDefault(); close(); }
+    }
+
+    function close() {
+      document.removeEventListener('keydown', onKey, true);
+      backdropNode.remove();
+      closeDialog = null;
+      if (previous && typeof previous.focus === 'function') previous.focus({ preventScroll: true });
+    }
+
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(backdropNode);
+    reasonButtons[0].focus({ preventScroll: true });
+    closeDialog = close;
+  }
+
+  async function doCancel(order, reason, close) {
+    const payment = order.payment === 'card' ? 'card' : 'cash';
+    const total = orderAmount(order);
+    try {
+      const res = await cancelOrderWithReason({ id: order.id, reason, till: ctx.settings.till });
+      close();
+      if (res && res.ok === false) {
+        state.blocked = res.reason === 'missing'
+          ? `${order.orderNo} is no longer on today's board.`
+          : cancelBlockedMessage(order.orderNo, res.status);
+        update();
+        return;
+      }
+      if (state.edit && state.edit.id === order.id) leaveEdit();
+      closeDrawer({ focusButton: false });
+      showToast(cancelToastText(order.orderNo, total, payment));
+      update();
+    } catch (err) {
+      console.error('cancel failed', err);
+      close();
+      state.blocked = `${order.orderNo} could not be cancelled. ${EDIT_OFFLINE_NOTE}.`;
+      update();
+    }
+  }
+
   /* ------------------------------------------------------------- render */
 
   // Tiles are built once per menu change and then patched, so tapping a tile
@@ -564,8 +973,8 @@ export function mountCash(outlet, ctx) {
     // Rebuilding then would swap the buttons out from under a volunteer's
     // finger (and detach the node a test is about to tap), so skip no-ops.
     const signature = state.menu
-      .map((m) => [m.id, m.name, m.short, m.price, m.colour].join('\u0001'))
-      .join('\u0002');
+      .map((m) => [m.id, m.name, m.short, m.price, m.colour].join(''))
+      .join('');
     if (signature === tileSignature && tileNodes.size === state.menu.length) return;
     tileSignature = signature;
     clear(tilesSection);
@@ -608,10 +1017,13 @@ export function mountCash(outlet, ctx) {
 
   const lineNodes = new Map();
   const emptyLines = el('p', { class: 'lines__empty', text: 'Tap an item to start the order' });
+  const removedBox = el('div', { class: 'lines__removed', testid: 'order-removed-lines' });
 
   function renderLines() {
     const items = currentItems();
     const wanted = new Set(items.map((i) => i.id));
+    const before = editBefore();
+    const diff = before ? diffOrderItems(before.items, items) : null;
 
     for (const [id, node] of lineNodes) {
       if (!wanted.has(id)) {
@@ -621,17 +1033,23 @@ export function mountCash(outlet, ctx) {
     }
 
     if (!items.length) {
-      if (emptyLines.parentNode !== linesBox) linesBox.appendChild(emptyLines);
-      return;
+      // In edit mode the empty panel offers Cancel instead (Phase V 2).
+      if (!editing() && emptyLines.parentNode !== linesBox) linesBox.appendChild(emptyLines);
+      if (editing() && emptyLines.parentNode === linesBox) linesBox.removeChild(emptyLines);
+    } else if (emptyLines.parentNode === linesBox) {
+      linesBox.removeChild(emptyLines);
     }
-    if (emptyLines.parentNode === linesBox) linesBox.removeChild(emptyLines);
 
     items.forEach((line, index) => {
       let node = lineNodes.get(line.id);
       if (!node) {
         const qtyEl = el('span', { class: 'line__qty', testid: `line-qty-${line.id}`, text: String(line.qty) });
         const amountEl = el('span', { class: 'line__amount' });
-        const nameEl = el('span', { class: 'line__name', text: line.name });
+        const changeEl = el('span', { class: 'line__change', testid: `line-change-${line.id}` });
+        const nameEl = el('span', { class: 'line__name' }, [
+          el('span', { class: 'line__label', text: line.name }),
+          changeEl
+        ]);
         const row = el('div', { class: 'line', testid: `line-${line.id}` }, [
           nameEl,
           el('button', {
@@ -647,73 +1065,119 @@ export function mountCash(outlet, ctx) {
           }),
           amountEl
         ]);
-        node = { row, nameEl, qtyEl, amountEl };
+        node = { row, nameEl, labelEl: nameEl.firstChild, changeEl, qtyEl, amountEl };
         lineNodes.set(line.id, node);
       }
       // The narrow sheet uses the menu's short name, the tablet panel the
       // full one (design/CashCounterSmall.dc.html). The stepper aria-labels
       // keep the full name either way.
-      setText(node.nameEl, isSmall() ? shortOf(line.id, line.name) : line.name);
+      setText(node.labelEl, isSmall() ? shortOf(line.id, line.name) : line.name);
       setText(node.qtyEl, String(line.qty));
       setText(node.amountEl, formatPence(line.qty * line.price));
+      const changeRow = diff ? diff.rows.find((r) => r.id === line.id) : null;
+      const changeText = changeRow ? changeRow.text : '';
+      setText(node.changeEl, changeText);
+      node.changeEl.hidden = !changeText;
       if (linesBox.children[index] !== node.row) linesBox.appendChild(node.row);
     });
-  }
 
-  function renderRecent() {
-    clear(recentList);
-    const till = ctx.settings.till;
-    const mine = state.orders
-      .filter((o) => o.till === till)
-      .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0))
-      .slice(0, 5);
-
-    if (!mine.length) {
-      recentList.appendChild(el('span', { class: 'recent__empty', text: 'No orders from this till yet' }));
-      return;
-    }
-
-    for (const order of mine) {
-      const pill = el('span', {
-        class: 'recent__item',
-        testid: `recent-${order.orderNo}`,
-        dataset: { status: order.status }
+    // Lines taken off the order show struck through with "removed" (Phase V 2).
+    clear(removedBox);
+    const removed = diff ? diff.removed : [];
+    removedBox.hidden = removed.length === 0;
+    linesBox.appendChild(removedBox);
+    for (const row of removed) {
+      removedBox.appendChild(el('div', {
+        class: 'line-removed',
+        testid: `line-removed-${row.id}`
       }, [
-        el('b', { text: order.orderNo }),
-        document.createTextNode(`${order.name} · ${STATUS_LABEL[order.status] || order.status}`)
-      ]);
-      if (order.status === 'new') {
-        pill.appendChild(el('button', {
-          type: 'button',
-          class: 'recent__cancel',
-          testid: `cancel-${order.orderNo}`,
-          text: 'Cancel',
-          'aria-label': `Cancel order ${order.orderNo}`,
-          onclick: () => {
-            cancelOrder(order.id).catch((err) => console.error('cancel failed', err));
-          }
-        }));
-      }
-      recentList.appendChild(pill);
+        el('s', { text: `${row.qty}× ${isSmall() ? shortOf(row.id, row.name) : row.name}` }),
+        el('b', { text: 'removed' })
+      ]));
     }
   }
+
+  /* --------------------------------------- Phase V: Open orders drawer */
+
+  function openList() {
+    return openOrders(state.orders, state.drawerQuery);
+  }
+
+  function renderDrawerCount() {
+    const count = state.orders.filter((o) => ['new', 'preparing', 'ready'].includes(o.status)).length;
+    setText(drawerCount, String(count));
+    setText(drawerTitle, `Open orders · ${count}`);
+  }
+
+  function renderDrawer() {
+    renderDrawerCount();
+    if (!state.drawer) return;
+    const rows = openList();
+    const offline = !state.online;
+    drawerOffline.hidden = !offline;
+    clear(drawerList);
+    drawerEmpty.hidden = rows.length > 0;
+    for (const order of rows) {
+      const no = order.orderNo || '';
+      const status = order.status || 'new';
+      const allowEdit = canEditOrder(order) && !offline;
+      const meta = `${formatClock(orderTimeMs(order))} · till ${order.till || 'A'} · `
+        + `${paymentLabel(order.payment)} · ${formatPence(orderAmount(order))}`;
+      drawerList.appendChild(el('article', {
+        class: 'open-order',
+        testid: `open-order-${no}`,
+        dataset: { status }
+      }, [
+        el('div', { class: 'open-order__top' }, [
+          el('span', { class: 'open-order__no', text: no }),
+          el('span', { class: 'open-order__name', text: order.name || 'Guest' }),
+          el('span', { class: `status-pill status-pill--${status}`, text: statusLabel(status) })
+        ]),
+        el('span', { class: 'open-order__items', text: orderSummary(order) }),
+        el('span', { class: 'open-order__meta', text: meta }),
+        el('div', { class: 'open-order__actions' }, [
+          el('button', {
+            type: 'button',
+            class: 'open-order__edit',
+            testid: `edit-${no}`,
+            text: 'Edit',
+            disabled: !allowEdit,
+            title: canEditOrder(order) ? (offline ? EDIT_OFFLINE_NOTE : `Edit ${no}`) : EDIT_READY_TITLE,
+            'aria-label': `Edit order ${no}`,
+            onclick: () => startEdit(order)
+          }),
+          el('button', {
+            type: 'button',
+            class: 'open-order__cancel',
+            testid: `cancel-${no}`,
+            text: 'Cancel…',
+            disabled: offline,
+            title: offline ? EDIT_OFFLINE_NOTE : `Cancel ${no}`,
+            'aria-label': `Cancel order ${no}`,
+            onclick: () => openCancelDialog(order)
+          })
+        ])
+      ]));
+    }
+  }
+
+  /* -------------------------------------------------------------- update */
 
   function update() {
     const items = currentItems();
     const total = orderTotal(items);
     const empty = items.length === 0;
+    const inEdit = editing();
 
     syncTiles();
     renderLines();
 
     setText(totalValue, formatPence(total));
-    sendButton.disabled = empty;
-    setText(sendButton, empty ? 'Send to food counter' : `Send to food counter · ${formatPence(total)}`);
 
     // An empty panel is a cleared order, however it emptied: Send, Clear order
-    // or the last - stepper tap. The next one starts on Card with no cash
-    // received (hotfix H4 1), on the tablet panel and in the phone sheet alike.
-    if (empty) {
+    // or the last − stepper tap. The next one starts on Card with no cash
+    // received (hotfix H4 1). In edit mode the order keeps its own payment.
+    if (empty && !inEdit) {
       state.payment = 'card';
       if (state.quick !== null || state.other !== '' || state.otherOpen) resetTender();
     }
@@ -721,7 +1185,8 @@ export function mountCash(outlet, ctx) {
     payCash.setAttribute('aria-pressed', state.payment === 'cash' ? 'true' : 'false');
     payCard.setAttribute('aria-pressed', state.payment === 'card' ? 'true' : 'false');
 
-    tenderBlock.hidden = state.payment !== 'cash' || empty;
+    // Cash received is hidden in edit mode (CLAUDE.md Phase V 2).
+    tenderBlock.hidden = inEdit || state.payment !== 'cash' || empty;
     tenderButtons.forEach((btn, i) => {
       const chosen = state.other.trim() === '' && state.quick === QUICK_CASH[i];
       btn.setAttribute('aria-pressed', chosen ? 'true' : 'false');
@@ -740,18 +1205,89 @@ export function mountCash(outlet, ctx) {
     tenderBlock.dataset.other = otherShown ? 'open' : 'closed';
     otherToggle.setAttribute('aria-expanded', otherShown ? 'true' : 'false');
 
-    syncPhone(items, total, empty);
-    renderRecent();
+    syncEdit(items, total, empty, inEdit);
+    syncFoot(empty, inEdit);
+    syncPhone(items, total, empty, inEdit);
+    renderDrawer();
+
+    blockedNote.hidden = !state.blocked;
+    setText(blockedNote, state.blocked);
+  }
+
+  /** The amber banner, the payment prompt and the Save button (Phase V 2). */
+  function syncEdit(items, total, empty, inEdit) {
+    panel.dataset.mode = inEdit ? 'edit' : 'new';
+    main.dataset.mode = inEdit ? 'edit' : 'new';
+    editBanner.hidden = !inEdit;
+    emptyEditRow.hidden = !(inEdit && empty);
+    deltaLine.hidden = !inEdit;
+    panel.setAttribute('aria-label', inEdit ? `Editing order ${state.edit.orderNo}` : 'Current order');
+
+    if (!inEdit) {
+      saveButton.disabled = true;
+      setText(saveButton, 'Save changes');
+      return;
+    }
+
+    const order = state.edit.order;
+    const status = order.status || 'new';
+    setText(editTitle, `Editing ${state.edit.orderNo} · ${state.edit.before.name}`);
+    editStatus.className = `status-pill status-pill--${status}`;
+    setText(editStatus, statusLabel(status));
+    setText(editWas, `Was ${orderWasText({ ...order, items: state.edit.before.items, total: state.edit.before.total, payment: state.edit.before.payment })}`);
+
+    const { changed, prompt } = editState();
+    setText(deltaLine, prompt.text);
+    deltaLine.dataset.tone = prompt.tone;
+
+    const blockedSave = !changed || empty || !state.online;
+    saveButton.disabled = blockedSave;
+    setText(saveButton, `Save changes · ${formatPence(total)}`);
+    saveButton.title = state.online ? '' : EDIT_OFFLINE_NOTE;
+  }
+
+  /** Send + Clear for a new order, Save (+ Discard on tablet) while editing. */
+  function syncFoot(empty, inEdit) {
+    const small = isSmall();
+    const wanted = inEdit
+      ? (small ? [saveButton] : [saveButton, discardButton])
+      // With an empty cart there is no way to send on a small screen: the
+      // order bar is gone and the sheet with it, so the Send button leaves
+      // the page altogether rather than sitting there hidden (H3 3).
+      : ((small && empty) ? [clearButton] : [sendButton, clearButton]);
+
+    for (const node of [sendButton, clearButton, saveButton, discardButton]) {
+      if (!wanted.includes(node) && node.parentNode === panelFoot) node.remove();
+    }
+    wanted.forEach((node, i) => {
+      if (panelFoot.children[i] !== node) panelFoot.appendChild(node);
+    });
+
+    // Phone: Discard lives in the amber strip under the header.
+    if (inEdit && small) {
+      if (discardButton.parentNode !== editBanner) editBanner.appendChild(discardButton);
+      setText(discardButton, 'Discard');
+    } else if (!inEdit || !small) {
+      if (discardButton.parentNode === editBanner) editBanner.removeChild(discardButton);
+      setText(discardButton, 'Discard changes');
+    }
+
+    if (!inEdit) {
+      const total = orderTotal(currentItems());
+      sendButton.disabled = empty;
+      setText(sendButton, empty ? 'Send to food counter' : `Send to food counter · ${formatPence(total)}`);
+    }
   }
 
   /** Order bar, sheet header and the small-screen open/closed state (H3 3, 4). */
-  function syncPhone(items, total, empty) {
+  function syncPhone(items, total, empty, inEdit) {
     const count = items.reduce((n, line) => n + line.qty, 0);
     const countText = `${count} ${count === 1 ? 'item' : 'items'}`;
 
-    // Removing the last item closes the sheet (H3 4). Done in place rather
-    // than through closeSheet(), which would re-enter update().
-    if (empty && state.sheet) {
+    // Removing the last item closes the sheet (H3 4). In edit mode it stays
+    // open so the "Cancel the order instead?" offer is on screen. Done in
+    // place rather than through closeSheet(), which would re-enter update().
+    if (empty && state.sheet && !inEdit) {
       state.sheet = false;
       if (pushed) {
         pushed = false;
@@ -760,21 +1296,14 @@ export function mountCash(outlet, ctx) {
     }
 
     setText(barLabel, `${countText} · ${formatPence(total)}`);
-    setText(sheetCount, `Order · ${countText}`);
+    setText(sheetCount, inEdit ? `Edit ${state.edit.orderNo}` : `Order · ${countText}`);
+    setText(barCta.firstChild, inEdit ? 'Review changes' : 'Review & send');
+    orderBar.dataset.mode = inEdit ? 'edit' : 'new';
 
     main.dataset.sheet = state.sheet ? 'open' : 'closed';
     main.dataset.cart = empty ? 'empty' : 'full';
-    orderBar.hidden = empty || state.sheet;
+    orderBar.hidden = (empty && !inEdit) || state.sheet;
     backdrop.hidden = !state.sheet;
-
-    // With an empty cart there is no way to send on a small screen: the order
-    // bar is gone and the sheet with it, so the Send button leaves the page
-    // altogether rather than sitting there hidden (H3 3).
-    if (isSmall() && empty) {
-      if (sendButton.parentNode) sendButton.remove();
-    } else if (!sendButton.parentNode) {
-      panelFoot.insertBefore(sendButton, panelFoot.firstChild);
-    }
   }
 
   /* ---------------------------------------------------------- listeners */
@@ -787,25 +1316,42 @@ export function mountCash(outlet, ctx) {
 
   const stopOrders = watchOrders(dayString(), (orders) => {
     state.orders = orders;
-    renderRecent();
+    // Keep the edit banner's status pill honest while the panel is open.
+    if (state.edit) {
+      const live = orders.find((o) => o.id === state.edit.id);
+      if (live) state.edit.order = live;
+    }
+    update();
   });
 
-  const stopTill = ctx.onTillChange(() => renderRecent());
+  const stopConnection = onConnection((conn) => {
+    state.online = conn.online !== false;
+    update();
+  });
 
-  // Sign out asks first while the panel still holds an unsent order.
+  const stopTill = ctx.onTillChange(() => renderDrawer());
+
+  /** What Sign out should ask before it drops this screen's work. */
+  function unsentGuardAnswer() {
+    if (editing()) return LEAVE_EDIT_CONFIRM;
+    return currentItems().length > 0;
+  }
+
+  // Sign out asks first while the panel holds an unsent order or an edit.
   const stopGuard = typeof ctx.setUnsentGuard === 'function'
-    ? ctx.setUnsentGuard(() => currentItems().length > 0)
+    ? ctx.setUnsentGuard(unsentGuardAnswer)
     : null;
 
   // The change line has a long form on tablet and a short one on phone, and
-  // the toast and the recent strip live in different places at each size.
+  // the toast and the edit banner live in different places at each size.
   const onBreakpoint = () => { placeChrome(); update(); };
   if (typeof phone.addEventListener === 'function') phone.addEventListener('change', onBreakpoint);
 
-  // Escape closes the top-most layer: recent sheet, then ☰ menu, then sheet.
+  // Escape closes the top-most layer: the Open orders drawer, then the ☰
+  // menu, then the review sheet. The cancel dialog has its own handler.
   function onKeyDown(event) {
     if (event.key !== 'Escape') return;
-    if (state.recent) { event.preventDefault(); closeRecent(); return; }
+    if (state.drawer) { event.preventDefault(); closeDrawer(); return; }
     if (state.appMenu) { event.preventDefault(); closeAppMenu(); menuButton.focus({ preventScroll: true }); return; }
     if (state.sheet) { event.preventDefault(); closeSheet(); }
   }
@@ -818,6 +1364,25 @@ export function mountCash(outlet, ctx) {
     closeAppMenu();
   }
 
+  /**
+   * Navigating away in edit mode asks first, like the unsent-order confirm
+   * (CLAUDE.md Phase V 2). Hash links are the only way off this screen that
+   * the page itself controls.
+   */
+  function onNavClick(event) {
+    if (!editing()) return;
+    const link = event.target && event.target.closest ? event.target.closest('a[href^="#/"]') : null;
+    if (!link) return;
+    const target = link.getAttribute('href');
+    if (!target || target === location.hash) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openSignOutConfirm(() => {
+      leaveEdit();
+      location.hash = target;
+    }, LEAVE_EDIT_CONFIRM);
+  }
+
   // The browser Back button closes the sheet instead of leaving the screen.
   function onPopState() {
     if (state.sheet) closeSheet({ fromPop: true });
@@ -825,6 +1390,7 @@ export function mountCash(outlet, ctx) {
 
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('click', onDocClick);
+  document.addEventListener('click', onNavClick, true);
   window.addEventListener('popstate', onPopState);
 
   buildTiles();
@@ -833,21 +1399,25 @@ export function mountCash(outlet, ctx) {
 
   return () => {
     if (state.toastTimer) clearTimeout(state.toastTimer);
+    if (closeDialog) closeDialog();
     if (typeof phone.removeEventListener === 'function') phone.removeEventListener('change', onBreakpoint);
     document.removeEventListener('keydown', onKeyDown);
     document.removeEventListener('click', onDocClick);
+    document.removeEventListener('click', onNavClick, true);
     window.removeEventListener('popstate', onPopState);
     // Leaving the screen with the sheet open: drop the state, but leave the
     // history entry alone (the navigation that unmounted us owns it now).
     state.sheet = false;
     pushed = false;
-    // Hand the version pill back to the header before the menu goes.
-    placeVersion(false);
+    // Hand the version pill and the next-order line back to the header.
+    placeBorrowed(false);
     menuButton.remove();
+    openOrdersButton.remove();
     appMenu.remove();
     if (stopGuard) stopGuard();
     stopMenu();
     stopOrders();
+    stopConnection();
     stopTill();
   };
 }

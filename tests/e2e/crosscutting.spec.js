@@ -68,9 +68,13 @@ test('X-02 every visible control is at least 48px tall', async ({ page }) => {
         // instruction for that header.
         const smallCashHeader = window.innerWidth < 700 && !!el.closest('header');
         const isMenuButton = smallCashHeader && el.dataset.testid === 'menu-button';
+        // Phase V (v1.4.0) puts the "Orders" button in that same 52 px row,
+        // between the connection dot and ☰ (CLAUDE.md Phase V 1), and
+        // design/CashOpenOrdersSmall.dc.html draws it 44 px, like the ☰ beside it.
+        const isOpenOrders = smallCashHeader && el.dataset.testid === 'open-orders';
         const isTillPicker = smallCashHeader && el.dataset.testid === 'till-select';
         let floor = 47.5;
-        if (isSignOut || inQuickCash || isClearLink || isMenuButton) floor = 43.5;
+        if (isSignOut || inQuickCash || isClearLink || isMenuButton || isOpenOrders) floor = 43.5;
         if (isTillPicker) floor = 39.5;
         if (r.height < floor) {
           out.push(`${el.tagName.toLowerCase()}[${el.dataset.testid || el.getAttribute('aria-label') || (el.textContent || '').trim().slice(0, 20)}] = ${Math.round(r.height)}px`);
@@ -158,7 +162,7 @@ test('X-06 item icons are inline SVG, never emoji', async ({ page }) => {
       .map((t) => t.dataset.testid);
   });
   expect(emoji, 'CLAUDE.md Design: "Icons: inline stroke SVG per item. No emoji."').toEqual([]);
-  for (const id of ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow']) {
+  for (const id of ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat']) {
     expect(await tid(page, `tile-${id}`).locator('svg').count(), `tile-${id} needs an inline SVG`).toBeGreaterThan(0);
   }
 });

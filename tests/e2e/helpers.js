@@ -1079,3 +1079,354 @@ export async function detailField(page, testid) {
   if (!loc) return null;
   return (await loc.innerText()).replace(/\s+/g, ' ').trim();
 }
+
+/* ============================================ Phase V: edit or cancel (v1.4.0)
+ *
+ * Spec: CLAUDE.md -> "Phase V: Edit or cancel an open order, plus Samosa Chat
+ * (v1.4.0)" 1-8, and design/CashOpenOrders.dc.html,
+ * design/CashOpenOrdersSmall.dc.html, design/FoodCounterChanges.dc.html.
+ * Plan: qa/test-plan.md sections 46-53.
+ *
+ * CLAUDE.md names three test ids for Phase V (`open-orders`, `edit-delta`,
+ * `cancel-reason-<key>`). Everything else below tries the convention name
+ * first and falls back to the role, the aria-label or the button wording the
+ * brief and the mock-ups fix, so a case fails on behaviour, not on spelling.
+ */
+
+/** The 8th tile, added by Phase V 7. */
+export const MENU_IDS_P5 = [
+  'fuchka', 'momo', 'chat', 'sweet_box',
+  'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'
+];
+
+/* ------------------------------------------------------------- locators */
+
+const OPEN_ORDERS_BTN_SEL = [
+  '[data-testid="open-orders"]',
+  'header button[aria-label*="Open orders" i]',
+  'header button:has-text("Open orders")'
+];
+const OPEN_PANEL_SEL = [
+  '[data-testid="open-orders-drawer"]',
+  '[data-testid="open-orders-panel"]',
+  '[data-testid="open-orders-sheet"]',
+  '[role="dialog"][aria-label*="Open orders" i]'
+];
+const OPEN_CLOSE_SEL = [
+  '[data-testid="open-orders-close"]',
+  '[data-testid="open-orders-drawer"] button:has-text("Close")',
+  '[role="dialog"][aria-label*="Open orders" i] button:has-text("Close")'
+];
+const OPEN_SEARCH_SEL = [
+  '[data-testid="open-orders-search"]',
+  'input[aria-label*="Search open orders" i]',
+  'input[placeholder*="Search order number" i]',
+  'input[placeholder*="Search number or name" i]'
+];
+
+export const openOrdersButton = (page) => page.locator(OPEN_ORDERS_BTN_SEL.join(', ')).first();
+export const openOrdersPanel = (page) => page.locator(OPEN_PANEL_SEL.join(', ')).first();
+export const openOrdersSearch = (page) => page.locator(OPEN_SEARCH_SEL.join(', ')).first();
+export const openOrdersClose = (page) => page.locator(OPEN_CLOSE_SEL.join(', ')).first();
+export const openOrdersEmpty = (page) => page.locator('[data-testid="open-orders-empty"]').first();
+
+export const openOrderRow = (page, no) => page.locator([
+  `[data-testid="open-order-${no}"]`,
+  `[data-testid="open-row-${no}"]`,
+  `[data-testid="open-orders-row-${no}"]`
+].join(', ')).first();
+
+export const openEditButton = (page, no) => page.locator([
+  `[data-testid="edit-${no}"]`,
+  `[data-testid="open-edit-${no}"]`
+].join(', ')).first();
+
+export const openCancelButton = (page, no) => page.locator([
+  `[data-testid="cancel-${no}"]`,
+  `[data-testid="open-cancel-${no}"]`
+].join(', ')).first();
+
+/** The count on the header button: its own testid, else the button's text. */
+export async function openOrdersCount(page) {
+  const badge = tid(page, 'open-orders-count').first();
+  if ((await badge.count()) && (await badge.isVisible().catch(() => false))) {
+    const n = Number((await badge.innerText()).replace(/\D+/g, ''));
+    return Number.isFinite(n) ? n : null;
+  }
+  const btn = openOrdersButton(page);
+  if (!(await btn.count())) return null;
+  const m = (await btn.innerText()).match(/(\d+)/);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * Open the Open orders drawer (tablet) or bottom sheet (phone).
+ * CLAUDE.md Phase V 1.
+ */
+export async function openOpenOrders(page) {
+  if (isSmallCash(page)) await closeCashPanel(page);
+  const panel = openOrdersPanel(page);
+  if ((await panel.count()) && (await panel.isVisible().catch(() => false))) return panel;
+  const btn = openOrdersButton(page);
+  await expect(btn,
+    'CLAUDE.md Phase V 1: an "Open orders" button with a count badge in the cash counter header'
+  ).toBeVisible({ timeout: 15000 });
+  await btn.click();
+  await expect(panel,
+    'CLAUDE.md Phase V 1: Open orders opens a right-hand drawer (tablet) or a bottom sheet (phone)'
+  ).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(250);
+  return panel;
+}
+
+/** Close it with its own Close button. */
+export async function closeOpenOrders(page) {
+  const panel = openOrdersPanel(page);
+  if (!(await panel.count()) || !(await panel.isVisible().catch(() => false))) return;
+  const close = openOrdersClose(page);
+  if (await close.count()) await close.click();
+  else await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden({ timeout: 10000 });
+  await page.waitForTimeout(150);
+}
+
+/** Order numbers currently listed in the panel, in document order. */
+export async function listedOpenOrders(page) {
+  return page.evaluate(() => {
+    const seen = [];
+    for (const el of document.querySelectorAll('[data-testid]')) {
+      const m = /^open-(?:order|row|orders-row)-([A-Z]-\d{3})$/.exec(el.dataset.testid);
+      if (m && !seen.includes(m[1])) seen.push(m[1]);
+    }
+    return seen;
+  });
+}
+
+/* ------------------------------------------------------------ edit mode */
+
+export const editBanner = (page) => page.locator([
+  '[data-testid="edit-banner"]', '[data-testid="edit-mode"]'
+].join(', ')).first();
+export const editDelta = (page) => tid(page, 'edit-delta').first();
+export const saveChanges = (page) => page.locator([
+  '[data-testid="save-changes"]', '[data-testid="edit-save"]',
+  'button:has-text("Save changes")'
+].join(', ')).first();
+export const discardChanges = (page) => page.locator([
+  '[data-testid="discard-changes"]', '[data-testid="edit-discard"]',
+  'button:has-text("Discard changes")', 'button:has-text("Discard")'
+].join(', ')).first();
+export const editBlocked = (page) => page.locator([
+  '[data-testid="edit-blocked"]', '[data-testid="edit-conflict"]'
+].join(', ')).first();
+export const editEmptyOffer = (page) => page.locator([
+  '[data-testid="edit-empty"]', '[data-testid="edit-no-items"]'
+].join(', ')).first();
+export const editEmptyCancel = (page) => page.locator([
+  '[data-testid="edit-empty-cancel"]', '[data-testid="edit-cancel-order"]'
+].join(', ')).first();
+export const lineChangeTag = (page, id) => page.locator([
+  `[data-testid="line-change-${id}"]`, `[data-testid="line-tag-${id}"]`
+].join(', ')).first();
+export const lineRemoved = (page, id) => page.locator([
+  `[data-testid="line-removed-${id}"]`, `[data-testid="removed-${id}"]`
+].join(', ')).first();
+
+/** True when the order panel / sheet is in edit mode. */
+export async function inEditMode(page) {
+  const banner = editBanner(page);
+  if ((await banner.count()) && (await banner.isVisible().catch(() => false))) return true;
+  const save = saveChanges(page);
+  return (await save.count()) ? save.isVisible().catch(() => false) : false;
+}
+
+/**
+ * Tap Edit on an open order and wait until the panel (tablet) or the cart and
+ * Review sheet (phone) is in edit mode. CLAUDE.md Phase V 2.
+ */
+export async function startEdit(page, no) {
+  await openOpenOrders(page);
+  const edit = openEditButton(page, no);
+  await expect(edit, `CLAUDE.md Phase V 1: an Edit button on the ${no} row`).toBeVisible({ timeout: 10000 });
+  await edit.click();
+  await expect(editBanner(page),
+    `CLAUDE.md Phase V 2: an amber banner "Editing ${no} · <name>" once Edit is tapped`
+  ).toBeVisible({ timeout: 10000 });
+  if (isSmallCash(page)) await openCashPanel(page);
+  await page.waitForTimeout(250);
+}
+
+/** Save an edit and wait for the write to land. */
+export async function saveEdit(page) {
+  const save = saveChanges(page);
+  await expect(save, 'CLAUDE.md Phase V 2: "Save changes · £x.xx"').toBeVisible({ timeout: 10000 });
+  await expect(save, 'Save must be enabled once something has changed').toBeEnabled({ timeout: 10000 });
+  await save.click();
+  await page.waitForTimeout(400);
+}
+
+/* --------------------------------------------------------- cancel dialog */
+
+/**
+ * The confirm, for visibility and text. A comma list resolves in DOM order,
+ * and the app puts `cancel-dialog` on the backdrop wrapper with
+ * `role="alertdialog"` on the card inside it, so this is usually the wrapper —
+ * whose text is the card's text. The role itself is asserted separately with
+ * `cancelDialogRole()`, because CLAUDE.md Phase V 3 pins the role, not which
+ * element carries it.
+ */
+export const cancelDialog = (page) => page.locator([
+  '[role="alertdialog"]', '[data-testid="cancel-dialog"]'
+].join(', ')).first();
+
+/** Every element carrying role="alertdialog" (CLAUDE.md Phase V 3). */
+export const cancelDialogRole = (page) => page.locator('[role="alertdialog"]');
+export const cancelReasonButton = (page, key) => page.locator(`[data-testid="cancel-reason-${key}"]`).first();
+export const cancelRefund = (page) => page.locator([
+  '[data-testid="cancel-refund"]', '[role="alertdialog"] [data-testid="refund"]'
+].join(', ')).first();
+export const cancelKeep = (page) => page.locator([
+  '[data-testid="cancel-keep"]', '[role="alertdialog"] button:has-text("Keep order")'
+].join(', ')).first();
+export const cancelConfirm = (page) => page.locator([
+  '[data-testid="cancel-confirm"]', '[role="alertdialog"] button:has-text("Cancel order")'
+].join(', ')).first();
+
+/** Open the cancel dialog for an order from the Open orders list. */
+export async function openCancelDialog(page, no) {
+  await openOpenOrders(page);
+  const btn = openCancelButton(page, no);
+  await expect(btn, `CLAUDE.md Phase V 1: a "Cancel…" button on the ${no} row`).toBeVisible({ timeout: 10000 });
+  await btn.click();
+  await expect(cancelDialog(page),
+    'CLAUDE.md Phase V 3: the cancel confirm is a role="alertdialog"'
+  ).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(200);
+  return cancelDialog(page);
+}
+
+/** The whole cancel flow: open, pick a reason, confirm. */
+export async function cancelOrderWithReason(page, no, reason = 'changed_mind') {
+  await openCancelDialog(page, no);
+  const pick = cancelReasonButton(page, reason);
+  await expect(pick,
+    `CLAUDE.md Phase V 3: a one-tap reason button cancel-reason-${reason}`
+  ).toBeVisible({ timeout: 10000 });
+  await pick.click();
+  const confirm = cancelConfirm(page);
+  await expect(confirm, 'CLAUDE.md Phase V 3: "Cancel order" enables once a reason is picked')
+    .toBeEnabled({ timeout: 10000 });
+  await confirm.click();
+  await page.waitForTimeout(400);
+}
+
+/* ------------------------------------------------------- the open-day fixture
+ * Today's scripted board for the Open orders drawer, mirroring
+ * design/CashOpenOrders.dc.html. Hand-calculated expectations live in
+ * qa/test-plan.md section 49.
+ */
+
+export function p5Fixture(day = londonDay()) {
+  const t = (h, m) => londonTimeOn(day, h, m);
+  const l = (id, name, qty) => ({ id, name, qty, price: 500 });
+  return [
+    { orderNo: 'A-039', name: 'Dev', till: 'A', day, payment: 'card', status: 'cancelled',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 1)], total: 500,
+      createdAtMs: t(13, 40), cancelledAtMs: t(13, 42), cancelReason: 'mistake', cancelledFrom: 'new' },
+    { orderNo: 'A-040', name: 'Lucy', till: 'A', day, payment: 'cash', status: 'collected',
+      items: [l('sweet_box', 'Sweet Box', 2)], total: 1000,
+      createdAtMs: t(13, 50), startedAtMs: t(13, 51), readyAtMs: t(13, 54), collectedAtMs: t(13, 55) },
+    { orderNo: 'A-041', name: 'Ahmed', till: 'A', day, payment: 'cash', status: 'preparing',
+      items: [l('momo', 'Momo', 2), l('chat', 'Papri Chat', 1)], total: 1500,
+      createdAtMs: t(14, 1), startedAtMs: t(14, 2) },
+    { orderNo: 'A-042', name: 'Sam', till: 'A', day, payment: 'card', status: 'ready',
+      items: [l('fuchka', 'Fuchka / Gol Gappa', 1), l('choc_strawberry', 'Chocolate Strawberry', 1)], total: 1000,
+      createdAtMs: t(14, 3), startedAtMs: t(14, 4), readyAtMs: t(14, 6) },
+    { orderNo: 'B-012', name: 'Meera', till: 'B', day, payment: 'cash', status: 'new',
+      items: [l('momo', 'Momo', 1), l('samosa_chat', 'Samosa Chat', 1)], total: 1000,
+      createdAtMs: t(14, 7) },
+    { orderNo: 'A-044', name: 'Josh', till: 'A', day, payment: 'card', status: 'new',
+      items: [l('chat', 'Papri Chat', 1), l('marshmallow', 'Chocolate Marshmallow (V)', 2)], total: 1500,
+      createdAtMs: t(14, 9) }
+  ];
+}
+
+/** Hand-calculated expectations for p5Fixture(). Every figure is a literal. */
+export const P5_EXPECT = {
+  /** Status new, preparing or ready, every till, newest first (Phase V 1). */
+  open: ['A-044', 'B-012', 'A-042', 'A-041'],
+  openCount: 4,
+  /** Listed nowhere: collected and cancelled are not "open". */
+  closed: ['A-040', 'A-039'],
+  rows: {
+    'A-041': { name: 'Ahmed', status: 'Preparing', items: '2× Momo, 1× Papri Chat', total: '£15.00', pay: 'Cash', till: 'A', time: '14:01' },
+    'A-042': { name: 'Sam', status: 'Ready', items: '1× Fuchka, 1× Choc Strawberry', total: '£10.00', pay: 'Card', till: 'A', time: '14:03' },
+    'B-012': { name: 'Meera', status: 'New', items: '1× Momo, 1× Samosa Chat', total: '£10.00', pay: 'Cash', till: 'B', time: '14:07' },
+    'A-044': { name: 'Josh', status: 'New', items: '1× Papri Chat, 2× Choc Marshmallow', total: '£15.00', pay: 'Card', till: 'A', time: '14:09' }
+  }
+};
+
+/** Seed the scripted open day and wait until the emulator really holds it. */
+export async function seedP5Day(day = londonDay()) {
+  const fixture = p5Fixture(day);
+  for (const o of fixture) await seedDoc('orders', o);
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const got = await readCollection('orders');
+    if (got.length === fixture.length) return fixture;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const got = await readCollection('orders');
+  throw new Error(`seedP5Day expected ${fixture.length} orders, emulator holds ${got.length}`);
+}
+
+/**
+ * Replace a document that already exists (REST PATCH with no updateMask is a
+ * full replace). Used to simulate a change made somewhere else.
+ */
+export async function patchDoc(collection, id, data) {
+  const res = await emuFetch(`${DOCS}/${collection}/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: toFields(data) })
+  });
+  if (!res.ok) throw new Error(`patchDoc ${collection}/${id} failed: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+/** One order out of the emulator by its order number. */
+export async function orderByNo(no) {
+  const all = await readCollection('orders');
+  return all.find((o) => o.orderNo === no) || null;
+}
+
+/** Wait until the stored order matches a predicate, and return it. */
+export async function waitForOrder(no, predicate, opts = {}) {
+  const orders = await waitForOrders(
+    (list) => list.some((o) => o.orderNo === no && predicate(o)),
+    { label: `${no} ${opts.label || 'to change'}`, timeout: opts.timeout || 15000 }
+  );
+  return orders.find((o) => o.orderNo === no);
+}
+
+/**
+ * Tap a food-counter action button from another context, selecting the lane
+ * first: below 700 px the board is tabs, so a card in another lane is not
+ * merely off screen, it is not rendered (CLAUDE.md Food counter 1).
+ */
+export async function kitchenAdvance(page, no, lane) {
+  const tab = page.locator(`[data-testid="tab-${lane}"]`);
+  if ((await tab.count()) && (await tab.isVisible().catch(() => false))) {
+    await tab.click();
+    await page.waitForTimeout(300);
+  }
+  await page.locator(`[data-testid="action-${no}"]`).click({ timeout: 20000 });
+}
+
+/** A stable JSON snapshot of an order, for "nothing was written" assertions. */
+export async function orderSnapshot(no) {
+  const o = await orderByNo(no);
+  if (!o) return null;
+  const { _id, createdAt, ...rest } = o;
+  return JSON.stringify(rest, Object.keys(rest).sort());
+}

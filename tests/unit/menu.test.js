@@ -1,8 +1,9 @@
 // H-01..H-06 — the menu seed, the icons, stationOf, and what happens to an
 // order line whose item id the app no longer knows.
 //
-// Spec: CLAUDE.md -> "Menu" (the seven-row table, "This is the whole menu from
-// v1.3.1: 7 items") and "Hotfix H3: phone cash counter layout (v1.3.1)" 7,
+// Spec: CLAUDE.md -> "Menu" (the eight-row table: "7 items from v1.3.1, plus
+// `samosa_chat` added in Phase V (v1.4.0), so 8") and "Hotfix H3: phone cash
+// counter layout (v1.3.1)" 7,
 // which supersedes hotfix H1's ten-row menu:
 //   * Chocolate Fountain is removed;
 //   * `marshmallow` is renamed "Chocolate Marshmallow (V)" / "Choc Marshmallow";
@@ -31,7 +32,9 @@ const BRIEF_MENU = [
   { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
   { id: 'samosa_only', name: 'Samosa', short: 'Samosa', price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
   { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
+  { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
+  // Phase V (v1.4.0): Samosa Chat, last on the till, Chaat station.
+  { id: 'samosa_chat', name: 'Samosa Chat', short: 'Samosa Chat', price: 500, colour: '#A5F3FC', station: 'chaat', active: true, sort: 8 }
 ];
 
 export const NEW_IDS = ['sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
@@ -44,10 +47,10 @@ const byId = (id) => MENU.find((m) => m.id === id);
 /* ------------------------------------------------------------------ H-01 */
 
 describe('H-01 the MENU seed is exactly the brief table', () => {
-  it('has exactly seven rows', () => {
+  it('has exactly eight rows (seven from v1.3.1 plus samosa_chat)', () => {
     expect(Array.isArray(MENU)).toBe(true);
     expect(MENU.map((m) => m.id).sort()).toEqual([...ALL_IDS].sort());
-    expect(MENU).toHaveLength(7);
+    expect(MENU, 'CLAUDE.md Menu: "so 8"').toHaveLength(8);
   });
 
   it('has unique ids — a deleted id is never reused', () => {
@@ -85,24 +88,24 @@ describe('H-01 the MENU seed is exactly the brief table', () => {
 
 /* ------------------------------------------------------------------ H-02 */
 
-describe('H-02 seven active items with sorts 1-7 and no retired rows', () => {
+describe('H-02 eight active items with sorts 1-8 and no retired rows', () => {
   it('every row is active', () => {
     expect(MENU.filter((m) => m.active === true).map((m) => m.id)).toEqual(ALL_IDS);
     expect(MENU.filter((m) => m.active === false),
       'CLAUDE.md H3 7 removes the retired rows from the seed entirely').toEqual([]);
   });
 
-  it('their sorts are 1..7 with no gaps or duplicates', () => {
+  it('their sorts are 1..8 with no gaps or duplicates', () => {
     const sorts = MENU.map((m) => m.sort).sort((a, b) => a - b);
-    expect(sorts).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(sorts).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
-  it('in sort order the till reads fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow', () => {
+  it('in sort order the till reads fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, samosa_chat', () => {
     const order = MENU.slice().sort((a, b) => a.sort - b.sort).map((m) => m.id);
     expect(order).toEqual(ALL_IDS);
   });
 
-  it('ACTIVE_MENU holds the same seven items and none of the deleted ids', () => {
+  it('ACTIVE_MENU holds the same eight items and none of the deleted ids', () => {
     expect(Array.isArray(logic.ACTIVE_MENU), 'logic.js must export ACTIVE_MENU for the till').toBe(true);
     const ids = logic.ACTIVE_MENU.slice().sort((a, b) => a.sort - b.sort).map((m) => m.id);
     expect(ids).toEqual(ALL_IDS);
@@ -119,10 +122,11 @@ describe('H-03 stationOf knows every current id and nothing else', () => {
     for (const id of NEW_IDS) expect(stationOf(id), `stationOf("${id}")`).toBe('sweets');
   });
 
-  it('keeps the Phase I stations', () => {
+  it('keeps the Phase I stations, and samosa_chat is Chaat (CLAUDE.md Menu table)', () => {
     expect(stationOf('fuchka')).toBe('chaat');
     expect(stationOf('chat')).toBe('chaat');
     expect(stationOf('momo')).toBe('momo');
+    expect(stationOf('samosa_chat'), 'Phase V 7: Samosa Chat is a Chaat line, not a sweet').toBe('chaat');
   });
 
   it('a deleted id is unknown now, and still does not throw', () => {
@@ -325,10 +329,12 @@ describe('H-06 CSV exports older lines under their stored names', () => {
   const col = (r, name) => r[header.indexOf(name)];
   const body = rows.slice(1);
 
-  it('keeps the thirteen Phase I columns', () => {
+  it('keeps the thirteen Phase I columns and appends the two Phase V ones', () => {
     expect(header).toEqual([
       'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-      'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+      'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+      // CLAUDE.md Phase V 5.
+      'edited', 'cancelReason'
     ]);
   });
 

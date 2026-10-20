@@ -163,7 +163,7 @@ test('R-07 Export CSV downloads a file with the exact header and one row per lin
 
   const header = text.split(/\r?\n/)[0];
   expect(header, 'CLAUDE.md Reports 6 fixes the column list and its order')
-    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
 
   const rows = parseCsv(text);
   const col = (n) => rows[0].indexOf(n);
@@ -172,7 +172,7 @@ test('R-07 Export CSV downloads a file with the exact header and one row per lin
   expect(body.length - cancelled.length, 'six non-cancelled order lines on the fixture day').toBe(6);
 
   for (const r of body) {
-    expect(r, `row has ${r.length} fields: ${r.join('|')}`).toHaveLength(13);
+    expect(r, `row has ${r.length} fields: ${r.join('|')}`).toHaveLength(15);
     expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     expect(r[col('day')]).toBe(londonDay());
   }

@@ -372,11 +372,14 @@ describe('P4-U-07 the orders CSV (CLAUDE.md Phase IV 8)', () => {
 
   it('has exactly the One day columns, in the One day order', () => {
     const csv = exportOrdersCsv(view(DAY_ORDERS, {}));
+    // Phase V 5 appends `edited` and `cancelReason` to every export; the
+    // thirteen Phase I columns keep their order.
     expect(csv.split('\n')[0])
-      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+      .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
     expect(logic.CSV_HEADER).toEqual([
       'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-      'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+      'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+      'edited', 'cancelReason'
     ]);
   });
 
@@ -393,7 +396,7 @@ describe('P4-U-07 the orders CSV (CLAUDE.md Phase IV 8)', () => {
     expect(body.find((r) => r[col('orderNo')] === 'A-044')[col('status')],
       'the status column is what tells the reader it was cancelled').toBe('cancelled');
     for (const r of body) {
-      expect(r).toHaveLength(13);
+      expect(r).toHaveLength(15);
       expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     }
   });
@@ -407,7 +410,7 @@ describe('P4-U-07 the orders CSV (CLAUDE.md Phase IV 8)', () => {
   });
 
   it('follows the filters: Cash narrows it, Cancelled still produces rows', () => {
-    const header = 'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds';
+    const header = 'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason';
 
     const cash = parseCsv(exportOrdersCsv(view(DAY_ORDERS, { pay: 'cash' })));
     const col = (n) => cash[0].indexOf(n);
@@ -494,13 +497,14 @@ describe('P4-U-08 the screen is read-only (CLAUDE.md Phase IV, heading)', () => 
 /* ------------------------------------------------------------- version */
 
 describe('P4-U-09 the version in package.json', () => {
-  it('is on 1.3.2, the hotfix H4 release', async () => {
+  it('is on 1.4.0, the Phase V release', async () => {
     const { readFileSync } = await import('node:fs');
     const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
     expect(pkg.version,
-      'CLAUDE.md -> Hotfix H4 4: "package.json version 1.3.2", and the version table lists ' +
-      '1.3.2 as hotfix H4 ("Card is the default payment"). package.json is the single source ' +
-      'of truth (Phase III part 2, 1), so the header pill and the login version line follow it.'
-    ).toBe('1.3.2');
+      'CLAUDE.md -> Phase V 8: "package.json version 1.4.0", and the version table lists ' +
+      '1.4.0 as Phase V ("Edit or cancel an open order, plus Samosa Chat"). package.json is ' +
+      'the single source of truth (Phase III part 2, 1), so the header pill and the login ' +
+      'version line follow it. Duplicated by P5-U-09 in tests/unit/edit-cancel.test.js.'
+    ).toBe('1.4.0');
   });
 });

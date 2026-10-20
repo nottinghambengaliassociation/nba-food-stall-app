@@ -384,7 +384,8 @@ describe('P3-U-14 range CSV (CLAUDE.md Phase III 9)', () => {
   it('has exactly the One day columns', () => {
     expect(rows[0]).toEqual(CSV_HEADER);
     expect(rows[0].join(',')).toBe(
-      'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds'
+      // Phase V appends `edited` and `cancelReason` to every export.
+      'day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason'
     );
     expect(csv.split('\n')[0]).toBe(ordersToCsv([]).split('\n')[0]);
   });

@@ -3,21 +3,8 @@
 import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, placeOrder, waitForOrders, addItem, readCollection,
-  isSmallCash, closeCashPanel
+  isSmallCash, closeCashPanel, openOpenOrders, openOrderRow
 } from './helpers.js';
-
-/**
- * Hotfix H3 (v1.3.1): below 700 px the recent-orders strip moved to
- * ☰ -> Recent orders (CLAUDE.md H3 6). Open it where it lives.
- */
-async function openRecent(page) {
-  if (!isSmallCash(page)) return;
-  await closeCashPanel(page);
-  if (await tid(page, 'recent-sheet').isVisible().catch(() => false)) return;
-  await tid(page, 'menu-button').click();
-  await tid(page, 'menu-recent').click();
-  await expect(tid(page, 'recent-sheet')).toBeVisible({ timeout: 10000 });
-}
 
 test.beforeEach(async () => { await clearFirestore(); });
 
@@ -97,11 +84,13 @@ test('P-01 cash, kitchen and reports all survive a reload with data in place', a
   await placeOrder(page, { items: { momo: 1, chat: 1 }, name: 'Persist', payment: 'cash', tender: 2000 });
   await waitForOrders((o) => o.length === 1, { label: 'the order to be written' });
 
-  // Cash: the recent list comes back.
+  // Cash: the order is still an open order after a reload.
+  // CLAUDE.md Phase V 1 replaces the recent strip with the Open orders drawer
+  // (tablet) / bottom sheet (phone), from the header button on both.
   await page.reload();
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 20000 });
-  await openRecent(page);
-  await expect(tid(page, 'recent-A-001')).toBeVisible({ timeout: 20000 });
+  await openOpenOrders(page);
+  await expect(openOrderRow(page, 'A-001')).toBeVisible({ timeout: 20000 });
 
   // Kitchen.
   await page.goto('/#/kitchen');

@@ -12,7 +12,9 @@
 // record() must only ever be handed values that are safe in public.
 import { test, expect } from '@playwright/test';
 import {
-  attachConsole, realErrors, SHOTS, loginUserField, loginPassField, loginSubmit, firstOf
+  attachConsole, realErrors, SHOTS, loginUserField, loginPassField, loginSubmit, firstOf,
+  // Phase V 1: cancelling happens from the Open orders list.
+  openOpenOrders
 } from './helpers.js';
 import { creds, WRONG_PASSWORD } from './creds.js';
 import { resolve } from 'node:path';
@@ -337,11 +339,19 @@ test('S-08 QA-SMOKE order round trip against the real project', async ({ page },
   const second = await send('QA-SMOKE');
   record(`S-08 CREATED LIVE ORDER 2: ${second} name=QA-SMOKE payment=card day=${day} (to be cancelled)`);
 
-  const cancel = page.locator(`[data-testid="cancel-${second}"]`);
+  // CLAUDE.md Phase V 1 and 3: cancelling goes through the Open orders list
+  // and a confirm dialog with a required one-tap reason.
+  await openOpenOrders(page);
+  const cancel = page.locator(`[data-testid="cancel-${second}"], [data-testid="open-cancel-${second}"]`).first();
   await expect(cancel, 'cancel must be available while the live order is new').toBeVisible({ timeout: 25000 });
   await cancel.click();
-  await expect(page.locator(`[data-testid="recent-${second}"]`)).toContainText(/cancel/i, { timeout: 25000 });
-  record(`S-08 ${second} cancelled from the recent strip`);
+  await page.locator('[data-testid="cancel-reason-mistake"]').click();
+  await page.locator('[data-testid="cancel-confirm"], [role="alertdialog"] button:has-text("Cancel order")')
+    .first().click();
+  await expect(page.locator(`[data-testid="open-order-${second}"]`),
+    'a cancelled order leaves the Open orders list'
+  ).toHaveCount(0, { timeout: 25000 });
+  record(`S-08 ${second} cancelled from Open orders with a reason`);
   await shot(page, 'cash-qa-smoke-cancelled', false);
 
   // THE KEY ASSERTION: the documents in the real project carry no trace of
@@ -368,14 +378,14 @@ test('S-08 QA-SMOKE order round trip against the real project', async ({ page },
   expect(one.payment).toBe('cash');
   expect(one.status).toBe('collected');
 
-  // The live menu must hold the seven H3 documents, untouched by this run.
-  // CLAUDE.md -> Menu / H3 7: scripts/reset-live.mjs leaves exactly these and
-  // deletes `samosa`, `straw` and `fountain`.
+  // The live menu must hold the eight Menu-table documents, untouched by this
+  // run. CLAUDE.md -> Menu: the H3 seven plus `samosa_chat` (Phase V 7, added
+  // live by scripts/menu-sync.mjs).
   const menu = await liveFirestore('/menu?pageSize=50');
   const menuIds = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
   record(`S-08 live menu intact: ${menuIds.length} documents [${menuIds.join(', ')}]`);
-  expect(menuIds, 'the live menu must hold the seven H3 items').toEqual(
-    ['chat', 'choc_strawberry', 'fuchka', 'marshmallow', 'momo', 'samosa_only', 'sweet_box']
+  expect(menuIds, 'the live menu must hold the eight Menu-table items').toEqual(
+    ['chat', 'choc_strawberry', 'fuchka', 'marshmallow', 'momo', 'samosa_chat', 'samosa_only', 'sweet_box']
   );
 
   // The collected order counts, the cancelled one does not.

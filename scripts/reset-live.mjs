@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-// reset-live.mjs — Hotfix H3 (v1.3.1) live data reset, CLAUDE.md "Hotfix H3" item 7.
+// reset-live.mjs — live data reset, first written for Hotfix H3 (v1.3.1),
+// CLAUDE.md "Hotfix H3" item 7.
 //
-// The system is not in use and holds no real orders, so H3 clears the live
-// database and puts the menu back to exactly the 7-item table in CLAUDE.md.
+// It clears the orders in the target database and puts the menu back to exactly
+// the menu table. The table is read from the MENU seed in public/js/logic.js
+// (via menu-table.mjs), the single source of truth the app seeds from and
+// menu-sync.mjs syncs from — this script keeps no copy of its own, so it never
+// drifts behind a menu change (it was one item behind when Samosa Chat landed).
 //
 // Order of work (never changes):
 //   1. back up every document in orders, menu and settings to
 //      .secrets/backups/live-<timestamp>.json  (gitignored).
 //      If the backup fails for ANY reason, stop and change nothing.
 //   2. delete every document in `orders`
-//   3. make `menu` exactly the 7-item table: write all 7 documents in full,
-//      delete every other menu document (samosa, straw, fountain, anything else)
+//   3. make `menu` exactly the table: write every row in full, delete every other
+//      menu document (samosa, straw, fountain, anything else)
 //   4. leave `settings` completely alone
 //
 // Safety
@@ -19,7 +23,7 @@
 //   * It refuses to run if the backup directory is not git-ignored.
 //   * It prints counts and document ids only — never document contents, never a
 //     config value, never a secret.
-//   * Safe to re-run: a second run deletes nothing new and rewrites the same 7
+//   * Safe to re-run: a second run deletes nothing new and rewrites the same
 //     menu documents.
 //
 // Usage
@@ -33,6 +37,8 @@ import { resolve, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+
+import { FIELDS, MENU_SOURCE, loadMenuTable } from './menu-table.mjs';
 
 import { initializeApp } from 'firebase/app';
 import {
@@ -51,19 +57,6 @@ const BACKUP_DIR = resolve(ROOT, '.secrets/backups');
 const EMULATOR_PROJECT = 'demo-food-stall';
 const EMULATOR_DEFAULT = '127.0.0.1:8080';
 const BATCH_LIMIT = 400; // Firestore allows 500 writes per batch; leave headroom.
-
-const FIELDS = ['name', 'short', 'price', 'colour', 'station', 'active', 'sort'];
-
-// The whole menu from v1.3.1 — the table in CLAUDE.md. 7 items, nothing else.
-const MENU = [
-  { id: 'fuchka',          name: 'Fuchka / Gol Gappa',         short: 'Fuchka',           price: 500, colour: '#FDE68A', station: 'chaat',  active: true, sort: 1 },
-  { id: 'momo',            name: 'Momo',                       short: 'Momo',             price: 500, colour: '#BFDBFE', station: 'momo',   active: true, sort: 2 },
-  { id: 'chat',            name: 'Papri Chat',                 short: 'Papri Chat',       price: 500, colour: '#FECACA', station: 'chaat',  active: true, sort: 3 },
-  { id: 'sweet_box',       name: 'Sweet Box',                  short: 'Sweet Box',        price: 500, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
-  { id: 'samosa_only',     name: 'Samosa',                     short: 'Samosa',           price: 500, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
-  { id: 'choc_strawberry', name: 'Chocolate Strawberry',       short: 'Choc Strawberry',  price: 500, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-  { id: 'marshmallow',     name: 'Chocolate Marshmallow (V)',  short: 'Choc Marshmallow', price: 500, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
-];
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes('--yes');
@@ -222,13 +215,13 @@ function writeBackup(snapshot, live) {
 
 // --------------------------------------------------------------------- plan
 
-function buildPlan(snapshot) {
-  const wanted = new Set(MENU.map((m) => m.id));
+function buildPlan(snapshot, menu) {
+  const wanted = new Set(menu.map((m) => m.id));
   const menuIds = snapshot.menu.map((d) => d.id).sort();
   const menuToDelete = menuIds.filter((id) => !wanted.has(id));
   return {
     ordersToDelete: snapshot.orders.map((d) => d.id),
-    menuToWrite: MENU.map((m) => m.id),
+    menuToWrite: menu.map((m) => m.id),
     menuToDelete,
     menuExisting: menuIds,
     settingsIds: snapshot.settings.map((d) => d.id).sort()
@@ -269,22 +262,25 @@ async function deleteIds(db, collectionName, ids) {
   return done;
 }
 
-async function writeMenu(db) {
+async function writeMenu(db, menu) {
   const batch = writeBatch(db);
-  for (const item of MENU) {
+  for (const item of menu) {
     const data = {};
     for (const f of FIELDS) data[f] = item[f];
-    batch.set(doc(db, 'menu', item.id), data); // full overwrite: H3 defines the menu
+    batch.set(doc(db, 'menu', item.id), data); // full overwrite: the table defines the menu
   }
   await batch.commit();
-  return MENU.length;
+  return menu.length;
 }
 
 // --------------------------------------------------------------------- main
 
 async function main() {
+  const menu = await loadMenuTable();
   const { db, target, live } = await connect();
   console.log(`reset-live — target: ${target}`);
+  console.log(`Menu table: ${MENU_SOURCE} — ${menu.length} item(s), the menu after the reset`);
+  console.log(`  ${menu.map((m) => m.id).join(', ')}`);
   console.log(APPLY ? 'Mode: APPLY (--yes given)' : 'Mode: plan only (no --yes, nothing is written)');
   console.log('');
 
@@ -293,7 +289,7 @@ async function main() {
     menu: await readCollection(db, 'menu'),
     settings: await readCollection(db, 'settings')
   };
-  const plan = buildPlan(snapshot);
+  const plan = buildPlan(snapshot, menu);
   printPlan(snapshot, plan);
 
   if (!APPLY) {
@@ -312,8 +308,8 @@ async function main() {
   const ordersDeleted = await deleteIds(db, 'orders', plan.ordersToDelete);
   console.log(`  deleted   orders: ${ordersDeleted}`);
 
-  // 3. Menu: write the 7, delete the rest.
-  const menuWritten = await writeMenu(db);
+  // 3. Menu: write every row of the table, delete the rest.
+  const menuWritten = await writeMenu(db, menu);
   console.log(`  wrote     menu: ${menuWritten}`);
   const menuDeleted = await deleteIds(db, 'menu', plan.menuToDelete);
   console.log(`  deleted   menu: ${menuDeleted}`);
@@ -341,8 +337,8 @@ async function main() {
   if (afterOrders.size !== 0) {
     console.log('  NOTE: orders is not empty — an order was placed during the run. Re-run to clear it.');
   }
-  if (afterMenuIds.length !== MENU.length) {
-    console.log('  NOTE: menu does not hold exactly 7 documents. Re-run the script.');
+  if (afterMenuIds.length !== menu.length) {
+    console.log(`  NOTE: menu does not hold exactly ${menu.length} documents. Re-run the script.`);
   }
 
   await terminate(db);

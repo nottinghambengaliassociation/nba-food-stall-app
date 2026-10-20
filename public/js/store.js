@@ -18,10 +18,14 @@ import {
   query,
   where,
   serverTimestamp,
-  writeBatch
+  writeBatch,
+  runTransaction
 } from 'https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js';
 
-import { MENU, ACTIVE_MENU } from './logic.js';
+import {
+  MENU, ACTIVE_MENU, EDITABLE_STATUSES, CANCELLABLE_STATUSES,
+  appendHistory, buildHistoryEntry, orderTotal
+} from './logic.js';
 
 const EMULATOR_PROJECT = 'demo-food-stall';
 const EMULATOR_HOST = '127.0.0.1';
@@ -279,6 +283,111 @@ export function revertOrderStatus(id, previousStatus) {
 
 export function cancelOrder(id) {
   return setOrderStatus(id, 'cancelled');
+}
+
+/* ------------------------------- Phase V: edit and cancel an open order */
+//
+// Both run in a transaction that re-reads the status first, so a tap on the
+// food counter a second earlier can never be overwritten (CLAUDE.md Phase V 2
+// and 3). Transactions do not queue offline, so the caller disables both
+// buttons while the browser is offline and this is the backstop.
+
+function requireConnection() {
+  if (!isReady()) throw new Error('Storage not configured');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const err = new Error('Needs a connection');
+    err.code = 'offline';
+    throw err;
+  }
+}
+
+/**
+ * Save an edit. Resolves to
+ *   { ok: true, orderNo, status, delta }                     written
+ *   { ok: false, reason: 'status' | 'missing', orderNo, status }  nothing written
+ */
+export function saveOrderEdit({ id, items, total, name, payment, till, nowMs = Date.now() }) {
+  requireConnection();
+  const ref = doc(db, 'orders', id);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return { ok: false, reason: 'missing', orderNo: '', status: null };
+    const current = snap.data() || {};
+    const orderNo = current.orderNo || '';
+    if (!EDITABLE_STATUSES.includes(current.status)) {
+      return { ok: false, reason: 'status', orderNo, status: current.status };
+    }
+    const before = {
+      items: Array.isArray(current.items) ? current.items : [],
+      total: Math.round(Number(current.total) || orderTotal(current.items)),
+      name: current.name || 'Guest',
+      payment: current.payment === 'card' ? 'card' : 'cash'
+    };
+    const nextTotal = Math.round(Number(total) || 0);
+    const delta = nextTotal - before.total;
+    const entry = buildHistoryEntry({
+      atMs: nowMs, action: 'edit', till, fromStatus: current.status, before, deltaPence: delta
+    });
+    // Order number, till, day, createdAtMs and the place in the queue never change.
+    tx.update(ref, {
+      items,
+      total: nextTotal,
+      name: name || 'Guest',
+      payment: payment === 'card' ? 'card' : 'cash',
+      editCount: (Number(current.editCount) || 0) + 1,
+      editedAtMs: nowMs,
+      history: appendHistory(current.history, entry)
+    });
+    return { ok: true, orderNo, status: current.status, delta };
+  });
+}
+
+/**
+ * Cancel an open order with a reason. Resolves to
+ *   { ok: true, orderNo, fromStatus, total, payment }
+ *   { ok: false, reason: 'status' | 'missing', orderNo, status }
+ */
+export function cancelOrderWithReason({ id, reason, till, nowMs = Date.now() }) {
+  requireConnection();
+  const ref = doc(db, 'orders', id);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return { ok: false, reason: 'missing', orderNo: '', status: null };
+    const current = snap.data() || {};
+    const orderNo = current.orderNo || '';
+    if (!CANCELLABLE_STATUSES.includes(current.status)) {
+      return { ok: false, reason: 'status', orderNo, status: current.status };
+    }
+    const before = {
+      items: Array.isArray(current.items) ? current.items : [],
+      total: Math.round(Number(current.total) || orderTotal(current.items)),
+      name: current.name || 'Guest',
+      payment: current.payment === 'card' ? 'card' : 'cash'
+    };
+    const entry = buildHistoryEntry({
+      atMs: nowMs, action: 'cancel', till, fromStatus: current.status, reason, before, deltaPence: -before.total
+    });
+    tx.update(ref, {
+      status: 'cancelled',
+      cancelledAtMs: nowMs,
+      cancelReason: reason,
+      cancelledFrom: current.status,
+      history: appendHistory(current.history, entry)
+    });
+    return { ok: true, orderNo, fromStatus: current.status, total: before.total, payment: before.payment };
+  });
+}
+
+/** Food counter tapped "Got it" on a changed order (CLAUDE.md Phase V 4). */
+export function markChangeSeen(id, nowMs = Date.now()) {
+  if (!isReady()) return Promise.reject(new Error('Storage not configured'));
+  return updateDoc(doc(db, 'orders', id), { changeSeenAtMs: nowMs });
+}
+
+/** Food counter tapped "Remove" on a cancelled card (CLAUDE.md Phase V 4). */
+export function clearKitchenCard(id, nowMs = Date.now()) {
+  if (!isReady()) return Promise.reject(new Error('Storage not configured'));
+  return updateDoc(doc(db, 'orders', id), { kitchenClearedAtMs: nowMs });
 }
 
 /** One-off read of a day's orders (reports screen). */

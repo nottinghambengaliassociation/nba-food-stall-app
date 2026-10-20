@@ -59,8 +59,9 @@ One static single-page app, a shared login, three working screens, shared data i
 | samosa_only | Samosa | Samosa | 500 | #D9F99D | sweets | true | 5 |
 | choc_strawberry | Chocolate Strawberry | Choc Strawberry | 500 | #E9D5FF | sweets | true | 6 |
 | marshmallow | Chocolate Marshmallow (V) | Choc Marshmallow | 500 | #FBCFE8 | sweets | true | 7 |
+| samosa_chat | Samosa Chat | Samosa Chat | 500 | #A5F3FC | chaat | true | 8 |
 
-This is the whole menu from v1.3.1: 7 items. Hotfix H3 resets the live database (no real orders exist yet), so the retired ids `samosa`, `straw` and `fountain` are deleted rather than kept inactive. Don't reuse those ids. Any item id the app doesn't know still renders with the name stored on the order line and the plate icon.
+This is the whole menu: 7 items from v1.3.1, plus `samosa_chat` added in Phase V (v1.4.0), so 8. Hotfix H3 resets the live database (no real orders exist yet), so the retired ids `samosa`, `straw` and `fountain` are deleted rather than kept inactive. Don't reuse those ids. Any item id the app doesn't know still renders with the name stored on the order line and the plate icon.
 
 Prices are edited in the Firebase console in Phase I; the app reads them from `menu`, never hard-codes them outside the seed.
 
@@ -114,7 +115,7 @@ Mock-ups: `design/Login.dc.html`, `design/LoginMobile.dc.html`, and the Sign out
    - It never blocks sending: an order can go with no amount, a short amount, or an unparseable amount.
    - It's a calculator for the volunteer only. Nothing about it is saved to the order or exported (decision during the Phase II build, recorded in `DECISIONS.md`). It resets when the order panel empties.
 4. "Send to food counter" button (at least 72 px tall), disabled when empty. On send: write the order, show a confirmation with the order number for 4 s, clear the panel.
-5. Recent orders strip (last 5 from this till) with live status. Cancel is available while status is `new`.
+5. Recent orders strip (last 5 from this till) with live status. Cancel is available while status is `new`. **Replaced by Open orders in Phase V.**
 6. Connection pill: "Online · synced" or "Offline · N queued" (use `navigator.onLine` plus snapshot `hasPendingWrites`).
 
 ### Food counter
@@ -182,7 +183,8 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 | 1.2.0 | Phase III: Sales by day report and app version (19 Oct, live) |
 | 1.3.0 | Phase IV: Orders list and order detail in Reports (19 Oct, live) |
 | 1.3.1 | Hotfix H3: phone cash counter layout, 7-item menu, live reset (19 Oct, live) |
-| **1.3.2** | **Hotfix H4: Card is the default payment (next run)** |
+| 1.3.2 | Hotfix H4: Card is the default payment (19 Oct, live) |
+| **1.4.0** | **Phase V: edit or cancel an open order, plus Samosa Chat (next run)** |
 
 1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
 2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
@@ -229,13 +231,66 @@ Mock-ups: `design/CashCounterSmall.dc.html` (menu and order bar, iPhone 13), `de
    - After the reset, reports start empty, order numbers restart naturally the next trading day, and devices keep their till letter.
 8. `package.json` version 1.3.1.
 
-### Hotfix H4: Card is the default payment (v1.3.2)
+### Hotfix H4: Card is the default payment (v1.3.2, shipped 19 Oct, don't rebuild)
 Most customers pay by card, so the till should start on Card.
 
 1. Every new order starts with **Card** selected, on every layout (tablet/desktop panel and the phone Review & send sheet): on first load, after Send, after Clear order, and when the cart empties. The choice is not remembered between orders.
 2. Tapping **Cash** works as today and shows Cash received (optional). Tapping Card again hides and resets it.
 3. Nothing else changes: order data, reports and CSV are unaffected (`payment` is still "cash" or "card").
 4. `package.json` version 1.3.2.
+
+### Phase V: Edit or cancel an open order, plus Samosa Chat (v1.4.0)
+Problem: a mistake can only be fixed with Cancel in the Recent strip (last 5 orders from the same till, status New). Once the food counter taps Start nothing can be corrected, and reports keep the wrong sale.
+
+Mock-ups: `design/OrderChangesRules.dc.html` (rules, money prompts, data fields), `design/CashOpenOrders.dc.html` (tablet/desktop cash counter), `design/CashOpenOrdersSmall.dc.html` (phone, iPhone 13), `design/FoodCounterChanges.dc.html` (food counter cards), `design/ItemIcon.dc.html` (new `samosa_chat` icon).
+
+**Agreed rules (user, 20 Oct 2026).** Only the cash counter edits or cancels. The food counter never edits or cancels; it sees changes live.
+
+| Status | Edit (cash counter) | Cancel (cash counter) | Food counter shows |
+|---|---|---|---|
+| new | Yes | Yes | Card updated in place with a small "Changed" tag until Start. Cancelled: card disappears |
+| preparing | Yes | Yes | Amber card "ORDER CHANGED · CHECK ITEMS" with what changed; **Got it** must be tapped before Ready. Cancelled: red "CANCELLED · STOP MAKING" card until **Remove** |
+| ready | No ("Ready: cancel only") | Yes | Red "CANCELLED" card until **Remove** |
+| collected, cancelled | No | No | n/a (food counter Undo last tap is unchanged) |
+
+1. **Open orders (cash counter, every till).**
+   - Tablet/desktop: header button "Open orders" with a count badge (`data-testid="open-orders"`), replacing the Recent strip. Opens a right-hand drawer, 480 px, dimmed backdrop, `role="dialog"`, closes on Close, backdrop tap or Escape.
+   - Phone (below 700 px): header button "Orders" with the count badge, between the connection dot and ☰. "Next A-045" moves into the ☰ menu above the version line. The ☰ "Recent orders" item is removed. Opens a bottom sheet (same style as Review & send).
+   - Content: today's orders from **all tills** with status new, preparing or ready, newest first; search box "Search order number or name" (case-insensitive). Each row: order number, name, status pill, items ("2× Momo, 1× Papri Chat"), "HH:MM · till A · Cash · £15.00", and two 48 px buttons: **Edit** (disabled for ready, title "Ready: cancel only") and **Cancel…** (red outline). Live via the existing `day ==` snapshot; no new query.
+   - Offline: Edit and Cancel are disabled with the note "Needs a connection" (transactions don't queue). New orders still queue offline as today.
+2. **Edit.**
+   - Tapping Edit loads the order into the order panel (tablet) or the cart and Review sheet (phone) in edit mode: amber banner "Editing A-041 · Ahmed" with the status pill and "Was 2× Momo, 1× Papri Chat, £15.00, Cash"; the panel gets a 3 px #B45309 border. Phone: an amber strip under the header with **Discard**, and the order bar becomes amber "Review changes ›".
+   - Name, items (tiles, + and −) and Cash/Card can change. Changed lines show "added" or "+1 (was 2)"; removed lines show struck through with "removed". Cash received is hidden in edit mode.
+   - Payment prompt (`data-testid="edit-delta"`), from the new total minus the old total and the payment now selected: up → "Take £5.00 more" (cash) / "Take £5.00 more on the card machine" (card); down → "Give back £5.00" / "Refund £5.00 on the card machine"; same → "No payment change"; nothing changed → "No changes yet". The app never moves money.
+   - **Save changes · £x.xx** (#B45309, 80 px tablet, 60 px phone) is disabled until something changes. If every item is removed, Save is disabled and the panel offers "No items left. Cancel the order instead?" with Cancel order….
+   - **Discard changes** leaves edit mode with nothing written. Leaving edit mode any other way (Sign out, navigating away, starting Edit on another order) asks first with an in-page confirm, like the unsent-order confirm. A new order can't be built while editing.
+   - Save runs `runTransaction`: re-read the order; if its status is no longer new or preparing, write nothing and show "A-041 is now Ready, so it can't be edited. Cancel it or start a new order." (amber, `role="alert"`). Otherwise update `items`, `total`, `name` ("Guest" if blank), `payment`, `editCount + 1`, `editedAtMs`, and append to `history`. Order number, till, `day`, `createdAtMs` and its place in the queue never change. Toast: "A-041 updated. Take £5.00 more." Then the panel returns to a new empty order (Card default).
+3. **Cancel.**
+   - Confirm dialog (`role="alertdialog"`): "Cancel A-041 for Ahmed?", items, total and status; for preparing or ready: "The food counter has already started this. They'll see a red Stop making card."
+   - Reason, one tap, required (`data-testid="cancel-reason-<key>"`): Placed by mistake (`mistake`), Customer changed mind (`changed_mind`), Out of stock (`out_of_stock`), Not collected (`not_collected`, only for ready), Other (`other`).
+   - Refund line: "Give back £15.00 cash" or "Refund £15.00 on the card machine". Buttons **Keep order** and **Cancel order** (#B91C1C, disabled until a reason is picked).
+   - Cancel runs `runTransaction`: refuse if status is collected or cancelled ("A-041 was already collected"). Otherwise set `status: "cancelled"`, `cancelledAtMs`, `cancelReason`, `cancelledFrom` (the status it had) and append to `history`. Toast repeats the refund line.
+4. **Food counter.**
+   - New order edited: the card updates in place with a "Changed" tag until Start.
+   - Preparing order edited after the last Got it (`editedAtMs > (changeSeenAtMs || 0)`): amber card, header "ORDER CHANGED · CHECK ITEMS", lines tagged NEW, "+1 (was 2)", "−1 (was 2)" or struck-through REMOVED (from the latest `history` entry's `before`), note "Changed at till A, 1 min ago". The Ready button is replaced by **Got it** (64 px, #B45309), which writes `changeSeenAtMs`.
+   - Cancelled from preparing or ready and `kitchenClearedAtMs` not set: red card in the column it was in, header "CANCELLED · STOP MAKING", items struck through, "Cancelled by cash counter, till A: Customer changed mind." and a **Remove** button (writes `kitchenClearedAtMs`). It doesn't count in the column total. Cancelled from new: the card just disappears.
+   - Phone food counter: same cards inside the existing tabs. A tab with an unseen change or cancel shows a dot.
+   - Status taps stay plain updates (they work offline). Short beep on a change or cancel, same toggle as the new-order beep.
+5. **Reports.** Totals already use the order as stored, so edits are counted at their final value and cancelled orders stay excluded. Orders list: a small "Edited" tag after the status pill when `editCount > 0`. Order detail: timeline adds "Edited HH:MM" steps and "Cancelled HH:MM · <reason>"; a "Changes" list shows each edit's before and after items and totals. Update the detail note to "Read-only. Orders are edited and cancelled from the cash counter; status changes happen on the food counter." All CSVs gain two last columns: `edited` (yes/no) and `cancelReason` (blank unless cancelled).
+6. **New fields on `orders`** (all optional; old orders have none):
+   ```
+   editCount          number of edits
+   editedAtMs         last edit
+   changeSeenAtMs     food counter tapped Got it
+   history            [{atMs, action: "edit"|"cancel", till, fromStatus, reason?,
+                        before: {items, total, name, payment}, deltaPence}]   keep the last 10
+   cancelReason       "mistake" | "changed_mind" | "out_of_stock" | "not_collected" | "other"
+   cancelledFrom      "new" | "preparing" | "ready"
+   kitchenClearedAtMs food counter tapped Remove
+   ```
+   No new collections, no composite index, Firestore rules unchanged.
+7. **Samosa Chat.** Add `samosa_chat` to the `MENU` seed in `public/js/logic.js` exactly as in the menu table (name and short "Samosa Chat", 500, #A5F3FC, chaat, sort 8) and its icon (bowl with a samosa on top, `design/ItemIcon.dc.html`). It appears last on the till (8 tiles, still no scrolling at 390×664 on phone), under the Chaat station filter, and in every report and CSV. Live gets it from `scripts/menu-sync.mjs` after the deploy (creates the missing document only; no other menu changes).
+8. `package.json` version 1.4.0.
 
 ## Design
 

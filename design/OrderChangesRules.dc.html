@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phase V edit or cancel rules</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid #E7E5E4;font-size:16px;line-height:22px}
+th{font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:#57534E;background:#F5F5F4}
+code{font-family:ui-monospace,Menlo,monospace;font-size:14px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1500px; box-sizing: border-box; padding: 56px 64px; background: #FFFFFF; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; gap: 32px">
+
+<div style="display: flex; flex-direction: column; gap: 10px; max-width: 1100px">
+<div style="font-size: 14px; letter-spacing: 0.12em; font-weight: 700; color: #B45309">AGREED 20 OCT · PHASE V · v1.4.0 · LIVE TODAY v1.3.2</div>
+<h1 style="margin: 0; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 48px; line-height: 54px">Edit or cancel an order that isn't collected yet</h1>
+<p style="margin: 0; font-size: 19px; line-height: 28px; color: #44403C">Today the only fix is Cancel in the cash counter's Recent strip: last 5 orders from the same till, and only while the order is New. Once the food counter taps Start, a mistake can't be corrected and the report keeps the wrong sale. This proposal adds an <b>Open orders</b> list on every till where the cash counter edits or cancels, with a payment prompt so the cash box and card machine reconcile with the report. The food counter sees every change live but doesn't edit or cancel.</p>
+</div>
+
+<div style="display: flex; gap: 32px; align-items: flex-start">
+<section style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 24px">What each status allows</h2>
+<table>
+<tr><th>Status</th><th>Edit (cash counter)</th><th>Cancel (cash counter)</th><th>Food counter sees</th></tr>
+<tr><td><b style="padding: 2px 10px; border-radius: 999px; background: #FDE68A">New</b></td><td>Yes</td><td>Yes</td><td>Card updates in place, small "Changed" tag. Cancelled: card disappears</td></tr>
+<tr><td><b style="padding: 2px 10px; border-radius: 999px; background: #BFDBFE">Preparing</b></td><td>Yes</td><td>Yes</td><td>Amber card listing what changed, "Got it" button. Cancelled: red "Stop making" card until Remove</td></tr>
+<tr><td><b style="padding: 2px 10px; border-radius: 999px; background: #0F766E; color: #FFFFFF">Ready</b></td><td>No, food is made. Cancel and place a new order</td><td>Yes, e.g. not collected</td><td>Red "Cancelled" card until Remove</td></tr>
+<tr><td><b style="padding: 2px 10px; border-radius: 999px; background: #E7E5E4">Collected</b></td><td>No</td><td>No</td><td>n/a (Undo last tap still works)</td></tr>
+<tr><td><b style="padding: 2px 10px; border-radius: 999px; border: 2px solid #B91C1C; color: #B91C1C">Cancelled</b></td><td>No</td><td>No</td><td>n/a</td></tr>
+</table>
+<p style="margin: 0; font-size: 15px; line-height: 21px; color: #57534E">Edits and cancels stay with the cash counter because that's where the money is. If the kitchen runs out of something, they tell the cash counter, which cancels or edits with reason Out of stock. Any till can change any open order; the order keeps its number, till and place in the queue.</p>
+</section>
+
+<section style="flex: 0 0 470px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 24px">Money after a change</h2>
+<table>
+<tr><th>Change</th><th>Cash order</th><th>Card order</th></tr>
+<tr><td>Total goes up</td><td>"Take £5.00 more"</td><td>"Take £5.00 more on the card machine"</td></tr>
+<tr><td>Total goes down</td><td>"Give back £5.00"</td><td>"Refund £5.00 on the card machine"</td></tr>
+<tr><td>Same total</td><td colspan="2">"No payment change"</td></tr>
+<tr><td>Cancelled</td><td>"Give back £15.00"</td><td>"Refund £15.00 on the card machine"</td></tr>
+</table>
+<p style="margin: 0; font-size: 15px; line-height: 21px; color: #57534E">The app never moves money; it tells the volunteer at the till what to do, in the Save button area and the toast.</p>
+</section>
+</div>
+
+<div style="display: flex; gap: 32px; align-items: flex-start">
+<section style="flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 24px">Flow</h2>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; font-size: 16px; line-height: 22px">
+<div style="padding: 16px; border: 2px solid #1C1917; border-radius: 14px"><b>1 · Find it</b><br>Header button "Open orders 4". Today's New, Preparing and Ready orders from all tills, newest first, search by number or name.</div>
+<div style="padding: 16px; border: 2px solid #B45309; background: #FEF3C7; border-radius: 14px"><b>2a · Edit</b><br>The order loads into the order panel with an amber "Editing A-041" bar. Change items, name or Cash/Card. Save shows the payment difference.</div>
+<div style="padding: 16px; border: 2px solid #B91C1C; background: #FEF2F2; border-radius: 14px"><b>2b · Cancel</b><br>Confirm dialog with a one-tap reason (Placed by mistake, Customer changed mind, Out of stock, Not collected, Other) and the refund amount.</div>
+<div style="padding: 16px; border: 2px solid #0F766E; background: #F0FDFA; border-radius: 14px"><b>3 · Food counter</b><br>Changes appear live. A changed Preparing order needs Got it before Ready; a cancelled Preparing or Ready order shows red until Remove.</div>
+</div>
+<h2 style="margin: 8px 0 0; font-size: 24px">Safety rules</h2>
+<ul style="margin: 0; padding-left: 22px; font-size: 16px; line-height: 25px">
+<li>Save and Cancel run in a Firestore transaction that re-reads the status first. If the food counter moved it on meanwhile: "A-041 is now Ready, so it can't be edited. Cancel it or start a new order."</li>
+<li>Edit and Cancel need a connection (transactions don't queue offline). Offline, the buttons are disabled with "Needs a connection"; new orders still queue as today.</li>
+<li>An edit must leave at least one item. Removing everything offers Cancel instead.</li>
+<li>Leaving edit mode (Discard, Sign out, switching screens) asks first, like the unsent-order confirm.</li>
+<li>Reports use the order as it is now. Cancelled stays excluded. Orders detail shows the change history.</li>
+</ul>
+</section>
+
+<section style="flex: 0 0 470px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 24px">New fields on <code>orders</code></h2>
+<pre style="margin: 0; padding: 18px; border-radius: 14px; background: #1C1917; color: #F5F5F4; font-family: ui-monospace, Menlo, monospace; font-size: 14px; line-height: 21px; white-space: pre-wrap">editCount        0, 1, 2…
+editedAtMs       last edit, Date.now()
+changeSeenAtMs   food counter tapped Got it
+history          [{atMs, action: "edit"|"cancel",
+                   till,
+                   fromStatus, reason?,
+                   before: {items, total, name, payment},
+                   deltaPence}]          max 10
+cancelReason     "mistake" | "changed_mind" |
+                 "out_of_stock" | "not_collected" |
+                 "other"
+cancelledFrom    "new" | "preparing" | "ready"
+kitchenClearedAtMs Remove tapped</pre>
+<p style="margin: 0; font-size: 15px; line-height: 21px; color: #57534E">No new collections or indexes; still one <code>day ==</code> query. CSV gains <code>edited</code> and <code>cancelReason</code> as the last two columns.</p>
+</section>
+</div>
+
+<div style="display: flex; gap: 20px">
+<div style="flex: 1 1 0; padding: 18px 22px; border-radius: 14px; background: #F0FDFA; font-size: 17px; line-height: 25px">
+<b>Agreed:</b> edits while New or Preparing (Got it on the food counter); Ready orders cancel only; only the cash counter edits or cancels.
+</div>
+<div style="flex: 1 1 0; display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-radius: 14px; background: #ECFEFF; border: 2px solid #A5F3FC; font-size: 17px; line-height: 25px">
+<span style="flex: none; width: 56px; height: 56px; border-radius: 14px; background: #A5F3FC; display: flex; align-items: center; justify-content: center"><dc-import name="ItemIcon" kind="samosa_chat" size="{{ 40 }}" hint-size="40px,40px"></dc-import></span>
+<span><b>Also in v1.4.0: new item Samosa Chat, £5.</b> id <code>samosa_chat</code>, short "Samosa Chat", Chaat station, tile #A5F3FC, sort 8. Menu becomes 8 items.</span>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

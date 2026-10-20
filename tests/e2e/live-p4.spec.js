@@ -646,7 +646,8 @@ test('P4L-06 the detail opens from the live order, and the phone comes back', as
     expect(det.x, 'at tablet width the detail sits beside the list').toBeGreaterThanOrEqual(list.x + list.width - 2);
     const note = norm(await tid(page, 'order-detail-note').innerText());
     expect(note, 'CLAUDE.md Phase IV 6: the read-only note').toBe(
-      'Read-only. Orders are cancelled from the cash counter; status changes happen on the food counter. ' +
+      // CLAUDE.md Phase V 5 rewrote this note for v1.4.0.
+      'Read-only. Orders are edited and cancelled from the cash counter; status changes happen on the food counter. ' +
       'Cancelled orders are listed but excluded from every total.'
     );
   }
@@ -710,7 +711,7 @@ test('P4L-08 the orders CSV downloads and its bytes are right', async ({ page },
   const text = readFileSync(await download.path(), 'utf8');
   const header = text.split(/\r?\n/)[0];
   expect(header, 'the Orders CSV has exactly the One day columns')
-    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
   expect(text, 'the Phase I tendered field is never exported').not.toMatch(/tendered/i);
 
   const rows = parseCsv(text);
@@ -718,7 +719,7 @@ test('P4L-08 the orders CSV downloads and its bytes are right', async ({ page },
   const body = rows.slice(1);
   expect(body, 'one row per line of the orders shown').toHaveLength(expectedLines);
   for (const r of body) {
-    expect(r, `row has ${r.length} fields`).toHaveLength(13);
+    expect(r, `row has ${r.length} fields`).toHaveLength(15);
     expect(r[col('day')], 'every row is on the exported day').toBe(day);
     expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     expect(r[col('item')], 'no blank item name').not.toBe('');

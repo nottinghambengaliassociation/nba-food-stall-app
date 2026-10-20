@@ -261,8 +261,10 @@ export function createSignOutButton({ guard, onSignOut } = {}) {
     testid: 'sign-out',
     'aria-label': 'Sign out',
     onclick: () => {
-      const dirty = typeof guard === 'function' && guard();
-      if (dirty) openSignOutConfirm(() => doSignOut(onSignOut));
+      // The guard returns false, true, or { title, note } when the screen
+      // wants its own wording (Phase V: leaving edit mode).
+      const dirty = typeof guard === 'function' ? guard() : false;
+      if (dirty) openSignOutConfirm(() => doSignOut(onSignOut), dirty === true ? {} : dirty);
       else doSignOut(onSignOut);
     }
   }, [
@@ -277,8 +279,12 @@ function doSignOut(onSignOut) {
   else location.hash = '#/login';
 }
 
-/** In-page confirm. Never window.confirm: Playwright cannot drive it and it looks wrong on a tablet. */
-export function openSignOutConfirm(onConfirm) {
+/**
+ * In-page confirm. Never window.confirm: Playwright cannot drive it and it
+ * looks wrong on a tablet. `options` lets a screen reword it (Phase V) and
+ * keep its own confirm button label; the test ids never change.
+ */
+export function openSignOutConfirm(onConfirm, options = {}) {
   const existing = document.querySelector('[data-testid="signout-confirm"]');
   if (existing) existing.remove();
 
@@ -296,7 +302,7 @@ export function openSignOutConfirm(onConfirm) {
     type: 'button',
     class: 'modal__btn modal__btn--danger',
     testid: 'signout-confirm-ok',
-    text: 'Sign out',
+    text: options.confirmLabel || 'Sign out',
     onclick: () => { close(); onConfirm(); }
   });
 
@@ -306,10 +312,15 @@ export function openSignOutConfirm(onConfirm) {
     'aria-modal': 'true',
     'aria-labelledby': 'signout-confirm-title'
   }, [
-    el('h2', { id: 'signout-confirm-title', class: 'modal__title', text: 'Discard the unsent order and sign out?' }),
+    el('h2', {
+      id: 'signout-confirm-title',
+      class: 'modal__title',
+      testid: 'signout-confirm-title',
+      text: options.title || 'Discard the unsent order and sign out?'
+    }),
     el('p', {
       class: 'modal__note',
-      text: 'The items in the order panel have not been sent to the food counter.'
+      text: options.note || 'The items in the order panel have not been sent to the food counter.'
     }),
     el('div', { class: 'modal__row' }, [cancel, confirm])
   ]);

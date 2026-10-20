@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Food counter, edited and cancelled orders</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed}
+</style>
+</helmet>
+<div style="position: relative; width: 100%; min-height: 800px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 12px 24px; background: #1C1917; color: #FFFFFF">
+<div style="display: flex; align-items: center; gap: 12px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px">Food counter</span>
+<span style="padding: 3px 9px; border-radius: 999px; border: 1px solid #57534E; color: #D6D3D1; font-size: 13px; line-height: 16px; font-weight: 700">v1.4.0</span>
+<span style="height: 48px; padding: 0 18px; border-radius: 999px; background: #FDE68A; color: #1C1917; font-size: 18px; font-weight: 700; display: flex; align-items: center">All</span>
+</div>
+<div style="display: flex; align-items: center; gap: 20px; font-size: 17px">
+<span style="color: #D6D3D1">38 collected today</span>
+<a href="CashOpenOrders.dc.html" style="font-weight: 700">Cash counter</a>
+<a href="Login.dc.html" style="font-weight: 700">Sign out</a>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; padding: 20px 24px 24px; align-items: flex-start">
+<sc-for list="{{columns}}" as="col" hint-placeholder-count="3">
+<section aria-label="{{col.title}}" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-radius: 14px; background: {{col.bg}}; color: {{col.fg}}; font-size: 22px">{{col.title}} <span style="font-size: 26px">{{col.count}}</span></h2>
+<sc-for list="{{col.cards}}" as="o" hint-placeholder-count="2">
+<article style="background: {{o.cardBg}}; border: 3px solid {{o.border}}; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<sc-if value="{{o.isCancelled}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="margin: -16px -16px 0; padding: 10px 16px; border-radius: 15px 15px 0 0; background: #B91C1C; color: #FFFFFF; font-size: 20px; font-weight: 800; letter-spacing: 0.03em">CANCELLED · STOP MAKING</div>
+</sc-if>
+<sc-if value="{{o.isChanged}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="margin: -16px -16px 0; padding: 10px 16px; border-radius: 15px 15px 0 0; background: #B45309; color: #FFFFFF; font-size: 20px; font-weight: 800; letter-spacing: 0.03em">ORDER CHANGED · CHECK ITEMS</div>
+</sc-if>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px; text-decoration: {{o.strike}}">{{o.no}}</span>
+<span style="display: flex; align-items: center; gap: 8px">
+<sc-if value="{{o.smallTag}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 10px; border-radius: 999px; background: #FEF3C7; color: #78350F; font-size: 15px; font-weight: 700">Changed</span></sc-if>
+<span style="font-size: 17px; font-weight: 700; color: #57534E">{{o.age}}</span>
+</span>
+</div>
+<span style="font-size: {{o.nameSize}}; font-weight: 700; color: {{o.nameColour}}; font-family: {{o.nameFont}}">{{o.nameText}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{o.lines}}" as="l" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 21px; line-height: 26px; color: {{l.colour}}; text-decoration: {{l.strike}}"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 30 }}" hint-size="30px,30px"></dc-import><b style="width: 34px">{{l.qty}}×</b><span style="flex: 1 1 auto">{{l.name}}</span><sc-if value="{{l.hasTag}}" hint-placeholder-val="{{ false }}"><span style="padding: 2px 10px; border-radius: 999px; background: {{l.tagBg}}; color: {{l.tagFg}}; font-size: 15px; font-weight: 700; text-decoration: none">{{l.tag}}</span></sc-if></div>
+</sc-for>
+</div>
+<sc-if value="{{o.isCancelled}}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 16px; color: #7F1D1D">{{o.cancelNote}}</span>
+<button onClick="{{o.remove}}" style="height: 64px; border: none; border-radius: 14px; background: #B91C1C; color: #FFFFFF; font-size: 22px; font-weight: 700">Remove</button>
+</sc-if>
+<sc-if value="{{o.isChanged}}" hint-placeholder-val="{{ false }}">
+<span style="font-size: 16px; color: #78350F">{{o.changeNote}}</span>
+<button onClick="{{o.ack}}" style="height: 64px; border: none; border-radius: 14px; background: #B45309; color: #FFFFFF; font-size: 22px; font-weight: 700">Got it</button>
+</sc-if>
+<sc-if value="{{o.showMain}}" hint-placeholder-val="{{ true }}">
+<button onClick="{{o.next}}" style="height: 68px; border: none; border-radius: 14px; background: {{o.nextBg}}; color: #FFFFFF; font-size: 24px; font-weight: 700">{{o.nextLabel}}</button>
+</sc-if>
+</article>
+</sc-for>
+</section>
+</sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      orders: [
+        { no: 'A-044', name: 'Josh', status: 'new', mins: 0, pay: 'card', items: { chat: 1, marshmallow: 2 }, smallTag: true },
+        { no: 'B-012', name: 'Meera', status: 'new', mins: 2, pay: 'cash', items: { momo: 1, samosa_chat: 1 } },
+        { no: 'A-039', name: 'Tom', status: 'preparing', mins: 8, pay: 'cash', items: { samosa_only: 1, fuchka: 1 }, cancelled: { by: 'cash counter, till A', reason: 'Customer changed mind' } },
+        { no: 'A-041', name: 'Ahmed', status: 'preparing', mins: 5, pay: 'cash', items: { momo: 3 }, before: { momo: 2, chat: 1 } },
+        { no: 'A-042', name: 'Sam', status: 'ready', mins: 4, pay: 'card', items: { fuchka: 1, choc_strawberry: 1 } }
+      ]
+    };
+  }
+  renderVals() {
+    const NAMES = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow', samosa_chat: 'Samosa Chat' };
+    const NEXT = { new: ['preparing', 'Start', '#1D4ED8'], preparing: ['ready', 'Ready', '#0F766E'], ready: ['collected', 'Collected', '#1C1917'] };
+    const s = this.state;
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const count = (items) => Object.keys(items).reduce((a, k) => a + items[k], 0);
+    const upd = (no, patch) => this.setState({ orders: this.state.orders.map((o) => o.no === no ? Object.assign({}, o, patch) : o) });
+    const card = (o) => {
+      const cancelled = !!o.cancelled;
+      const changed = !!o.before && !cancelled;
+      const lines = [];
+      Object.keys(o.items).forEach((id) => {
+        const was = changed ? (o.before[id] || 0) : o.items[id];
+        const d = o.items[id] - was;
+        lines.push({ id: id, qty: o.items[id], name: NAMES[id], colour: cancelled ? '#A8A29E' : '#1C1917', strike: cancelled ? 'line-through' : 'none',
+          hasTag: changed && d !== 0, tag: was === 0 ? 'NEW' : (d > 0 ? '+' + d + ' (was ' + was + ')' : d + ' (was ' + was + ')'),
+          tagBg: d > 0 ? '#DCFCE7' : '#FEF3C7', tagFg: d > 0 ? '#14532D' : '#78350F' });
+      });
+      if (changed) Object.keys(o.before).filter((id) => !o.items[id]).forEach((id) => {
+        lines.push({ id: id, qty: o.before[id], name: NAMES[id], colour: '#A8A29E', strike: 'line-through', hasTag: true, tag: 'REMOVED', tagBg: '#FEE2E2', tagFg: '#7F1D1D' });
+      });
+      const ready = o.status === 'ready';
+      return {
+        no: o.no, age: o.mins === 0 ? 'just now' : o.mins + ' min',
+        nameText: ready && !cancelled ? o.name.toUpperCase() : o.name,
+        nameSize: ready && !cancelled ? '40px' : '26px', nameColour: ready && !cancelled ? '#0F766E' : (cancelled ? '#A8A29E' : '#1C1917'),
+        nameFont: ready && !cancelled ? "'Bricolage Grotesque', sans-serif" : 'inherit',
+        strike: cancelled ? 'line-through' : 'none',
+        cardBg: cancelled ? '#FEF2F2' : (changed ? '#FFFBEB' : '#FFFFFF'),
+        border: cancelled ? '#B91C1C' : (changed ? '#B45309' : (ready ? '#0F766E' : 'transparent')),
+        isCancelled: cancelled, isChanged: changed, smallTag: !!o.smallTag && !changed && !cancelled,
+        showMain: !cancelled && !changed,
+        cancelNote: cancelled ? 'Cancelled by ' + o.cancelled.by + ': ' + o.cancelled.reason + '.' : '',
+        changeNote: changed ? 'Changed at till A, 1 min ago. Ready unlocks after Got it.' : '',
+        lines: lines,
+        nextLabel: NEXT[o.status][1], nextBg: NEXT[o.status][2],
+        next: () => upd(o.no, { status: NEXT[o.status][0], smallTag: false }),
+        ack: () => upd(o.no, { before: null }),
+        remove: () => this.setState({ orders: this.state.orders.filter((x) => x.no !== o.no) })
+      };
+    };
+    const live = s.orders.filter((o) => o.status !== 'collected');
+    const col = (status, title, bg, fg) => {
+      const cards = live.filter((o) => o.status === status).sort((a, b) => b.mins - a.mins).map(card);
+      return { title: title, bg: bg, fg: fg, count: cards.filter((c) => !c.isCancelled).length, cards: cards };
+    };
+    return {
+      columns: [col('new', 'New', '#FDE68A', '#1C1917'), col('preparing', 'Preparing', '#BFDBFE', '#1C1917'), col('ready', 'Ready, call out', '#0F766E', '#FFFFFF')]
+    };
+  }
+}
+</script>
+</body>
+</html>

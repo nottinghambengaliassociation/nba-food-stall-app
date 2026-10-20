@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cash counter phone, open orders, edit and cancel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1C1917}a:hover{color:#B5050F}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 664px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; padding: 0 10px 0 12px; background: #1C1917; color: #FFFFFF">
+<span style="display: flex; align-items: center; height: 40px; padding: 0 10px; border-radius: 10px; border: 1.5px solid #57534E; font-size: 17px; font-weight: 700">Till A</span>
+<span style="display: flex; align-items: center; gap: 6px; font-size: 14px; color: #D6D3D1"><span style="width: 9px; height: 9px; border-radius: 50%; background: #5EEAD4"></span>Online</span>
+<span style="display: flex; align-items: center; gap: 8px">
+<button onClick="{{openOrders}}" aria-label="Open orders, {{openCount}}" style="height: 44px; padding: 0 10px; border-radius: 10px; border: 1.5px solid #FDE68A; background: transparent; color: #FFFFFF; display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700">Orders<span style="min-width: 24px; height: 24px; padding: 0 5px; box-sizing: border-box; border-radius: 999px; background: #FDE68A; color: #1C1917; display: flex; align-items: center; justify-content: center; font-size: 14px">{{openCount}}</span></button>
+<span aria-hidden="true" style="width: 44px; height: 44px; border-radius: 10px; border: 1.5px solid #57534E; display: flex; align-items: center; justify-content: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></span>
+</span>
+</header>
+
+<sc-if value="{{editing}}" hint-placeholder-val="{{ false }}">
+<div style="flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; background: #FEF3C7; border-bottom: 2px solid #B45309">
+<span style="font-size: 16px; font-weight: 700">Editing {{editNo}}</span>
+<button onClick="{{discard}}" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 2px solid #B45309; background: #FFFFFF; color: #78350F; font-size: 15px; font-weight: 700">Discard</button>
+</div>
+</sc-if>
+
+<main aria-label="Menu" style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 10px 96px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{tiles}}" as="item" hint-placeholder-count="8">
+<div style="position: relative; height: 112px">
+<button onClick="{{item.add}}" aria-label="Add {{item.name}}" style="width: 100%; height: 100%; padding: 8px 4px; border-radius: 16px; border: 3px solid {{item.border}}; background: {{item.bg}}; color: #1C1917; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center">
+<dc-import name="ItemIcon" kind="{{item.id}}" size="{{ 40 }}" hint-size="40px,40px"></dc-import>
+<span style="font-size: 14px; line-height: 16px; font-weight: 700">{{item.short}}</span>
+</button>
+<sc-if value="{{item.hasQty}}" hint-placeholder-val="{{ false }}">
+<span style="position: absolute; top: 6px; right: 6px; min-width: 30px; height: 30px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; pointer-events: none">{{item.qty}}</span>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #CCFBF1; color: #134E4A; font-size: 16px; font-weight: 700">{{toast}}</div>
+</sc-if>
+</main>
+
+<sc-if value="{{showBar}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 12px 14px; background: #FFFFFF; border-top: 1px solid #E7E5E4">
+<button onClick="{{openSheet}}" style="width: 100%; height: 60px; border: none; border-radius: 14px; background: {{barBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 18px; font-weight: 700"><span>{{countText}} · {{totalText}}</span><span>{{barLabel}} ›</span></button>
+</div>
+</sc-if>
+
+<sc-if value="{{sheetOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 4; background: rgba(28,25,23,0.45)"></div>
+<section role="dialog" aria-label="Review changes" style="position: absolute; left: 0; right: 0; bottom: 0; top: 40px; z-index: 6; background: #FFFFFF; border-radius: 18px 18px 0 0; display: flex; flex-direction: column">
+<div style="flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px 16px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">{{sheetTitle}}</span>
+<button onClick="{{closeSheet}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 15px; font-weight: 700">Add more</button>
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 16px 12px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="sname" style="font-size: 14px; font-weight: 700; color: #44403C">Name to call out</label>
+<input id="sname" value="{{name}}" onChange="{{onName}}" autocomplete="off" style="height: 48px; box-sizing: border-box; padding: 0 14px; font-size: 20px; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="3">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 48px 28px 48px 54px; align-items: center; column-gap: 6px">
+<span style="font-size: 16px; line-height: 19px; font-weight: 700">{{l.name}}<sc-if value="{{l.changed}}" hint-placeholder-val="{{ false }}"><span style="display: block; font-size: 13px; color: #B45309">{{l.changeText}}</span></sc-if></span>
+<button onClick="{{l.dec}}" aria-label="Remove one {{l.name}}" style="width: 48px; height: 48px; border-radius: 12px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 24px; line-height: 1; color: #1C1917">−</button>
+<span style="text-align: center; font-size: 20px; font-weight: 700">{{l.qty}}</span>
+<button onClick="{{l.inc}}" aria-label="Add one {{l.name}}" style="width: 48px; height: 48px; border-radius: 12px; border: 2px solid #A8A29E; background: #FFFFFF; font-size: 24px; line-height: 1; color: #1C1917">+</button>
+<span style="text-align: right; font-size: 16px; white-space: nowrap">{{l.amount}}</span>
+</div>
+</sc-for>
+<sc-for list="{{removedLines}}" as="r" hint-placeholder-count="0">
+<div style="display: flex; justify-content: space-between; font-size: 15px; color: #A8A29E"><s>{{r.qty}}× {{r.name}}</s><b style="color: #B45309">removed</b></div>
+</sc-for>
+</div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding-top: 8px; border-top: 2px solid #E7E5E4">
+<b style="font-size: 18px">Total</b><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px">{{totalText}}</span>
+</div>
+<div role="group" aria-label="Payment method" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{payCash}}" aria-pressed="{{isCash}}" style="height: 48px; border-radius: 12px; font-size: 18px; font-weight: 700; border: 3px solid {{cashBorder}}; background: {{cashBg}}; color: #1C1917">Cash</button>
+<button onClick="{{payCard}}" aria-pressed="{{isCard}}" style="height: 48px; border-radius: 12px; font-size: 18px; font-weight: 700; border: 3px solid {{cardBorder}}; background: {{cardBg}}; color: #1C1917">Card</button>
+</div>
+<div role="status" style="padding: 12px 14px; border-radius: 12px; background: {{deltaBg}}; color: {{deltaFg}}; font-size: 18px; font-weight: 700">{{deltaText}}</div>
+</div>
+<div style="flex: none; padding: 10px 12px 14px; border-top: 1px solid #E7E5E4">
+<button onClick="{{save}}" disabled="{{saveDisabled}}" style="width: 100%; height: 60px; border: none; border-radius: 14px; background: {{saveBg}}; color: #FFFFFF; font-size: 20px; font-weight: 700">Save changes · {{totalText}}</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{ordersOpen}}" hint-placeholder-val="{{ true }}">
+<div onClick="{{closeOrders}}" style="position: absolute; inset: 0; z-index: 4; background: rgba(28,25,23,0.45)"></div>
+<section role="dialog" aria-label="Open orders" style="position: absolute; left: 0; right: 0; bottom: 0; top: 40px; z-index: 6; background: #FFFFFF; border-radius: 18px 18px 0 0; display: flex; flex-direction: column">
+<div style="flex: none; padding: 10px 12px 8px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #E7E5E4">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Open orders · {{openCount}}</span>
+<button onClick="{{closeOrders}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 15px; font-weight: 700">Close</button>
+</div>
+<input value="{{q}}" onChange="{{onQ}}" placeholder="Search number or name" aria-label="Search open orders" style="height: 44px; box-sizing: border-box; padding: 0 12px; font-size: 17px; border: 2px solid #A8A29E; border-radius: 12px; color: #1C1917">
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{openList}}" as="o" hint-placeholder-count="4">
+<article style="border: 2px solid #E7E5E4; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; align-items: center; gap: 8px">
+<b style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 20px">{{o.no}}</b>
+<span style="flex: 1 1 auto; min-width: 0; font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{o.name}}</span>
+<span style="padding: 2px 10px; border-radius: 999px; background: {{o.bg}}; color: {{o.fg}}; font-size: 13px; font-weight: 700">{{o.statusLabel}}</span>
+</div>
+<span style="font-size: 14px; line-height: 18px; color: #44403C">{{o.itemsText}} · {{o.meta}}</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{o.edit}}" disabled="{{o.noEdit}}" style="height: 48px; border-radius: 12px; border: 2px solid {{o.editBorder}}; background: #FFFFFF; color: {{o.editFg}}; font-size: 16px; font-weight: 700">{{o.editLabel}}</button>
+<button onClick="{{o.cancel}}" style="height: 48px; border-radius: 12px; border: 2px solid #B91C1C; background: #FFFFFF; color: #B91C1C; font-size: 16px; font-weight: 700">Cancel…</button>
+</div>
+</article>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{dialogOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; z-index: 8; background: rgba(28,25,23,0.55)"></div>
+<section role="alertdialog" aria-label="Cancel order" style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; padding: 16px 16px 18px; border-radius: 18px 18px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 12px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Cancel {{dNo}} for {{dName}}?</span>
+<span style="font-size: 15px; color: #44403C">{{dItems}} · {{dStatus}}</span>
+<div role="radiogroup" aria-label="Reason" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{reasons}}" as="r" hint-placeholder-count="4">
+<button role="radio" aria-checked="{{r.on}}" onClick="{{r.pick}}" style="height: 44px; padding: 0 12px; border-radius: 999px; border: 2px solid {{r.border}}; background: {{r.bg}}; color: #1C1917; font-size: 15px; font-weight: 700">{{r.label}}</button>
+</sc-for>
+</div>
+<div style="padding: 10px 12px; border-radius: 12px; background: #FEF2F2; color: #7F1D1D; font-size: 17px; font-weight: 700">{{dRefund}}</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{keepOrder}}" style="height: 56px; border-radius: 14px; border: 2px solid #A8A29E; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700">Keep order</button>
+<button onClick="{{confirmCancel}}" disabled="{{noReason}}" style="height: 56px; border-radius: 14px; border: none; background: {{cancelBg}}; color: #FFFFFF; font-size: 17px; font-weight: 700">Cancel order</button>
+</div>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":664}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      view: 'orders', q: '', cart: {}, name: '', pay: 'card', edit: null, dialog: null, toast: '',
+      orders: [
+        { no: 'A-044', name: 'Josh', status: 'new', till: 'A', time: '14:09', pay: 'card', items: { chat: 1, marshmallow: 2 } },
+        { no: 'B-012', name: 'Meera', status: 'new', till: 'B', time: '14:07', pay: 'cash', items: { momo: 1, samosa_chat: 1 } },
+        { no: 'A-042', name: 'Sam', status: 'ready', till: 'A', time: '14:03', pay: 'card', items: { fuchka: 1, choc_strawberry: 1 } },
+        { no: 'A-041', name: 'Ahmed', status: 'preparing', till: 'A', time: '14:01', pay: 'cash', items: { momo: 2, chat: 1 } }
+      ]
+    };
+  }
+  renderVals() {
+    const MENU = [
+      { id: 'fuchka', name: 'Fuchka / Gol Gappa', short: 'Fuchka', bg: '#FDE68A' },
+      { id: 'momo', name: 'Momo', short: 'Momo', bg: '#BFDBFE' },
+      { id: 'chat', name: 'Papri Chat', short: 'Papri Chat', bg: '#FECACA' },
+      { id: 'sweet_box', name: 'Sweet Box', short: 'Sweet Box', bg: '#FED7AA' },
+      { id: 'samosa_only', name: 'Samosa', short: 'Samosa', bg: '#D9F99D' },
+      { id: 'choc_strawberry', name: 'Chocolate Strawberry', short: 'Choc Strawberry', bg: '#E9D5FF' },
+      { id: 'marshmallow', name: 'Chocolate Marshmallow (V)', short: 'Choc Marshmallow', bg: '#FBCFE8' },
+      { id: 'samosa_chat', name: 'Samosa Chat', short: 'Samosa Chat', bg: '#A5F3FC' }
+    ];
+    const P = 500;
+    const ST = { new: ['New', '#FDE68A', '#1C1917'], preparing: ['Preparing', '#BFDBFE', '#1C1917'], ready: ['Ready', '#0F766E', '#FFFFFF'] };
+    const REASONS = [
+      { key: 'mistake', label: 'Mistake' }, { key: 'changed_mind', label: 'Changed mind' },
+      { key: 'out_of_stock', label: 'Out of stock' }, { key: 'not_collected', label: 'Not collected' }, { key: 'other', label: 'Other' }
+    ];
+    const s = this.state;
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const count = (items) => Object.keys(items).reduce((a, k) => a + items[k], 0);
+    const shortOf = (id) => MENU.find((m) => m.id === id).short;
+    const itemsText = (items) => Object.keys(items).map((k) => items[k] + '× ' + shortOf(k)).join(', ');
+    const find = (no) => this.state.orders.find((o) => o.no === no);
+    const qtyOf = (id) => this.state.cart[id] || 0;
+    const editing = !!s.edit;
+    const orig = editing ? find(s.edit) : null;
+    const setQty = (id, q) => {
+      const cart = Object.assign({}, this.state.cart);
+      if (q <= 0) delete cart[id]; else cart[id] = q;
+      this.setState({ cart: cart, toast: '' });
+    };
+    const n = count(s.cart);
+    const total = n * P;
+    const isCash = s.pay === 'cash';
+    const open = s.orders.filter((o) => ST[o.status]);
+    const ql = s.q.trim().toLowerCase();
+    const shown = open.filter((o) => !ql || o.no.toLowerCase().indexOf(ql) >= 0 || o.name.toLowerCase().indexOf(ql) >= 0);
+    let deltaText = '', deltaBg = '#F5F5F4', deltaFg = '#1C1917', changed = false;
+    if (editing) {
+      const d = total - count(orig.items) * P;
+      changed = JSON.stringify(s.cart) !== JSON.stringify(orig.items) || s.name.trim() !== orig.name || s.pay !== orig.pay;
+      if (total === 0) { deltaText = 'No items left. Use Cancel in Orders instead.'; deltaBg = '#FEF2F2'; deltaFg = '#7F1D1D'; }
+      else if (!changed) deltaText = 'No changes yet';
+      else if (d > 0) { deltaText = isCash ? 'Take ' + gbp(d) + ' more' : 'Take ' + gbp(d) + ' more on card'; deltaBg = '#FEF3C7'; deltaFg = '#78350F'; }
+      else if (d < 0) { deltaText = isCash ? 'Give back ' + gbp(-d) : 'Refund ' + gbp(-d) + ' on card'; deltaBg = '#FEF2F2'; deltaFg = '#7F1D1D'; }
+      else { deltaText = 'No payment change'; deltaBg = '#F0FDFA'; deltaFg = '#134E4A'; }
+    }
+    const dlg = s.dialog ? find(s.dialog.no) : null;
+    const dTotal = dlg ? count(dlg.items) * P : 0;
+    const blocked = !changed || total === 0;
+    return {
+      openCount: open.length,
+      openOrders: () => this.setState({ view: 'orders' }), closeOrders: () => this.setState({ view: 'menu' }),
+      ordersOpen: s.view === 'orders', sheetOpen: s.view === 'sheet',
+      q: s.q, onQ: (e) => this.setState({ q: e.target.value }),
+      openList: shown.map((o) => {
+        const canEdit = o.status !== 'ready';
+        return {
+          no: o.no, name: o.name, statusLabel: ST[o.status][0], bg: ST[o.status][1], fg: ST[o.status][2],
+          itemsText: itemsText(o.items), meta: o.time + ' · ' + (o.pay === 'cash' ? 'Cash' : 'Card') + ' · ' + gbp(count(o.items) * P),
+          noEdit: !canEdit, editLabel: canEdit ? 'Edit' : 'Ready: no edits',
+          editBorder: canEdit ? '#1C1917' : '#D6D3D1', editFg: canEdit ? '#1C1917' : '#A8A29E',
+          edit: () => canEdit && this.setState({ edit: o.no, cart: Object.assign({}, o.items), name: o.name, pay: o.pay, view: 'sheet', toast: '' }),
+          cancel: () => this.setState({ dialog: { no: o.no, reason: null } })
+        };
+      }),
+      editing: editing, editNo: editing ? s.edit + ' · ' + orig.name : '',
+      discard: () => this.setState({ edit: null, cart: {}, name: '', pay: 'card', view: 'menu' }),
+      tiles: MENU.map((m) => ({ id: m.id, name: m.name, short: m.short, bg: m.bg, qty: s.cart[m.id] || 0, hasQty: !!s.cart[m.id], border: s.cart[m.id] ? '#1C1917' : 'transparent', add: () => setQty(m.id, qtyOf(m.id) + 1) })),
+      showBar: editing && s.view === 'menu',
+      barBg: '#B45309', barLabel: 'Review changes',
+      countText: n + (n === 1 ? ' item' : ' items'), totalText: gbp(total),
+      openSheet: () => this.setState({ view: 'sheet' }), closeSheet: () => this.setState({ view: 'menu' }),
+      sheetTitle: editing ? 'Edit ' + s.edit : 'Order',
+      name: s.name, onName: (e) => this.setState({ name: e.target.value }),
+      lines: MENU.filter((m) => s.cart[m.id]).map((m) => {
+        const before = editing ? (orig.items[m.id] || 0) : 0;
+        const d = s.cart[m.id] - before;
+        return { name: m.short, qty: s.cart[m.id], amount: gbp(P * s.cart[m.id]), changed: editing && d !== 0,
+          changeText: before === 0 ? 'added' : 'was ' + before,
+          inc: () => setQty(m.id, qtyOf(m.id) + 1), dec: () => setQty(m.id, qtyOf(m.id) - 1) };
+      }),
+      removedLines: editing ? Object.keys(orig.items).filter((k) => !s.cart[k]).map((k) => ({ qty: orig.items[k], name: shortOf(k) })) : [],
+      isCash: isCash, isCard: !isCash,
+      cashBg: isCash ? '#FDE68A' : '#FFFFFF', cashBorder: isCash ? '#1C1917' : '#A8A29E',
+      cardBg: !isCash ? '#FDE68A' : '#FFFFFF', cardBorder: !isCash ? '#1C1917' : '#A8A29E',
+      payCash: () => this.setState({ pay: 'cash' }), payCard: () => this.setState({ pay: 'card' }),
+      deltaText: deltaText, deltaBg: deltaBg, deltaFg: deltaFg,
+      saveDisabled: blocked, saveBg: blocked ? '#A8A29E' : '#B45309',
+      save: () => {
+        if (blocked) return;
+        const no = this.state.edit;
+        this.setState({
+          orders: this.state.orders.map((o) => o.no === no ? Object.assign({}, o, { items: Object.assign({}, this.state.cart), name: this.state.name.trim() || 'Guest', pay: this.state.pay }) : o),
+          edit: null, cart: {}, name: '', pay: 'card', view: 'menu', toast: no + ' updated. ' + deltaText + '.'
+        });
+      },
+      hasToast: !!s.toast, toast: s.toast,
+      dialogOpen: !!dlg, dNo: dlg ? dlg.no : '', dName: dlg ? dlg.name : '',
+      dItems: dlg ? itemsText(dlg.items) + ' · ' + gbp(dTotal) : '', dStatus: dlg ? ST[dlg.status][0] : '',
+      dRefund: dlg ? (dlg.pay === 'cash' ? 'Give back ' + gbp(dTotal) + ' cash' : 'Refund ' + gbp(dTotal) + ' on the card machine') : '',
+      reasons: REASONS.filter((r) => r.key !== 'not_collected' || (dlg && dlg.status === 'ready')).map((r) => {
+        const on = !!s.dialog && s.dialog.reason === r.key;
+        return { label: r.label, on: on, bg: on ? '#FDE68A' : '#FFFFFF', border: on ? '#1C1917' : '#A8A29E', pick: () => this.setState({ dialog: { no: this.state.dialog.no, reason: r.key } }) };
+      }),
+      noReason: !s.dialog || !s.dialog.reason, cancelBg: !s.dialog || !s.dialog.reason ? '#A8A29E' : '#B91C1C',
+      keepOrder: () => this.setState({ dialog: null }),
+      confirmCancel: () => {
+        if (!this.state.dialog || !this.state.dialog.reason) return;
+        const no = this.state.dialog.no;
+        const o = find(no);
+        const amt = count(o.items) * P;
+        this.setState({
+          orders: this.state.orders.map((x) => x.no === no ? Object.assign({}, x, { status: 'cancelled' }) : x),
+          dialog: null, view: 'menu',
+          toast: no + ' cancelled. ' + (o.pay === 'cash' ? 'Give back ' + gbp(amt) + ' cash.' : 'Refund ' + gbp(amt) + ' on the card machine.')
+        });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

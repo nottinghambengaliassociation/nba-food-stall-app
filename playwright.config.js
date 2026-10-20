@@ -66,7 +66,11 @@ export default defineConfig({
       // iphone13 also carries the gated read-only H4 live check: CLAUDE.md H4 1
       // names the phone Review & send sheet, and 390x664 is the small phone the
       // H3 and H4 briefs are written against.
-      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|live-h3|live-h4)\.spec\.js/ },
+      // Phase V (v1.4.0) adds `cash-p5.spec.js` to `iphone13`: Phase V 1 moves
+      // two controls into the one-row 52 px H3 header (the "Orders" button with
+      // its badge, and "Next A-045" into the ☰ menu) and adds an eighth tile,
+      // which are geometry claims only the small phone can falsify.
+      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|cash-p5|live-h3|live-h4)\.spec\.js/ },
       { name: "iphone17", width: 402, height: 694, match: /(cash-h3|live-h3)\.spec\.js/ },
       { name: "promax", width: 430, height: 752, match: /(cash-h3|live-h3)\.spec\.js/ },
     ].map(({ name, width, height, match }) => ({

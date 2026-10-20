@@ -425,7 +425,9 @@ test('H-20.5 the CSV export for that day carries the original names', async ({ p
 
   expect(rows[0], 'CLAUDE.md Reports 6 fixes the column list').toEqual([
     'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+    // CLAUDE.md Phase V 5: two more columns on every export.
+    'edited', 'cancelReason'
   ]);
   expect(body.length, 'one row per order line').toBe(lineCount);
 
@@ -444,7 +446,7 @@ test('H-20.5 the CSV export for that day carries the original names', async ({ p
     }
   }
   for (const r of body) {
-    expect(r, `row has ${r.length} fields`).toHaveLength(13);
+    expect(r, `row has ${r.length} fields`).toHaveLength(15);
     expect(r[col('day')]).toBe(day);
     expect(r[col('item')], 'no blank item name in the export').not.toBe('');
   }

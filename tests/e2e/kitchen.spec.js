@@ -2,7 +2,9 @@
 import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, expectNoConsoleErrors,
-  placeOrder, readCollection, waitForOrders, seedDoc, londonDay, setTill
+  placeOrder, readCollection, waitForOrders, seedDoc, londonDay, setTill,
+  // Phase V 1 and 3: cancelling moves to the Open orders list.
+  cancelOrderWithReason
 } from './helpers.js';
 
 const isPhone = (info) => info.project.name === 'phone';
@@ -261,14 +263,9 @@ test('K-09 a cancelled order leaves the kitchen board', async ({ browser }) => {
   await kitchen.goto('/#/kitchen');
   await expect(kitchen.locator('[data-testid="order-card-A-001"]')).toBeVisible({ timeout: 20000 });
 
-  // Hotfix H3 6: below 700 px the recent strip (and its Cancel) moved to
-  // ☰ -> Recent orders.
-  if ((cash.viewportSize()?.width ?? 1280) < 700) {
-    await cash.locator('[data-testid="menu-button"]').click();
-    await cash.locator('[data-testid="menu-recent"]').click();
-    await expect(cash.locator('[data-testid="recent-sheet"]')).toBeVisible({ timeout: 10000 });
-  }
-  await cash.locator('[data-testid="cancel-A-001"]').click();
+  // CLAUDE.md Phase V 1 and 3: cancelling is done from the Open orders list,
+  // through a confirm dialog with a one-tap reason, on every viewport.
+  await cancelOrderWithReason(cash, 'A-001', 'mistake');
   await waitForOrders((o) => o[0] && o[0].status === 'cancelled', { label: 'cancellation' });
 
   await expect(

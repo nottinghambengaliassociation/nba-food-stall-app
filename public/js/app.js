@@ -47,9 +47,17 @@ const tillListeners = new Set();
 // be lost: the cash counter uses it so Sign out can ask first.
 const unsentGuards = new Set();
 
+/**
+ * False, or the first guard's answer: `true` for the default unsent-order
+ * wording, or { title, note, confirmLabel } when the screen wants its own
+ * (the cash counter rewords it while an order is being edited, Phase V 2).
+ */
 function hasUnsentWork() {
   for (const fn of unsentGuards) {
-    try { if (fn()) return true; } catch (err) { console.error(err); }
+    try {
+      const answer = fn();
+      if (answer) return answer;
+    } catch (err) { console.error(err); }
   }
   return false;
 }
@@ -252,6 +260,9 @@ function mountRoute(route) {
     // Hotfix H3 1: the small cash counter borrows the version pill for its ☰
     // menu. The screen puts it back where it found it when it unmounts.
     headerVersion: nodes.version,
+    // Phase V: the small cash counter moves "Next A-045" into the ☰ menu, so
+    // it borrows this node the same way it borrows the version pill.
+    headerSub: nodes.sub,
     onSignedIn: () => { location.hash = '#/'; },
     onQueryChange: (fn) => { queryChangeHandler = typeof fn === 'function' ? fn : null; }
   };

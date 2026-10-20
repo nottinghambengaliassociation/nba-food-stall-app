@@ -18,13 +18,21 @@ import {
   ORDER_STATUS_FILTERS, ORDER_PAY_FILTERS, dayString, isDayString, formatPence,
   formatClock, formatDayLabel, filterOrders, sortOrdersNewestFirst, summariseOrders,
   orderSummary, orderAmount, orderTimeMs, orderTimeline, orderWaitText,
-  statusLabel, paymentLabel, lineFullName, exportOrdersCsv, ordersCsvFilename
+  statusLabel, paymentLabel, lineFullName, exportOrdersCsv, ordersCsvFilename,
+  isEdited, orderChanges
 } from './logic.js';
 
-const DETAIL_NOTE = 'Read-only. Orders are cancelled from the cash counter; status changes happen '
-  + 'on the food counter. Cancelled orders are listed but excluded from every total.';
+// Phase V: the cash counter now edits as well as cancels.
+const DETAIL_NOTE = 'Read-only. Orders are edited and cancelled from the cash counter; status changes '
+  + 'happen on the food counter. Cancelled orders are listed but excluded from every total.';
 
 const SEARCH_PLACEHOLDER = { wide: 'e.g. A-041 or Priya', phone: 'Search no. or name' };
+
+/** The small "Edited" tag after the status pill when editCount > 0 (Phase V 5). */
+function editedTag(order, testid) {
+  if (!isEdited(order)) return null;
+  return el('span', { class: 'edited-tag', testid: testid || null, text: 'Edited' });
+}
 
 /** The status pill used in the table, on the phone cards and in the detail. */
 function statusPill(order, testid) {
@@ -328,7 +336,7 @@ export function mountReportsOrders(outlet, ctx) {
         el('td', { class: 'orders-items', text: orderSummary(o) }),
         el('td', { class: 'num orders-total' + (cancelled ? ' orders-total--cancelled' : ''), text: formatPence(orderAmount(o)) }),
         el('td', { text: paymentLabel(o.payment) }),
-        el('td', {}, [statusPill(o)]),
+        el('td', {}, [statusPill(o), editedTag(o, `edited-tag-${no}`)]),
         el('td', { class: 'num orders-wait', text: orderWaitText(o) })
       ]));
     }
@@ -356,7 +364,7 @@ export function mountReportsOrders(outlet, ctx) {
             document.createTextNode(no + ' '),
             el('span', { class: 'orders-card__name', text: name })
           ]),
-          statusPill(o)
+          el('span', { class: 'orders-card__pills' }, [statusPill(o), editedTag(o, `edited-tag-${no}`)])
         ]),
         el('span', { class: 'orders-card__items', text: orderSummary(o) }),
         el('span', { class: 'orders-card__foot' }, [
@@ -391,7 +399,10 @@ export function mountReportsOrders(outlet, ctx) {
         el('span', { class: 'order-detail__no', testid: 'order-detail-no', text: order.orderNo || '' }),
         el('span', { class: 'order-detail__name', testid: 'order-detail-name', text: order.name || 'Guest' })
       ]),
-      statusPill(order, 'order-detail-status')
+      el('span', { class: 'order-detail__pills' }, [
+        statusPill(order, 'order-detail-status'),
+        editedTag(order, 'order-detail-edited')
+      ])
     ]));
 
     detailBody.appendChild(el('div', { class: 'order-detail__meta' }, [
@@ -408,13 +419,44 @@ export function mountReportsOrders(outlet, ctx) {
     }, [
       el('span', { class: 'timeline__dot', 'aria-hidden': 'true' }),
       el('span', { class: 'timeline__label', text: step.label }),
-      el('span', { class: 'timeline__time', text: step.time })
+      el('span', { class: 'timeline__time', text: step.time }),
+      // Phase V: "Cancelled 15:02 · Customer changed mind".
+      step.note ? el('span', { class: 'timeline__note', text: `· ${step.note}` }) : null
     ]));
 
     detailBody.appendChild(el('div', { class: 'order-detail__block' }, [
       el('h3', { text: 'Timeline' }),
       el('ol', { class: 'timeline', testid: 'order-detail-timeline' }, steps)
     ]));
+
+    // Phase V 5: what each edit changed, before and after.
+    const changes = orderChanges(order);
+    if (changes.length) {
+      detailBody.appendChild(el('div', { class: 'order-detail__block' }, [
+        el('h3', { text: 'Changes' }),
+        el('ol', { class: 'changes', testid: 'order-detail-changes' }, changes.map((c, i) => el('li', {
+          class: 'changes__item',
+          testid: `order-change-${i + 1}`,
+          dataset: { action: c.action }
+        }, [
+          el('span', { class: 'changes__head' }, [
+            el('b', { text: `${c.label} ${c.time}` }),
+            el('span', { class: 'changes__till', text: c.till ? ` · till ${c.till}` : '' }),
+            c.reasonLabel ? el('span', { class: 'changes__reason', text: ` · ${c.reasonLabel}` }) : null
+          ]),
+          el('span', { class: 'changes__row' }, [
+            el('span', { class: 'changes__label', text: 'Before' }),
+            el('span', { text: `${c.beforeSummary || '—'} · ${formatPence(c.beforeTotal)}` })
+          ]),
+          c.action === 'edit'
+            ? el('span', { class: 'changes__row' }, [
+              el('span', { class: 'changes__label', text: 'After' }),
+              el('span', { text: `${c.afterSummary || '—'} · ${formatPence(c.afterTotal)}` })
+            ])
+            : null
+        ])))
+      ]));
+    }
 
     const lines = items.map((line) => {
       const lineQty = Math.round(Number(line && line.qty) || 0);

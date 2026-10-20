@@ -32,10 +32,13 @@ import { createHash } from 'node:crypto';
 const LIVE = process.env.LIVE_URL || 'https://nottinghambengaliassociation.github.io/nba-food-stall-app/';
 const C = creds();
 
-// Hotfix H3 (v1.3.1) resets the live menu to exactly these seven ids.
+// Hotfix H3 (v1.3.1) reset the live menu; Phase V (v1.4.0) adds `samosa_chat`,
+// so these are the eight live ids.
 const ACTIVE_IDS = [
   'fuchka', 'momo', 'chat', 'sweet_box',
-  'samosa_only', 'choc_strawberry', 'marshmallow'
+  'samosa_only', 'choc_strawberry', 'marshmallow',
+  // CLAUDE.md Phase V 7: Samosa Chat, added live by menu-sync after v1.4.0.
+  'samosa_chat'
 ];
 const LONGEST = 'marshmallow';
 const SHORTEST = 'momo';
@@ -421,9 +424,9 @@ test('H-22.3 this check wrote nothing to live Firestore', async () => {
 
   const menu = await liveRead('/menu?pageSize=50');
   const ids = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
-  // CLAUDE.md H3 7 reset the live menu to exactly seven documents; this used
-  // to expect the pre-H3 ten.
-  expect(ids.length, 'the menu must still hold its seven H3 documents').toBe(ACTIVE_IDS.length);
+  // CLAUDE.md H3 7 reset the live menu, and Phase V 7 adds `samosa_chat` to
+  // it, so the live menu is the eight-row Menu table.
+  expect(ids.length, 'the menu must still hold its eight documents').toBe(ACTIVE_IDS.length);
   record(`H-22.3 PASS: orders and menu unchanged [${ids.join(', ')}]. ` +
     `No order placed, nothing cancelled, no document written — H2 made no live write of any kind.`);
 });

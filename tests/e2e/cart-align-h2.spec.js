@@ -30,10 +30,10 @@ import {
   isSmallCash, openCashPanel, closeCashPanel
 } from './helpers.js';
 
-/** CLAUDE.md -> Menu (after H3): the seven rows, in sort order. */
+/** CLAUDE.md -> Menu (after Phase V): the eight rows, in sort order. */
 const ACTIVE_IDS = [
   'fuchka', 'momo', 'chat', 'sweet_box',
-  'samosa_only', 'choc_strawberry', 'marshmallow'
+  'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'
 ];
 
 /** Longest and shortest names in the cart, the two ends of the bug. */
@@ -153,8 +153,8 @@ test('H-21 with every item in the cart the steppers line up, nothing overflows, 
     `panel: left=${r2(m.panel.left)} width=${r2(m.panel.width)} clientWidth=${m.panelClientWidth}; ` +
     `lines clientWidth=${m.linesClientWidth}; row display=${m.rows[0].display}; columns=${m.rows[0].columns}\n`);
 
-  expect(m.rows.filter((r) => r.missing).map((r) => r.id), 'all seven items must be in the cart').toEqual([]);
-  expect(m.rows.map((r) => r.id), 'the cart holds all seven items').toEqual(ACTIVE_IDS);
+  expect(m.rows.filter((r) => r.missing).map((r) => r.id), 'all eight items must be in the cart').toEqual([]);
+  expect(m.rows.map((r) => r.id), 'the cart holds all eight items').toEqual(ACTIVE_IDS);
 
   // Sanity: the two ends of the bug really are both present. The longest name
   // is read off the cart rather than pinned to a string, so a later menu

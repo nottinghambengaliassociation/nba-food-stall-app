@@ -1,8 +1,16 @@
 // C-01..C-14 and D-01..D-03 — cash counter. Spec: CLAUDE.md "Cash counter" FR 1..6
 // and the Data model block.
 //
+// Phase V (v1.4.0) changes two things in this file:
+//   * the menu gains `samosa_chat`, so the till shows EIGHT tiles
+//     (CLAUDE.md -> Menu, "so 8", and Phase V 7);
+//   * the Recent orders strip is replaced by "Open orders" (Phase V 1), and
+//     Cancel now goes through the reason dialog (Phase V 3), so C-10, C-11 and
+//     C-12 assert the Phase V behaviour. The old limits ("last 5", "this till
+//     only", "new only") were Phase I rules that Phase V supersedes.
+//
 // Hotfix H3 (v1.3.1) does two things this file has to follow:
-//   * the menu is exactly SEVEN items (CLAUDE.md -> Menu). `fountain` is
+//   * the menu is exactly the Menu table (CLAUDE.md -> Menu). `fountain` is
 //     deleted and `samosa` / `straw` are gone from the seed entirely; those
 //     ids are never reused.
 //   * below 700 px the order panel is replaced by an order bar and a
@@ -14,27 +22,22 @@ import { test, expect } from './session.js';
 import {
   clearFirestore, openApp, tid, heightOf, boxOf, expectNoConsoleErrors,
   addItem, placeOrder, readCollection, waitForOrders, londonDay,
-  isSmallCash, openCashPanel, closeCashPanel, quickTender, seedDoc, londonTimeToday
+  isSmallCash, openCashPanel, closeCashPanel, quickTender, seedDoc, londonTimeToday,
+  // Phase V: Open orders replaces the recent strip (CLAUDE.md Phase V 1).
+  openOpenOrders, openOrderRow, openEditButton, openCancelButton, listedOpenOrders,
+  openCancelDialog, cancelDialog, cancelReasonButton, cancelConfirm, kitchenAdvance
 } from './helpers.js';
 
-/** CLAUDE.md -> Menu: the seven items the till sells, in sort order. */
-const ITEMS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
+
+/** CLAUDE.md -> Menu: the eight items the till sells, in sort order. */
+const ITEMS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'];
 /** Deleted by H3 ("Don't reuse those ids"). */
 const GONE = ['fountain', 'samosa', 'straw'];
 
-/** Open the recent-orders list: a strip on tablet, the ☰ sheet below 700 px. */
-async function openRecent(page) {
-  if (!isSmallCash(page)) return;
-  await closeCashPanel(page);
-  if (await tid(page, 'recent-sheet').isVisible().catch(() => false)) return;
-  await tid(page, 'menu-button').click();
-  await tid(page, 'menu-recent').click();
-  await expect(tid(page, 'recent-sheet')).toBeVisible({ timeout: 10000 });
-}
-
 test.beforeEach(async () => { await clearFirestore(); });
 
-test('C-01 seven big item tiles with an icon and a name (H3-j)', async ({ page }) => {
+test('C-01 eight big item tiles with an icon and a name (H3-j, Phase V 7)', async ({ page }) => {
   const errors = await openApp(page, '#/cash');
   const small = isSmallCash(page);
   for (const id of ITEMS) {
@@ -49,10 +52,10 @@ test('C-01 seven big item tiles with an icon and a name (H3-j)', async ({ page }
     if (!small) expect(text, `tile-${id} must show the £5 price`).toMatch(/£5(\.00)?/);
     expect(text.trim().length, `tile-${id} must show the item name`).toBeGreaterThan(2);
   }
-  // Exactly seven tiles, in sort order, and none of the deleted ids.
+  // Exactly eight tiles, in sort order, and none of the deleted ids.
   const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
     .map((t) => t.dataset.testid.replace(/^tile-/, '')));
-  expect(rendered, 'CLAUDE.md Menu / H3 7: the till shows the seven items in sort order').toEqual(ITEMS);
+  expect(rendered, 'CLAUDE.md Menu / Phase V 7: the till shows the eight items in sort order').toEqual(ITEMS);
   for (const id of GONE) {
     expect(await tid(page, `tile-${id}`).count(), `"${id}" was deleted by H3 and must not be a tile`).toBe(0);
   }
@@ -73,7 +76,7 @@ test('C-02 the menu is seeded once on first load (H-07)', async ({ page }) => {
     return readCollection('menu');
   })();
 
-  expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu after H3: seven documents').toEqual([...ITEMS].sort());
+  expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu after Phase V: eight documents').toEqual([...ITEMS].sort());
   for (const m of menu) {
     expect(m.price, `${m._id} must be seeded at 500 pence`).toBe(500);
     expect(typeof m.name).toBe('string');
@@ -94,7 +97,8 @@ test('C-02 the menu is seeded once on first load (H-07)', async ({ page }) => {
   for (const id of GONE) {
     expect(menu.find((m) => m._id === id), `H3 deletes "${id}" and never reseeds it`).toBeUndefined();
   }
-  expect(menu.map((m) => m.sort).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+  expect(menu.find((m) => m._id === 'samosa_chat').station, 'CLAUDE.md Menu: Samosa Chat is a Chaat line').toBe('chaat');
+  expect(menu.map((m) => m.sort).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
 
   // Second load must not duplicate the seed.
   await page.reload();
@@ -278,7 +282,7 @@ test('C-06 a blank name is stored as Guest, and no tender is stored', async ({ p
   expect(Object.keys(order), 'card orders store no tender either').not.toContain('tendered');
 });
 
-test('C-10 recent orders keeps the last five from this till', async ({ page }) => {
+test('C-10 Open orders lists today\'s open orders from every till (Phase V 1)', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
 
@@ -286,52 +290,85 @@ test('C-10 recent orders keeps the last five from this till', async ({ page }) =
     await placeOrder(page, { items: { momo: 1 }, name: `Cust${i}`, payment: 'card' });
     await page.waitForTimeout(150);
   }
+  // An order from another till, placed straight into Firestore.
+  await seedDoc('orders', {
+    orderNo: 'B-003', name: 'Other Till', till: 'B', day: londonDay(), payment: 'cash', status: 'new',
+    items: [{ id: 'momo', name: 'Momo', qty: 1, price: 500 }], total: 500,
+    createdAtMs: Date.now() - 60000
+  });
 
-  // CLAUDE.md Cash 5 on tablet; H3 6 moves it to ☰ -> Recent orders below 700 px.
-  await openRecent(page);
-  for (const n of ['A-002', 'A-003', 'A-004', 'A-005', 'A-006']) {
-    await expect(tid(page, `recent-${n}`), `${n} should be in the recent list`).toBeVisible({ timeout: 10000 });
+  // CLAUDE.md Phase V 1: "today's orders from all tills with status new,
+  // preparing or ready, newest first" — no five-order limit, and not just
+  // this till. That replaces the Phase I recent strip.
+  await openOpenOrders(page);
+  for (const n of ['A-001', 'A-002', 'A-003', 'A-004', 'A-005', 'A-006', 'B-003']) {
+    await expect(openOrderRow(page, n), `${n} is open, so it must be listed`).toBeVisible({ timeout: 10000 });
   }
-  await expect(tid(page, 'recent-A-001'), 'CLAUDE.md Cash 5: the list shows the last 5 orders').toHaveCount(0);
-  await expect(tid(page, 'recent-A-006')).toContainText(/new/i);
+  expect(await listedOpenOrders(page), 'newest first')
+    .toEqual(['A-006', 'A-005', 'A-004', 'A-003', 'A-002', 'A-001', 'B-003']);
+  expect(norm(await openOrderRow(page, 'A-006').innerText())).toMatch(/new/i);
 });
 
-test('C-11 cancel is available while the order is new', async ({ page }) => {
+test('C-11 cancel from Open orders needs a reason and writes it (Phase V 3)', async ({ page }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
   await placeOrder(page, { items: { momo: 1 }, name: 'Cancel Me', payment: 'card' });
 
-  await openRecent(page);
-  const cancel = tid(page, 'cancel-A-001');
-  await expect(cancel, 'CLAUDE.md Cash 5: cancel is available while status is new').toBeVisible({ timeout: 10000 });
-  await cancel.click();
+  await openCancelDialog(page, 'A-001');
+  expect(norm(await cancelDialog(page).innerText()),
+    'CLAUDE.md Phase V 3: "Cancel A-001 for Cancel Me?"'
+  ).toMatch(/Cancel A-001 for Cancel Me\?/);
+  await expect(cancelConfirm(page), 'disabled until a reason is picked').toBeDisabled();
+  await cancelReasonButton(page, 'mistake').click();
+  await cancelConfirm(page).click();
 
   const orders = await waitForOrders((o) => o[0] && o[0].status === 'cancelled', { label: 'the order to be cancelled' });
   expect(orders[0].status).toBe('cancelled');
   expect(typeof orders[0].cancelledAtMs, 'cancelledAtMs must be stamped').toBe('number');
-  await expect(tid(page, 'recent-A-001')).toContainText(/cancel/i);
+  expect(orders[0].cancelReason, 'CLAUDE.md Phase V 3: the reason is stored').toBe('mistake');
+  expect(orders[0].cancelledFrom, 'and the status it was cancelled from').toBe('new');
+
+  await openOpenOrders(page);
+  expect(await listedOpenOrders(page), 'a cancelled order is no longer open').toEqual([]);
 });
 
-test('C-12 cancel disappears once the kitchen has started the order', async ({ page, context }) => {
+test('C-12 cancel stays available once the kitchen has started the order (Phase V)', async ({ page, context }) => {
   await openApp(page, '#/cash');
   await expect(tid(page, 'tile-momo')).toBeVisible({ timeout: 15000 });
   await placeOrder(page, { items: { momo: 1 }, name: 'Started', payment: 'card' });
-  await openRecent(page);
-  await expect(tid(page, 'cancel-A-001')).toBeVisible({ timeout: 10000 });
+  await openOpenOrders(page);
+  await expect(openCancelButton(page, 'A-001')).toBeVisible({ timeout: 10000 });
 
   const kitchen = await context.newPage();
   await kitchen.goto('/#/kitchen');
-  await kitchen.locator('[data-testid="action-A-001"]').click({ timeout: 20000 });
+  await kitchenAdvance(kitchen, 'A-001', 'new');
   await waitForOrders((o) => o[0] && o[0].status === 'preparing', { label: 'the order to start preparing' });
-  await kitchen.close();
 
+  // CLAUDE.md Phase V, status table: Preparing is still Yes for both Edit and
+  // Cancel. (Phase I's "cancel only while new" is superseded.)
   await expect
-    .poll(async () => {
-      const el = tid(page, 'cancel-A-001');
-      if (!(await el.count())) return 'gone';
-      return (await el.isDisabled()) ? 'disabled' : 'enabled';
-    }, { timeout: 10000, message: 'CLAUDE.md Cash 5: cancel is available only while status is new' })
-    .not.toBe('enabled');
+    .poll(async () => openCancelButton(page, 'A-001').isEnabled().catch(() => false),
+      { timeout: 10000, message: 'a Preparing order can still be cancelled' })
+    .toBe(true);
+  await expect(openEditButton(page, 'A-001'), 'and still edited').toBeEnabled();
+
+  // Ready: cancel only.
+  await kitchenAdvance(kitchen, 'A-001', 'preparing');
+  await waitForOrders((o) => o[0] && o[0].status === 'ready', { label: 'the order to go ready' });
+  await expect
+    .poll(async () => openEditButton(page, 'A-001').isDisabled().catch(() => false),
+      { timeout: 10000, message: 'CLAUDE.md Phase V 1: Edit is disabled for ready' })
+    .toBe(true);
+  await expect(openCancelButton(page, 'A-001'), 'a Ready order can still be cancelled').toBeEnabled();
+
+  // Collected: it leaves the list altogether.
+  await kitchenAdvance(kitchen, 'A-001', 'ready');
+  await waitForOrders((o) => o[0] && o[0].status === 'collected', { label: 'the order to be collected' });
+  await kitchen.close();
+  await expect
+    .poll(async () => listedOpenOrders(page),
+      { timeout: 10000, message: 'CLAUDE.md Phase V 1: only new, preparing and ready are open' })
+    .toEqual([]);
 });
 
 test('C-13 connection pill reads Online', async ({ page }) => {

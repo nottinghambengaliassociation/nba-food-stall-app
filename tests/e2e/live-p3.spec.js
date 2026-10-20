@@ -521,14 +521,14 @@ test('P3L-07 the range CSV downloads with the right name and the One day columns
   const text = readFileSync(await download.path(), 'utf8');
   const header = text.split(/\r?\n/)[0];
   expect(header, 'the range CSV has exactly the One day columns')
-    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds');
+    .toBe('day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason');
   expect(header, 'CLAUDE.md Phase III 10: the legacy tendered field never appears').not.toContain('tendered');
   expect(text).not.toMatch(/tendered/i);
 
   const rows = parseCsv(text);
   const col = (n) => rows[0].indexOf(n);
   for (const r of rows.slice(1)) {
-    expect(r, `row has ${r.length} fields`).toHaveLength(13);
+    expect(r, `row has ${r.length} fields`).toHaveLength(15);
     expect(Number(r[col('lineTotal')])).toBe(Number(r[col('qty')]) * Number(r[col('price')]));
     expect(r[col('day')] >= from && r[col('day')] <= to, `row day ${r[col('day')]} is outside ${from}..${to}`).toBe(true);
     expect(r[col('status')], 'cancelled orders are excluded from the export').not.toBe('cancelled');
@@ -575,9 +575,9 @@ test('P3L-09 this verification wrote nothing to live Firestore', async () => {
   const menu = await liveRead('/menu?pageSize=50');
   const ids = (menu.documents || []).map((d) => d.name.split('/').pop()).sort();
   record(`P3L-09 live menu untouched: ${ids.length} document(s) [${ids.join(', ')}]`);
-  // CLAUDE.md H3 7 reset the live menu to exactly seven documents; this used
-  // to expect the pre-H3 ten.
-  expect(ids.length, 'the menu must still hold its seven H3 documents').toBe(7);
+  // CLAUDE.md H3 7 reset the live menu and Phase V 7 adds `samosa_chat`, so
+  // the live menu is the eight-row Menu table.
+  expect(ids.length, 'the menu must still hold its eight documents').toBe(8);
 
   const event = await liveRead('/settings/event', { allow404: true });
   expect(!!event, 'settings/event must be exactly as it was found').toBe(!!LIVE_EVENT);

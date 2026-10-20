@@ -206,7 +206,9 @@ test('H4L-00 the live collections, before anything is opened', async ({}, info) 
   ORDERS_BEFORE = orders;
   MENU_BEFORE = docIds(await liveFirestore('/menu?pageSize=50'));
   record(`H4L-00 ${info.project.name}: live orders = ${orders.length} document(s), menu = ${MENU_BEFORE.length} document(s) before the check`);
-  expect(MENU_BEFORE, 'CLAUDE.md Menu / H3 7: the live menu is the seven H3 items').toHaveLength(7);
+  expect(MENU_BEFORE,
+    'CLAUDE.md Menu: the live menu is the eight-item table (Phase V 7 adds samosa_chat)'
+  ).toHaveLength(8);
 });
 
 /* ------------------------------------------------------------- H4L-01 */

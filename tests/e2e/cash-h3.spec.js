@@ -26,11 +26,17 @@ import {
   addItem, placeOrder, openCashPanel, closeCashPanel, otherAmount,
   revealOtherAmount, quickTenderButtons, quickTender, tenderText,
   expectNoConsoleErrors, waitForOrders, readCollection, shot, londonDay,
-  selectPayment, cashReceivedVisible
+  selectPayment, cashReceivedVisible,
+  // Phase V (v1.4.0): Open orders replaces the recent strip and the ☰ item.
+  openOpenOrders, openOrdersPanel, openOrderRow, listedOpenOrders, cancelOrderWithReason
 } from './helpers.js';
 
-/** CLAUDE.md -> Menu after H3: exactly seven items, in sort order. */
-const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+/**
+ * CLAUDE.md -> Menu: exactly eight items, in sort order. Phase V (v1.4.0)
+ * adds `samosa_chat` and keeps the H3 geometry: "It appears last on the till
+ * (8 tiles, still no scrolling at 390×664 on phone)".
+ */
+const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'];
 /** Ids H3 deletes outright: "Don't reuse those ids." */
 const GONE_IDS = ['fountain', 'samosa', 'straw'];
 
@@ -133,7 +139,20 @@ test.describe('H3 the small cash counter', () => {
       'CLAUDE.md H3 1: a SHORT label in a 52px one-row header'
     ).toBeLessThanOrEqual(22);
 
-    expect(norm(await header.innerText()), 'CLAUDE.md H3 1: "Next A-045"').toMatch(/Next\s+A-\d{3}/);
+    // CLAUDE.md Phase V 1: the header gains an "Orders" button with a count
+    // badge between the connection dot and ☰, and "Next A-045" moves into the
+    // ☰ menu above the version line.
+    const orders = tid(page, 'open-orders');
+    await expect(orders, 'CLAUDE.md Phase V 1: an Orders button in the phone header').toBeVisible();
+    expect(norm(await orders.innerText()) + ((await orders.getAttribute('aria-label')) || ''),
+      'CLAUDE.md Phase V 1: it reads "Orders" with the count'
+    ).toMatch(/Orders/i);
+    expect(norm(await header.innerText()),
+      'CLAUDE.md Phase V 1: "Next A-045" moves into the ☰ menu'
+    ).not.toMatch(/Next\s+A-\d{3}/);
+    await tid(page, 'menu-button').click();
+    expect(norm(await tid(page, 'app-menu').innerText()), 'CLAUDE.md Phase V 1: "Next A-045"').toMatch(/Next\s+A-\d{3}/);
+    await page.keyboard.press('Escape');
 
     const menuBtn = tid(page, 'menu-button');
     const box = await boxOf(menuBtn);
@@ -154,7 +173,10 @@ test.describe('H3 the small cash counter', () => {
     expect(await select.inputValue(),
       'CLAUDE.md H3 1: the till picker uses "the same stored till letter as the landing page"'
     ).toBe('B');
-    await expect(page.locator('header').first()).toContainText(/Next\s+B-001/);
+    // Phase V 1: the next number lives in the ☰ menu now.
+    await tid(page, 'menu-button').click();
+    await expect(tid(page, 'app-menu')).toContainText(/Next\s+B-001/);
+    await page.keyboard.press('Escape');
 
     // ... and the other way round.
     await select.selectOption('C');
@@ -175,22 +197,32 @@ test.describe('H3 the small cash counter', () => {
     ).toBe('C');
   });
 
-  test('H3-a4 "Next A-0NN" tracks the next sequence number', async ({ page }) => {
+  test('H3-a4 "Next A-0NN" tracks the next sequence number, inside the ☰ menu', async ({ page }) => {
     await openCash(page);
-    const header = page.locator('header').first();
-    await expect(header, 'a fresh till is about to issue A-001').toContainText(/Next\s+A-001/);
+    // CLAUDE.md Phase V 1: "Next A-045" moves into the ☰ menu above the
+    // version line; the header bar keeps the till, the dot, Orders and ☰.
+    const nextText = async () => {
+      await tid(page, 'menu-button').click();
+      await expect(tid(page, 'app-menu')).toBeVisible();
+      const text = norm(await tid(page, 'app-menu').innerText());
+      await page.keyboard.press('Escape');
+      await expect(tid(page, 'app-menu')).toBeHidden({ timeout: 5000 });
+      return text;
+    };
+
+    expect(await nextText(), 'a fresh till is about to issue A-001').toMatch(/Next\s+A-001/);
 
     const no = await placeOrder(page, { items: { momo: 1 }, name: 'Seq', payment: 'card' });
     expect(no).toBe('A-001');
-    await expect(header, 'after A-001 the header must advertise A-002').toContainText(/Next\s+A-002/, { timeout: 10000 });
+    expect(await nextText(), 'after A-001 the menu must advertise A-002').toMatch(/Next\s+A-002/);
 
     await placeOrder(page, { items: { momo: 1 }, payment: 'card' });
-    await expect(header).toContainText(/Next\s+A-003/, { timeout: 10000 });
+    expect(await nextText()).toMatch(/Next\s+A-003/);
   });
 
   /* ------------------------------------------------------- H3-a: the menu */
 
-  test('H3-a5 ☰ opens a menu with Food counter, Reports, Recent orders, Sign out and the version', async ({ page }) => {
+  test('H3-a5 ☰ opens a menu with Food counter, Reports, Sign out, the next number and the version', async ({ page }) => {
     const errors = await openCash(page);
     const button = tid(page, 'menu-button');
     const menu = tid(page, 'app-menu');
@@ -200,10 +232,18 @@ test.describe('H3 the small cash counter', () => {
     await expect(menu, 'CLAUDE.md H3 1: ☰ opens a dropdown').toBeVisible();
     expect(await button.getAttribute('aria-expanded')).toBe('true');
 
+    // CLAUDE.md Phase V 1: "The ☰ Recent orders item is removed" (Open orders
+    // replaces it, from its own header button).
+    expect(await tid(page, 'menu-recent').count(),
+      'CLAUDE.md Phase V 1: the ☰ Recent orders item is removed'
+    ).toBe(0);
+    expect(norm(await menu.innerText()),
+      'CLAUDE.md Phase V 1: "Next A-045" moves into the ☰ menu above the version line'
+    ).toMatch(/Next\s+[A-Z]-\d{3}/);
+
     for (const [name, label] of [
       ['menu-food', /Food counter/i],
       ['menu-reports', /Reports/i],
-      ['menu-recent', /Recent orders/i],
       ['menu-signout', /Sign out/i]
     ]) {
       const item = tid(page, name);
@@ -244,10 +284,11 @@ test.describe('H3 the small cash counter', () => {
     await expect(menu, 'CLAUDE.md H3 1: "... Escape"').toBeHidden({ timeout: 5000 });
     expect(await button.getAttribute('aria-expanded')).toBe('false');
 
-    // (c) choosing an item
+    // (c) choosing an item (Recent orders is gone in Phase V, so this uses
+    // Food counter, which also proves the menu closes on navigation)
     await button.click();
     await expect(menu).toBeVisible();
-    await tid(page, 'menu-recent').click();
+    await tid(page, 'menu-food').click();
     await expect(menu, 'CLAUDE.md H3 1: "... or choosing an item"').toBeHidden({ timeout: 5000 });
   });
 
@@ -268,11 +309,12 @@ test.describe('H3 the small cash counter', () => {
     await tid(page, 'menu-reports').click();
     await expect.poll(() => page.evaluate(() => location.hash), { timeout: 10000 }).toMatch(/^#\/reports/);
 
+    // CLAUDE.md Phase V 1: Recent orders is gone from the ☰ menu; the Open
+    // orders sheet is reached from its own header button instead.
     await gotoRoute(page, '#/cash');
     await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
-    await open();
-    await tid(page, 'menu-recent').click();
-    await expect(tid(page, 'recent-sheet'), 'CLAUDE.md H3 6: Recent orders opens a small sheet')
+    await openOpenOrders(page);
+    await expect(openOrdersPanel(page), 'CLAUDE.md Phase V 1: Orders opens a bottom sheet')
       .toBeVisible({ timeout: 10000 });
   });
 
@@ -316,12 +358,12 @@ test.describe('H3 the small cash counter', () => {
 
   /* ------------------------------------------------------------ H3-b tiles */
 
-  test('H3-b1 seven tiles in three columns, all on screen with nothing in the cart', async ({ page }, info) => {
+  test('H3-b1 eight tiles in three columns, all on screen with nothing in the cart', async ({ page }, info) => {
     const errors = await openCash(page);
 
     const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
       .map((t) => t.dataset.testid.replace(/^tile-/, '')));
-    expect(rendered, 'CLAUDE.md Menu after H3: exactly seven tiles, in sort order').toEqual(MENU_IDS);
+    expect(rendered, 'CLAUDE.md Menu after Phase V: exactly eight tiles, in sort order').toEqual(MENU_IDS);
     for (const id of GONE_IDS) {
       expect(await tid(page, `tile-${id}`).count(), `"${id}" was deleted by H3 and must not be a tile`).toBe(0);
     }
@@ -357,7 +399,7 @@ test.describe('H3 the small cash counter', () => {
     // Every tile fully inside the viewport, with nothing in the cart.
     const offscreen = geo.tiles.filter((t) => t.bottom > geo.viewport.height + TOL || t.top < -TOL);
     expect(offscreen.map((t) => `${t.id} ${r2(t.top)}..${r2(t.bottom)}`),
-      `CLAUDE.md H3 2: "All 7 tiles fit without scrolling at 390x664". At ${info.project.name} ` +
+      `CLAUDE.md H3 2 + Phase V 7: all 8 tiles fit without scrolling at 390x664. At ${info.project.name} ` +
       `(${geo.viewport.width}x${geo.viewport.height}) these fall below the fold:\n` +
       JSON.stringify(geo.tiles.map((t) => ({ id: t.id, top: r2(t.top), bottom: r2(t.bottom), h: r2(t.height) })), null, 1)
     ).toEqual([]);
@@ -366,7 +408,7 @@ test.describe('H3 the small cash counter', () => {
     expect(geo.area, 'the tiles need a scrollable menu area around them').not.toBeNull();
     expect(geo.area.scrollHeight,
       `the menu area scrolls with an empty cart (scrollHeight ${geo.area.scrollHeight} > clientHeight ${geo.area.clientHeight}); ` +
-      'CLAUDE.md H3 2 requires all 7 tiles to fit'
+      'CLAUDE.md H3 2 (8 would too) + Phase V 7 require all 8 tiles to fit'
     ).toBeLessThanOrEqual(geo.area.clientHeight + 2);
 
     for (const t of geo.tiles) {
@@ -697,7 +739,9 @@ test.describe('H3 the small cash counter', () => {
     expect(Math.abs(geo.rect.height - BAR_TARGET),
       `the Send button is ${r2(geo.rect.height)}px tall; CLAUDE.md H3 4 says 60px`
     ).toBeLessThanOrEqual(4);
-    expect(geo.text, 'CLAUDE.md H3 4: "Send to food counter · £x.xx"').toMatch(/Send to food counter\s*·\s*£35\.00/);
+    // One of each item at £5: eight after Phase V 7 added Samosa Chat.
+    expect(geo.text, 'CLAUDE.md H3 4: "Send to food counter · £x.xx"')
+      .toMatch(new RegExp(`Send to food counter\\s*·\\s*£${(MENU_IDS.length * 5).toFixed(2)}`));
 
     // Scrolling the sheet body must not take the footer with it.
     await page.evaluate(() => {
@@ -844,46 +888,52 @@ test.describe('H3 the small cash counter', () => {
     expect(info.project.name.length).toBeGreaterThan(0);
   });
 
-  /* ------------------------------------------------------- H3-g recent */
+  /* -------------------------------------------- H3-g / P5 open orders */
 
-  test('H3-g ☰ → Recent orders shows the last five with live status and Cancel', async ({ page }) => {
+  test('H3-g the Orders button opens the Open orders sheet, with live status and Cancel', async ({ page }) => {
     const errors = await openCash(page);
 
-    // The strip is no longer on the menu screen (CLAUDE.md H3 6: it "moves to
-    // ☰ → Recent orders").
+    // CLAUDE.md Phase V 1 replaces both the H3 recent sheet and the Phase I
+    // strip: the ☰ Recent orders item is gone and the header carries an
+    // "Orders" button with a count badge.
     await placeOrder(page, { items: { momo: 1 }, name: 'One', payment: 'card' });
     await expect(tid(page, 'recent-list'),
-      'CLAUDE.md H3 6: the recent strip is not on the small menu screen; it moves to ☰ -> Recent orders'
+      'CLAUDE.md Phase V 1: the recent strip is replaced by Open orders'
     ).toBeHidden();
+    expect(await tid(page, 'menu-recent').count(),
+      'CLAUDE.md Phase V 1: "The ☰ Recent orders item is removed"'
+    ).toBe(0);
 
     for (let i = 2; i <= 6; i++) {
       await placeOrder(page, { items: { momo: 1 }, name: `Cust${i}`, payment: 'card' });
       await page.waitForTimeout(150);
     }
 
-    await tid(page, 'menu-button').click();
-    await tid(page, 'menu-recent').click();
-    const sheet = tid(page, 'recent-sheet');
-    await expect(sheet, 'CLAUDE.md H3 6: a small sheet with the last 5 orders').toBeVisible({ timeout: 10000 });
+    await openOpenOrders(page);
+    const sheet = openOrdersPanel(page);
+    await expect(sheet, 'CLAUDE.md Phase V 1: a bottom sheet of today\'s open orders').toBeVisible({ timeout: 10000 });
 
-    for (const no of ['A-002', 'A-003', 'A-004', 'A-005', 'A-006']) {
-      await expect(tid(page, `recent-${no}`), `${no} should be in the recent sheet`).toBeVisible({ timeout: 10000 });
-    }
-    await expect(tid(page, 'recent-A-001'), 'only the last five').toHaveCount(0);
-    await expect(tid(page, 'recent-A-006'), 'live status').toContainText(/new/i);
+    // Every open order, newest first — no five-order limit any more.
+    expect(await listedOpenOrders(page),
+      'CLAUDE.md Phase V 1: "today\'s orders from all tills ... newest first"'
+    ).toEqual(['A-006', 'A-005', 'A-004', 'A-003', 'A-002', 'A-001']);
+    expect(norm(await openOrderRow(page, 'A-006').innerText()), 'live status').toMatch(/new/i);
 
-    // Cancel while New.
-    const cancel = tid(page, 'cancel-A-006');
-    await expect(cancel, 'CLAUDE.md H3 6: "Cancel while New"').toBeVisible();
-    await cancel.click();
+    // Cancel while New, through the Phase V reason dialog.
+    await cancelOrderWithReason(page, 'A-006', 'mistake');
     const orders = await waitForOrders(
-      (o) => o.filter((x) => x.orderNo === 'A-006').every((x) => x.status === 'cancelled')
-        && o.some((x) => x.orderNo === 'A-006'),
+      (o) => o.some((x) => x.orderNo === 'A-006' && x.status === 'cancelled'),
       { label: 'A-006 to be cancelled' });
-    for (const o of orders.filter((x) => x.orderNo === 'A-006')) expect(o.status).toBe('cancelled');
-    await expect(tid(page, 'recent-A-006')).toContainText(/cancel/i, { timeout: 10000 });
+    for (const o of orders.filter((x) => x.orderNo === 'A-006')) {
+      expect(o.status).toBe('cancelled');
+      expect(o.cancelReason, 'CLAUDE.md Phase V 3: the reason is stored').toBe('mistake');
+    }
+    await openOpenOrders(page);
+    await expect
+      .poll(async () => listedOpenOrders(page), { timeout: 10000, message: 'a cancelled order is not open' })
+      .toEqual(['A-005', 'A-004', 'A-003', 'A-002', 'A-001']);
 
-    await expectNoConsoleErrors(errors, '#/cash recent sheet');
+    await expectNoConsoleErrors(errors, '#/cash open orders sheet');
   });
 
   /* ------------------------------------------------- H3-i layout and axe */
@@ -945,15 +995,14 @@ test.describe('H3 the small cash counter', () => {
     await axe('review sheet open');
 
     await closeCashPanel(page);
-    await tid(page, 'menu-button').click();
-    await tid(page, 'menu-recent').click();
-    await expect(tid(page, 'recent-sheet')).toBeVisible();
-    await axe('recent orders sheet open');
+    await openOpenOrders(page);
+    await expect(openOrdersPanel(page)).toBeVisible();
+    await axe('open orders sheet open');
   });
 
   /* ------------------------------------------------------------ H3-j menu */
 
-  test('H3-j Marshmallow is renamed and Chocolate Fountain is gone', async ({ page }) => {
+  test('H3-j Marshmallow is renamed, Chocolate Fountain is gone, Samosa Chat is there', async ({ page }) => {
     await openCash(page);
 
     const tile = tid(page, 'tile-marshmallow');
@@ -976,8 +1025,12 @@ test.describe('H3 the small cash counter', () => {
     const [order] = await waitForOrders((o) => o.length === 1, { label: 'the marshmallow order' });
     expect(order.items[0].name, 'the order line stores the new full name').toBe('Chocolate Marshmallow (V)');
 
+    const samosaChat = tid(page, 'tile-samosa_chat');
+    await expect(samosaChat, 'CLAUDE.md Phase V 7: Samosa Chat is the eighth tile').toBeVisible();
+    expect(norm(await samosaChat.innerText()), 'its short name is "Samosa Chat"').toContain('Samosa Chat');
+
     const menu = await readCollection('menu');
-    expect(menu.map((m) => m._id).sort(), 'CLAUDE.md H3 7: the menu is exactly the seven-item table')
+    expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu: the menu is exactly the eight-item table')
       .toEqual([...MENU_IDS].sort());
   });
 });
@@ -1004,7 +1057,7 @@ test.describe('H3-h the tablet cash counter is unchanged', () => {
     expect(await heightOf(send), 'CLAUDE.md Cash 4: at least 72px on tablet').toBeGreaterThanOrEqual(71.5);
 
     // None of the H3 small-screen furniture is present.
-    for (const name of ['order-bar', 'order-bar-open', 'review-sheet', 'sheet-add-more', 'menu-button', 'app-menu', 'recent-sheet']) {
+    for (const name of ['order-bar', 'order-bar-open', 'review-sheet', 'sheet-add-more', 'menu-button', 'app-menu']) {
       const el = tid(page, name);
       if (await el.count()) {
         expect(await el.isVisible(), `"${name}" is an H3 small-screen control; the tablet layout is unchanged`).toBe(false);
@@ -1026,9 +1079,18 @@ test.describe('H3-h the tablet cash counter is unchanged', () => {
       }
     }
 
-    // The recent strip stays on the tablet screen (it only moves on phones).
+    // CLAUDE.md Phase V 1: on tablet the recent strip is replaced by the
+    // "Open orders" header button and its 480 px right-hand drawer.
     await placeOrder(page, { items: { momo: 1 }, name: 'Tablet', payment: 'card' });
-    await expect(tid(page, 'recent-A-001'), 'the tablet recent strip is unchanged').toBeVisible({ timeout: 10000 });
+    const recent = tid(page, 'recent-A-001');
+    if (await recent.count()) {
+      expect(await recent.isVisible().catch(() => false),
+        'CLAUDE.md Phase V 1: the Recent strip is gone from the tablet cash counter'
+      ).toBe(false);
+    }
+    await openOpenOrders(page);
+    await expect(openOrderRow(page, 'A-001'), 'the order is in the Open orders drawer')
+      .toBeVisible({ timeout: 10000 });
 
     await expectNoConsoleErrors(errors, '#/cash tablet');
   });

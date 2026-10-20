@@ -47,11 +47,12 @@ function atLeast(a, b) {
   return true;
 }
 
-/** CLAUDE.md -> Menu after H3: seven items, in sort order. */
-const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+/** CLAUDE.md -> Menu: eight items after Phase V 7, in sort order. */
+const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'];
 const SHORTS = {
   fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box',
-  samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow'
+  samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow',
+  samosa_chat: 'Samosa Chat'
 };
 /** Deleted by the H3 reset. Their wording must be nowhere on the till. */
 const GONE_IDS = ['fountain', 'samosa', 'straw'];
@@ -152,11 +153,11 @@ test('H3L-00 the live orders collection, before anything is opened', async ({}, 
 
 /* ------------------------------------------------------------- H3L-01 */
 
-test('H3L-01 the live menu is exactly the seven H3 documents', async ({}, info) => {
+test('H3L-01 the live menu is exactly the Menu-table documents', async ({}, info) => {
   const body = await liveFirestore('/menu?pageSize=50');
   const ids = docIds(body);
   record(`H3L-01 ${info.project.name}: live menu = ${ids.length} document(s) [${ids.join(', ')}]`);
-  expect(ids, 'CLAUDE.md Menu / H3 7: exactly the seven items').toEqual([...MENU_IDS].sort());
+  expect(ids, 'CLAUDE.md Menu: exactly the eight items').toEqual([...MENU_IDS].sort());
 
   const byId = {};
   for (const d of body.documents || []) byId[d.name.split('/').pop()] = plain(d.fields);
@@ -274,7 +275,7 @@ test('H3L-03 signed in, every route loads with no console errors and an Online p
 
 /* ------------------------------------------------------------- H3L-04 */
 
-test('H3L-04 seven tiles, three columns, all on screen with nothing in the cart', async ({ page }, info) => {
+test('H3L-04 eight tiles, three columns, all on screen with nothing in the cart', async ({ page }, info) => {
   test.skip(!C.available, 'no .secrets/app-login.env on this machine');
   const errors = attachConsole(page);
   await signInLive(page);
@@ -285,7 +286,7 @@ test('H3L-04 seven tiles, three columns, all on screen with nothing in the cart'
   const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
     .map((t) => t.dataset.testid.replace(/^tile-/, '')));
   record(`H3L-04 ${info.project.name}: ${rendered.length} tiles [${rendered.join(', ')}]`);
-  expect(rendered, 'CLAUDE.md Menu / H3 7: seven tiles, in sort order').toEqual(MENU_IDS);
+  expect(rendered, 'CLAUDE.md Menu / Phase V 7: eight tiles, in sort order').toEqual(MENU_IDS);
   for (const id of GONE_IDS) {
     expect(await tid(page, `tile-${id}`).count(), `"${id}" was deleted and must not be a tile`).toBe(0);
   }
@@ -323,7 +324,7 @@ test('H3L-04 seven tiles, three columns, all on screen with nothing in the cart'
 
     const offscreen = geo.tiles.filter((t) => t.bottom > geo.viewport.height + 1 || t.top < -1);
     expect(offscreen.map((t) => `${t.id} ${r2(t.top)}..${r2(t.bottom)}`),
-      `CLAUDE.md H3 2: "All 7 tiles fit without scrolling at 390x664". At ${info.project.name} ` +
+      `CLAUDE.md H3 2 + Phase V 7: all 8 tiles fit without scrolling at 390x664. At ${info.project.name} ` +
       `(${geo.viewport.width}x${geo.viewport.height}) these fall below the fold`
     ).toEqual([]);
     expect(geo.area.scrollHeight,
@@ -414,9 +415,15 @@ test('H3L-05 the H3 layout works end to end, read-only, and the cart is left emp
   await menuButton.click();
   await expect(appMenu, 'CLAUDE.md H3 1: ☰ opens the dropdown').toBeVisible();
   expect(await menuButton.getAttribute('aria-expanded')).toBe('true');
-  for (const item of ['menu-food', 'menu-reports', 'menu-recent', 'menu-signout']) {
+  // CLAUDE.md Phase V 1 removes the ☰ "Recent orders" item (Open orders
+  // replaces it, from its own header button) and moves "Next A-045" into the
+  // menu above the version line.
+  for (const item of ['menu-food', 'menu-reports', 'menu-signout']) {
     await expect(tid(page, item), `the ☰ menu lists ${item}`).toBeVisible();
   }
+  expect(await tid(page, 'menu-recent').count(),
+    'CLAUDE.md Phase V 1: "The ☰ Recent orders item is removed"'
+  ).toBe(0);
   await page.keyboard.press('Escape');
   await expect(appMenu, 'CLAUDE.md H3 1: Escape closes the ☰ menu').toBeHidden();
   expect(await menuButton.getAttribute('aria-expanded')).toBe('false');
@@ -663,7 +670,9 @@ test('H3L-09 a CSV export downloads and parses (read path)', async ({ page }, in
   expect(name, 'the export is named for the day on screen').toContain(day);
   expect(rows[0], 'the thirteen Phase I columns').toEqual([
     'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+    // CLAUDE.md Phase V 5: two more columns on every export.
+    'edited', 'cancelReason'
   ]);
   expect(rows.length, 'with no orders the file is the header alone').toBe(1);
   expect(text, 'the CSV must never carry the Phase I tendered field').not.toMatch(/tendered/i);
@@ -681,6 +690,6 @@ test('H3L-10 nothing was written to live Firestore', async ({}, info) => {
     .toBe(fingerprint(ORDERS_BEFORE || []));
 
   const menu = docIds(await liveFirestore('/menu?pageSize=50'));
-  expect(menu, 'the menu must be the same seven documents afterwards').toEqual([...MENU_IDS].sort());
+  expect(menu, 'the menu must be the same eight documents afterwards').toEqual([...MENU_IDS].sort());
   record(`H3L-10 ${info.project.name}: PASS - orders still empty, menu still the same seven documents`);
 });

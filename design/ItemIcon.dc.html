@@ -28,6 +28,9 @@ body{margin:0}
 <sc-if value="{{isStraw}}" hint-placeholder-val="{{ false }}">
 <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M24 43c-9-5-14.5-13-12.5-22 3-4.5 22-4.5 25 0 2 9-3.5 17-12.5 22z"></path><path d="M17 15l7 4 7-4M24 19V7"></path><path d="M19 27v.5M29 27v.5M24 33v.5"></path></svg>
 </sc-if>
+<sc-if value="{{isSamosaChat}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 26h38c0 9-8.5 16-19 16S5 35 5 26z"></path><path d="M24 6l11 17H13z"></path><path d="M19 17h10"></path></svg>
+</sc-if>
 <sc-if value="{{isBox}}" hint-placeholder-val="{{ false }}">
 <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="18" width="34" height="23" rx="2"></rect><path d="M5 12h38v6H5z"></path><path d="M24 12v29"></path><path d="M24 12c-3-6-11-6-9-1 1 2 6 1 9 1zM24 12c3-6 11-6 9-1-1 2-6 1-9 1z"></path></svg>
 </sc-if>
@@ -39,7 +42,7 @@ body{margin:0}
 </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"kind":{"editor":"enum","options":["fuchka","momo","chat","sweet_box","samosa_only","choc_strawberry","marshmallow","fountain","samosa","straw"],"default":"fuchka"},"size":{"editor":"int","default":96,"min":16,"max":200},"$preview":{"width":96,"height":96}}'>
+<script type="text/x-dc" data-dc-script data-props='{"kind":{"editor":"enum","options":["fuchka","momo","chat","sweet_box","samosa_only","samosa_chat","choc_strawberry","marshmallow","fountain","samosa","straw"],"default":"fuchka"},"size":{"editor":"int","default":96,"min":16,"max":200},"$preview":{"width":96,"height":96}}'>
 class Component extends DCLogic {
   renderVals() {
     const k = this.props.kind ?? 'fuchka';
@@ -47,7 +50,7 @@ class Component extends DCLogic {
     return {
       px: s + 'px',
       isFuchka: k === 'fuchka', isMomo: k === 'momo', isChat: k === 'chat',
-      isSamosa: k === 'samosa' || k === 'samosa_only', isStraw: k === 'straw' || k === 'choc_strawberry', isBox: k === 'sweet_box', isMallow: k === 'marshmallow', isFountain: k === 'fountain'
+      isSamosa: k === 'samosa' || k === 'samosa_only', isStraw: k === 'straw' || k === 'choc_strawberry', isBox: k === 'sweet_box', isSamosaChat: k === 'samosa_chat', isMallow: k === 'marshmallow', isFountain: k === 'fountain'
     };
   }
 }

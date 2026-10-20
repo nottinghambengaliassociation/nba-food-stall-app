@@ -1,6 +1,7 @@
 // H-07..H-18 — the menu, end to end.
 //
-// Spec: CLAUDE.md -> "Menu" (the seven-row table) and "Hotfix H3: phone cash
+// Spec: CLAUDE.md -> "Menu" (the eight-row table: seven from v1.3.1 plus
+// `samosa_chat`, added by Phase V (v1.4.0) 7) and "Hotfix H3: phone cash
 // counter layout (v1.3.1)" 7, which supersedes hotfix H1's ten-row menu:
 // `fountain` is removed, `marshmallow` is renamed, and `samosa` / `straw` are
 // gone from the seed entirely ("Don't reuse those ids"). The live database is
@@ -21,8 +22,8 @@ import {
   parseCsv, shot, isSmallCash, openCashPanel, closeCashPanel
 } from './helpers.js';
 
-/** CLAUDE.md -> Menu: the seven rows, in sort order. */
-const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
+/** CLAUDE.md -> Menu: the eight rows, in sort order (Phase V 7 adds the last). */
+const MENU_IDS = ['fuchka', 'momo', 'chat', 'sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow', 'samosa_chat'];
 const NEW_IDS = ['sweet_box', 'samosa_only', 'choc_strawberry', 'marshmallow'];
 /** Deleted by H3; an order line may still carry one. */
 const GONE_IDS = ['fountain', 'samosa', 'straw'];
@@ -34,7 +35,8 @@ const NAMES = {
   sweet_box: 'Sweet Box',
   samosa_only: 'Samosa',
   choc_strawberry: 'Chocolate Strawberry',
-  marshmallow: 'Chocolate Marshmallow (V)'
+  marshmallow: 'Chocolate Marshmallow (V)',
+  samosa_chat: 'Samosa Chat'
 };
 const SHORTS = {
   fuchka: 'Fuchka',
@@ -43,7 +45,8 @@ const SHORTS = {
   sweet_box: 'Sweet Box',
   samosa_only: 'Samosa',
   choc_strawberry: 'Choc Strawberry',
-  marshmallow: 'Choc Marshmallow'
+  marshmallow: 'Choc Marshmallow',
+  samosa_chat: 'Samosa Chat'
 };
 /** Names stored on older order lines whose ids no longer exist. */
 const LEGACY_NAMES = {
@@ -103,7 +106,7 @@ function newOrder(over = {}) {
 
 /* ------------------------------------------------------------------ H-07 */
 
-test('H-07 the seed writes seven menu documents, matching the brief table', async ({ page }) => {
+test('H-07 the seed writes eight menu documents, matching the brief table', async ({ page }) => {
   const BRIEF = {
     fuchka: { name: NAMES.fuchka, short: SHORTS.fuchka, colour: '#FDE68A', station: 'chaat', active: true, sort: 1 },
     momo: { name: NAMES.momo, short: SHORTS.momo, colour: '#BFDBFE', station: 'momo', active: true, sort: 2 },
@@ -111,7 +114,9 @@ test('H-07 the seed writes seven menu documents, matching the brief table', asyn
     sweet_box: { name: NAMES.sweet_box, short: SHORTS.sweet_box, colour: '#FED7AA', station: 'sweets', active: true, sort: 4 },
     samosa_only: { name: NAMES.samosa_only, short: SHORTS.samosa_only, colour: '#D9F99D', station: 'sweets', active: true, sort: 5 },
     choc_strawberry: { name: NAMES.choc_strawberry, short: SHORTS.choc_strawberry, colour: '#E9D5FF', station: 'sweets', active: true, sort: 6 },
-    marshmallow: { name: NAMES.marshmallow, short: SHORTS.marshmallow, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 }
+    marshmallow: { name: NAMES.marshmallow, short: SHORTS.marshmallow, colour: '#FBCFE8', station: 'sweets', active: true, sort: 7 },
+    // CLAUDE.md Phase V 7.
+    samosa_chat: { name: NAMES.samosa_chat, short: SHORTS.samosa_chat, colour: '#A5F3FC', station: 'chaat', active: true, sort: 8 }
   };
 
   const errors = await openApp(page, '#/cash');
@@ -121,13 +126,13 @@ test('H-07 the seed writes seven menu documents, matching the brief table', asyn
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       const m = await readCollection('menu');
-      if (m.length >= 7) return m;
+      if (m.length >= 8) return m;
       await new Promise((r) => setTimeout(r, 250));
     }
     return readCollection('menu');
   })();
 
-  expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu: seven rows after H3').toEqual(Object.keys(BRIEF).sort());
+  expect(menu.map((m) => m._id).sort(), 'CLAUDE.md Menu: eight rows after Phase V').toEqual(Object.keys(BRIEF).sort());
 
   for (const [id, want] of Object.entries(BRIEF)) {
     const got = menu.find((m) => m._id === id);
@@ -149,14 +154,14 @@ test('H-07 the seed writes seven menu documents, matching the brief table', asyn
 
 /* ------------------------------------------------------------------ H-08 */
 
-test('H-08 the till shows exactly the seven tiles, in sort order', async ({ page }) => {
+test('H-08 the till shows exactly the eight tiles, in sort order', async ({ page }) => {
   const errors = await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
   await page.waitForTimeout(600);
 
   const rendered = await page.evaluate(() => [...document.querySelectorAll('[data-testid^="tile-"]')]
     .map((t) => t.dataset.testid.replace(/^tile-/, '')));
-  expect(rendered, 'CLAUDE.md Menu: seven tiles, in menu sort order').toEqual(MENU_IDS);
+  expect(rendered, 'CLAUDE.md Menu: eight tiles, in menu sort order').toEqual(MENU_IDS);
 
   for (const id of GONE_IDS) {
     expect(await tid(page, `tile-${id}`).count(), `deleted "${id}" must not be sellable`).toBe(0);
@@ -181,7 +186,7 @@ test('H-08 the till shows exactly the seven tiles, in sort order', async ({ page
 
 /* ------------------------------------------------------------------ H-09 */
 
-test('H-09 every one of the seven tiles takes its own tap, the order bar covers none', async ({ page }, info) => {
+test('H-09 every one of the eight tiles takes its own tap, the order bar covers none', async ({ page }, info) => {
   const errors = await openApp(page, '#/cash');
   await expect(tid(page, 'tile-fuchka')).toBeVisible({ timeout: 20000 });
 
@@ -428,9 +433,10 @@ test('H-13 the CSV exports older lines under their stored names', async ({ page 
   const col = (n) => rows[0].indexOf(n);
   const body = rows.slice(1);
 
-  expect(rows[0]).toEqual([
+  expect(rows[0], 'CLAUDE.md Phase V 5 appends `edited` and `cancelReason`').toEqual([
     'day', 'orderNo', 'till', 'name', 'item', 'qty', 'price',
-    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds'
+    'lineTotal', 'payment', 'status', 'createdAt', 'readyAt', 'waitSeconds',
+    'edited', 'cancelReason'
   ]);
   expect(body, 'one row per order line: 2 old + 2 new').toHaveLength(4);
 
@@ -511,7 +517,7 @@ test('H-14 a new order is written with the current ids and names', async ({ page
 
 /* ------------------------------------------------------------------ H-17 */
 
-test('H-17 the seven-tile till is still accessible and correctly sized', async ({ page }) => {
+test('H-17 the eight-tile till is still accessible and correctly sized', async ({ page }) => {
   const errors = await openApp(page, '#/cash');
   await expect(tid(page, 'tile-marshmallow')).toBeVisible({ timeout: 20000 });
   await addItem(page, 'marshmallow', 1);
@@ -521,7 +527,7 @@ test('H-17 the seven-tile till is still accessible and correctly sized', async (
 
   const results = await new AxeBuilder({ page }).analyze();
   const bad = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-  expect(bad.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s)`), 'axe on the seven-tile till').toEqual([]);
+  expect(bad.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s)`), 'axe on the eight-tile till').toEqual([]);
 
   // CLAUDE.md Cash 4 ("at least 72 px") on tablet; CLAUDE.md H3 4 pins a 60 px
   // footer button and 48 px steppers in the small Review & send sheet.
