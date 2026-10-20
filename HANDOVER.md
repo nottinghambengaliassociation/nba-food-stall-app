@@ -85,6 +85,12 @@ Every screen now shows the app version. The login card carries a line reading `V
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
 
+**20 October 2026 — two orders from 19 October corrected by hand.**
+
+A-085 (Sayondeep) was rung up with a Samosa on it and A-089 (Sayantani) with a Papri Chat, and in both cases the line was mis-keyed at the till and the item was never handed over. Both orders had already been collected, and the app only lets the cash counter edit an order while it is New or Preparing, so the correction was made straight against the database by `scripts/fix-orders-p6a.mjs`, which addresses the two orders by their document id rather than by order number. Each order now holds only the item the customer actually took and comes to £5.00 instead of £10.00. Both carry the same edit record a change made at the till would have left, so Order history shows what each order was before, what it became and the £5.00 difference. Nothing else about either order moved: order number, till, date, payment method, status and every time stamp are as they were. 19 October's recorded takings drop by £10.00 as a result, from £955.00 to £945.00.
+
+Anyone reconciling 19 October should expect two gaps, and they are the same £10.00 seen from two directions. Both sales were paid by card and are still recorded as card, because that is how the money came in, but the £10.00 refunded for the two mis-keyed items was handed back out of the cash tin rather than put through the card machine. So the terminal's total for the day reads £10.00 higher than the card figure on the report, because the terminal took the full £10.00 on each of these two orders while the report now carries them at £5.00 each; and the tin comes up £10.00 light against what the report's cash figure suggests, because that £10.00 went out of the tin against two sales the report counts as card. Neither gap is a till error and neither needs chasing: both are this correction, and the day's overall sales total is right at the new figures.
+
 **20 October 2026, v1.5.0 — Order history: find any order from any day without knowing which day it was.**
 
 The Orders screen answers "what was in A-041" perfectly well, as long as you already know which day A-041 was taken. For anything older than this morning you were guessing dates one at a time. A fourth report screen, **Order history**, takes a date range instead.
