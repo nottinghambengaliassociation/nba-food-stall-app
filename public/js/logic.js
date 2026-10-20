@@ -1363,7 +1363,377 @@ export function orderChanges(order) {
       beforeSummary: orderSummary({ items: h.before.items || [] }),
       afterSummary: orderSummary({ items: action === 'cancel' ? (h.before.items || []) : (after.items || []) }),
       delta: action === 'cancel' ? 0 : editDelta(beforeTotal, afterTotal),
-      label: action === 'cancel' ? 'Cancelled' : 'Edited'
+      label: action === 'cancel' ? 'Cancelled' : 'Edited',
+      // Phase VI: the Changes boxes in the order history detail want the
+      // status the order was in and one finished sentence per line.
+      fromStatus: h.fromStatus || '',
+      fromStatusLabel: h.fromStatus ? statusLabel(h.fromStatus) : '',
+      head: changeHeadText(h, o),
+      beforeText: `${orderSummary({ items: h.before.items || [] }) || '\u2014'} \u00b7 ${formatPence(beforeTotal)}`,
+      afterText: action === 'cancel'
+        ? `${orderSummary({ items: h.before.items || [] }) || '\u2014'} \u00b7 ${formatPence(beforeTotal)}`
+        : `${orderSummary({ items: (after.items || []) }) || '\u2014'} \u00b7 ${formatPence(afterTotal)}`,
+      money: action === 'cancel'
+        ? refundText(beforeTotal, h.before.payment)
+        : changeMoneyText(editDelta(beforeTotal, afterTotal))
     };
   });
 }
+
+/** "Edited 15:13 at till A while Preparing" (CLAUDE.md Phase VI 7). */
+function changeHeadText(entry, order) {
+  const label = entry.action === 'cancel' ? 'Cancelled' : 'Edited';
+  const time = formatClock(Math.round(Number(entry.atMs) || 0));
+  const till = entry.till || (order && order.till) || '';
+  const status = entry.fromStatus ? statusLabel(entry.fromStatus) : '';
+  return `${label} ${time}`
+    + (till ? ` at till ${till}` : '')
+    + (status ? ` while ${status}` : '');
+}
+
+/**
+ * The money line in a Changes box: "Took £5.00 more", "Gave back £5.00" or
+ * "No payment change". Past tense, because history is read-only: the money
+ * moved at the till when the edit was made (CLAUDE.md Phase VI 7).
+ */
+export function changeMoneyText(delta) {
+  const d = Math.round(Number(delta) || 0);
+  if (d > 0) return `Took ${formatPence(d)} more`;
+  if (d < 0) return `Gave back ${formatPence(-d)}`;
+  return EDIT_NO_PAYMENT_CHANGE;
+}
+
+/* =========================================================================
+   Phase VI (v1.5.0): Order history
+   Read-only helpers behind #/reports/history (CLAUDE.md Phase VI,
+   design/ReportsHistory.dc.html and design/ReportsHistoryMobile.dc.html).
+   Nothing here writes: history looks at orders exactly as they are stored.
+   ========================================================================= */
+
+/** A year and a day, so a whole leap year can be asked for in one go. */
+export const HISTORY_MAX_DAYS = 366;
+export const HISTORY_TOO_LONG_MESSAGE = 'Pick 366 days or fewer';
+export const HISTORY_EMPTY_MESSAGE = 'No orders match these filters.';
+export const HISTORY_LOADING_MESSAGE = 'Loading orders…';
+export const HISTORY_ERROR_MESSAGE = 'Couldn’t load orders. Check the connection and tap Refresh.';
+export const HISTORY_LARGE_MESSAGE = 'Large range: narrow it to load faster';
+
+/** Reads stay one per order, so a very wide range is flagged, not blocked. */
+export const HISTORY_LARGE_COUNT = 5000;
+
+/**
+ * Should the "Large range: narrow it to load faster" note show? Driven by the
+ * number of orders loaded in the range, so it is testable without seeding
+ * five thousand documents (CLAUDE.md Phase VI 9).
+ */
+export function isLargeHistory(count) {
+  return Math.round(Number(count) || 0) > HISTORY_LARGE_COUNT;
+}
+
+/** The list shows this many orders, then "Show 100 more" (CLAUDE.md Phase VI 6). */
+export const HISTORY_PAGE_SIZE = 100;
+
+/** Status chips: All, Collected, Cancelled, Not finished (Phase VI 4). */
+export const HISTORY_STATUS_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'collected', label: 'Collected' },
+  { key: 'cancelled', label: 'Cancelled' },
+  { key: 'open', label: 'Not finished' }
+];
+
+/** Payment chips, the same three as the orders list. */
+export const HISTORY_PAY_FILTERS = ORDER_PAY_FILTERS;
+
+/** Every filter at rest. `order` is the selected document id, not an order number. */
+export const HISTORY_DEFAULTS = {
+  status: 'all', pay: 'all', till: 'all', item: 'all', edited: false, q: '', order: null
+};
+
+/**
+ * Tidy a From/To pair for the history screen: swap when To is before From,
+ * then enforce the 366-day maximum (CLAUDE.md Phase VI 2). A range that is
+ * too long is reported and never queried.
+ * Returns { from, to, dayCount, days, swapped, tooLong, valid, ok, error }.
+ */
+export function clampHistoryRange(from, to) {
+  let a = isDayString(from) ? from : null;
+  let b = isDayString(to) ? to : null;
+  if (!a && !b) {
+    return {
+      from: '', to: '', days: [], dayCount: 0, swapped: false,
+      tooLong: false, valid: false, ok: false, error: 'Pick a From and To date'
+    };
+  }
+  if (!a) a = b;
+  if (!b) b = a;
+  let swapped = false;
+  if (dayDiff(a, b) < 0) { const t = a; a = b; b = t; swapped = true; }
+  const dayCount = rangeLength(a, b);
+  const tooLong = dayCount > HISTORY_MAX_DAYS;
+  return {
+    from: a,
+    to: b,
+    days: tooLong ? [] : listDays(a, b),
+    dayCount,
+    swapped,
+    tooLong,
+    valid: !tooLong,
+    ok: !tooLong,
+    error: tooLong ? HISTORY_TOO_LONG_MESSAGE : null
+  };
+}
+
+/** Quick range "Last 30 days", ending today. */
+export function last30Range(today = dayString()) {
+  const end = isDayString(today) ? today : dayString();
+  return { from: addDays(end, -29), to: end };
+}
+
+/** Quick range "This year": 1 January to today. */
+export function yearRange(today = dayString()) {
+  const end = isDayString(today) ? today : dayString();
+  return { from: `${end.slice(0, 4)}-01-01`, to: end };
+}
+
+/** "Sun 18 Oct 2026", the day heading in the history list. */
+export function formatDayFull(day) {
+  return isDayString(day) ? `${weekdayShort(day)} ${formatDayLong(day)}` : '';
+}
+
+/** Does this order contain at least one unit of the given item id? */
+export function orderHasItem(order, itemId) {
+  if (!itemId || itemId === 'all') return true;
+  const items = Array.isArray(order && order.items) ? order.items : [];
+  return items.some((line) => line && line.id === itemId && Math.round(Number(line.qty) || 0) > 0);
+}
+
+/**
+ * The history filters, all of them client-side (CLAUDE.md Phase VI 4).
+ * Cancelled orders pass like any other; they are only left out of the money.
+ */
+export function filterHistory(orders, options = {}) {
+  const status = options.status || 'all';
+  const pay = options.pay || options.payment || 'all';
+  const till = options.till || 'all';
+  const item = options.item || 'all';
+  const edited = options.edited === true || options.edited === '1' || options.edited === 'true';
+  const q = String(options.q === null || options.q === undefined ? '' : options.q).trim().toLowerCase();
+
+  return (Array.isArray(orders) ? orders.filter(Boolean) : []).filter((o) => {
+    const st = o.status || 'new';
+    if (status === 'open') { if (!OPEN_STATUSES.includes(st)) return false; }
+    else if (status !== 'all' && st !== status) return false;
+    if (pay !== 'all' && (o.payment === 'card' ? 'card' : 'cash') !== pay) return false;
+    if (till !== 'all' && String(o.till || '') !== String(till)) return false;
+    if (!orderHasItem(o, item)) return false;
+    if (edited && !isEdited(o)) return false;
+    if (!q) return true;
+    const no = String(o.orderNo || '').toLowerCase();
+    const name = String(o.name || '').toLowerCase();
+    return no.includes(q) || name.includes(q);
+  });
+}
+
+/**
+ * Group orders by trading day, newest day first and newest order first inside
+ * each day (CLAUDE.md Phase VI 6). Each group carries its own summary line.
+ */
+export function groupByDay(orders) {
+  const rows = Array.isArray(orders) ? orders.filter(Boolean) : [];
+  const byDay = new Map();
+  for (const o of rows) {
+    const day = typeof o.day === 'string' ? o.day : '';
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push(o);
+  }
+  return Array.from(byDay.keys())
+    .sort((a, b) => String(b).localeCompare(String(a)))
+    .map((day) => {
+      const dayRows = sortOrdersNewestFirst(byDay.get(day));
+      const summary = summariseOrders(dayRows);
+      return {
+        day,
+        label: formatDayFull(day) || day,
+        orders: dayRows,
+        rows: dayRows,
+        count: summary.count,
+        total: summary.total,
+        cancelled: summary.cancelled,
+        meta: summary.text
+      };
+    });
+}
+
+/** Every order in the list, newest first, ignoring the day grouping. */
+export function flattenHistory(groups) {
+  const out = [];
+  for (const g of (Array.isArray(groups) ? groups : [])) out.push(...(g.orders || []));
+  return out;
+}
+
+/**
+ * The four summary tiles and the phone's one-line version (Phase VI 5).
+ * Sales exclude cancelled orders; "cancelledValue" is the money not taken.
+ */
+export function historySummary(orders) {
+  const rows = Array.isArray(orders) ? orders.filter(Boolean) : [];
+  const live = rows.filter((o) => !isCancelled(o));
+  const cancelledRows = rows.filter(isCancelled);
+  const days = new Set();
+  for (const o of rows) if (typeof o.day === 'string' && o.day) days.add(o.day);
+  const sales = live.reduce((sum, o) => sum + orderAmount(o), 0);
+  const cancelledValue = cancelledRows.reduce((sum, o) => sum + orderAmount(o), 0);
+  const edited = rows.filter(isEdited).length;
+  const tradingDays = days.size;
+  return {
+    count: rows.length,
+    orders: rows.length,
+    tradingDays,
+    days: tradingDays,
+    daysNote: `across ${tradingDays} ${tradingDays === 1 ? 'trading day' : 'trading days'}`,
+    sales,
+    salesText: formatPence(sales),
+    cancelled: cancelledRows.length,
+    cancelledValue,
+    cancelledNote: `${formatPence(cancelledValue)} not taken`,
+    edited,
+    large: isLargeHistory(rows.length),
+    text: summariseOrders(rows).text
+  };
+}
+
+/** Till letters found on the loaded orders, plus "All tills" (Phase VI 4). */
+export function historyTills(orders) {
+  const seen = new Set();
+  for (const o of (Array.isArray(orders) ? orders.filter(Boolean) : [])) {
+    const till = String((o && o.till) || '').trim();
+    if (till) seen.add(till);
+  }
+  return [{ key: 'all', label: 'All tills' }]
+    .concat(Array.from(seen).sort().map((t) => ({ key: t, label: t })));
+}
+
+/**
+ * "Any item" plus every menu item and any other id found on a loaded order
+ * line, shown by the name stored on that line (CLAUDE.md Phase VI 4).
+ */
+export function historyItems(orders) {
+  const out = [{ key: 'all', label: 'Any item' }];
+  const seen = new Set();
+  for (const m of MENU) {
+    seen.add(m.id);
+    out.push({ key: m.id, label: m.short || m.name || m.id });
+  }
+  for (const o of (Array.isArray(orders) ? orders.filter(Boolean) : [])) {
+    for (const line of (Array.isArray(o.items) ? o.items.filter(Boolean) : [])) {
+      if (!line.id || seen.has(line.id)) continue;
+      seen.add(line.id);
+      out.push({ key: line.id, label: line.name || line.id });
+    }
+  }
+  return out;
+}
+
+/** How many filters are on, for the phone "Filters (2)" button (Phase VI 4). */
+export function historyFilterCount(state = {}) {
+  let n = 0;
+  if (state.status && state.status !== 'all') n += 1;
+  if ((state.pay || state.payment) && (state.pay || state.payment) !== 'all') n += 1;
+  if (state.till && state.till !== 'all') n += 1;
+  if (state.item && state.item !== 'all') n += 1;
+  if (state.edited) n += 1;
+  return n;
+}
+
+/** "Cancelled 15:19 · Out of stock · was Preparing"; '' when not cancelled. */
+export function historyCancelLine(order) {
+  const o = order || {};
+  if (o.status !== 'cancelled') return '';
+  const reason = cancelReasonLabel(o.cancelReason);
+  const from = o.cancelledFrom ? statusLabel(o.cancelledFrom) : '';
+  return `Cancelled ${formatClock(o.cancelledAtMs)}`
+    + (reason ? ` · ${reason}` : '')
+    + (from ? ` · was ${from}` : '');
+}
+
+/** Only the edit entries of an order's history, for the Changes section. */
+export function historyEdits(order) {
+  return orderChanges(order).filter((c) => c.action === 'edit');
+}
+
+/* ------------------------------------------------------- hash round trip */
+
+const HISTORY_ROUTE = '/reports/history';
+
+/**
+ * The screen's whole state as a hash (CLAUDE.md Phase VI 2), so a link opens
+ * the same view. Defaults are left out to keep the link short and readable.
+ */
+export function historyHash(state = {}) {
+  const params = new URLSearchParams();
+  if (isDayString(state.from)) params.set('from', state.from);
+  if (isDayString(state.to)) params.set('to', state.to);
+  const status = state.status || 'all';
+  const pay = state.pay || state.payment || 'all';
+  const till = state.till || 'all';
+  const item = state.item || 'all';
+  const q = String(state.q === null || state.q === undefined ? '' : state.q).trim();
+  if (status !== 'all') params.set('status', status);
+  if (pay !== 'all') params.set('pay', pay);
+  if (till !== 'all') params.set('till', till);
+  if (item !== 'all') params.set('item', item);
+  if (state.edited) params.set('edited', '1');
+  if (q) params.set('q', q);
+  if (state.order) params.set('order', String(state.order));
+  const query = params.toString();
+  return '#' + HISTORY_ROUTE + (query ? '?' + query : '');
+}
+
+const HISTORY_STATUS_KEYS = HISTORY_STATUS_FILTERS.map((s) => s.key);
+const HISTORY_PAY_KEYS = ORDER_PAY_FILTERS.map((p) => p.key);
+
+/**
+ * Read a history hash back. Accepts the whole hash ("#/reports/history?…"),
+ * the path and query, a bare query string or a URLSearchParams. Anything
+ * unusable falls back to the default for that field, so a hand-typed or
+ * truncated link still opens a working screen.
+ */
+export function parseHistoryHash(hash) {
+  let params;
+  if (hash instanceof URLSearchParams) {
+    params = hash;
+  } else {
+    const raw = String(hash === null || hash === undefined ? '' : hash);
+    const i = raw.indexOf('?');
+    params = new URLSearchParams(i === -1 ? (raw.includes('=') ? raw : '') : raw.slice(i + 1));
+  }
+  const get = (key) => {
+    const value = params.get(key);
+    return value === null ? '' : value;
+  };
+  const status = get('status');
+  const pay = get('pay');
+  const from = get('from');
+  const to = get('to');
+  const order = get('order');
+  const edited = get('edited');
+  return {
+    from: isDayString(from) ? from : '',
+    to: isDayString(to) ? to : '',
+    status: HISTORY_STATUS_KEYS.includes(status) ? status : 'all',
+    pay: HISTORY_PAY_KEYS.includes(pay) ? pay : 'all',
+    till: get('till') || 'all',
+    item: get('item') || 'all',
+    edited: edited === '1' || edited === 'true',
+    q: get('q'),
+    order: order || null
+  };
+}
+
+/** "nba-food-stall_history_2026-10-14_2026-10-20.csv" (CLAUDE.md Phase VI 8). */
+export function historyCsvFilename(from, to) {
+  return `nba-food-stall_history_${from}_${to}.csv`;
+}
+
+/** The history export: the same columns as the orders list export. */
+export const historyToCsv = exportOrdersCsv;

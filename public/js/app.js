@@ -11,6 +11,7 @@ import { mountKitchen } from './kitchen.js';
 import { mountReports } from './reports.js';
 import { mountReportsDays } from './reports-days.js';
 import { mountReportsOrders } from './reports-orders.js';
+import { mountReportsHistory } from './reports-history.js';
 import { createVersionPill } from './app-version.js';
 
 const TILL_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -22,7 +23,8 @@ const TITLES = {
   '/kitchen': 'Food counter',
   '/reports': 'Reports',
   '/reports/days': 'Reports',
-  '/reports/orders': 'Reports'
+  '/reports/orders': 'Reports',
+  '/reports/history': 'Reports'
 };
 
 const settings = {
@@ -273,6 +275,7 @@ function mountRoute(route) {
   else if (route === '/reports') unmount = mountReports(nodes.outlet, screenCtx);
   else if (route === '/reports/days') unmount = mountReportsDays(nodes.outlet, screenCtx);
   else if (route === '/reports/orders') unmount = mountReportsOrders(nodes.outlet, screenCtx);
+  else if (route === '/reports/history') unmount = mountReportsHistory(nodes.outlet, screenCtx);
   else unmount = mountLanding(nodes.outlet, screenCtx);
 
   mountedRoute = route;

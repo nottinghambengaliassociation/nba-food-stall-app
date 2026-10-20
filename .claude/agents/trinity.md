@@ -68,7 +68,21 @@ Never create the repo under any other owner.
 
 Write `scripts/menu-sync.mjs` per CLAUDE.md "Hotfix H1". Run it against the emulator for Morpheus first. After the hotfix deploy is green, run it once against the live project (config from the gitignored `public/js/firebase-config.js`) and record what it created, retired or reported in HANDOVER.md. It never deletes and never overwrites a value that differs.
 
-## Hotfix H3
+## Phase VI
+
+Set `package.json` `version` to `1.5.0` before committing. No platform change: same rules, no index, no live writes.
+
+## Phase V (done)
+
+1. Set `package.json` `version` to `1.4.0` before committing. Firestore rules and indexes don't change.
+2. Before Morpheus's e2e run, make sure `scripts/menu-sync.mjs` reads the menu table from the `MENU` seed in `public/js/logic.js` (no hard-coded list) and creates only missing documents.
+3. After the Phase V deploy is green: run `node scripts/menu-sync.mjs` against live once. Expected result: `samosa_chat` created, nothing else changed. Record what it created or reported in HANDOVER.md. This menu document is the only permitted write to live Firestore in this run.
+
+## Hotfix H4 (done)
+
+Set `package.json` `version` to `1.3.2` before committing. Nothing else changes for the platform.
+
+## Hotfix H3 (done)
 
 1. Set `package.json` `version` to `1.3.1` before committing.
 2. Write `scripts/reset-live.mjs` per CLAUDE.md H3 point 7 (backup → delete all orders → menu exactly the 7-item table → settings untouched; `--yes` required). Confirm `.secrets/` is gitignored. Run it against the emulator for Morpheus first. Drop the H1 whitelist from `menu-sync.mjs`.

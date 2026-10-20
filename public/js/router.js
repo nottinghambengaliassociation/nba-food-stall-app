@@ -1,9 +1,9 @@
 // Hash router: #/login , #/ , #/cash , #/kitchen , #/reports , #/reports/days ,
-// #/reports/orders
+// #/reports/orders , #/reports/history
 // A route may carry a query string (#/reports?day=2026-10-18); it is stripped
 // from the path and read back with routeParam().
 
-export const ROUTES = ['/', '/login', '/cash', '/kitchen', '/reports', '/reports/days', '/reports/orders'];
+export const ROUTES = ['/', '/login', '/cash', '/kitchen', '/reports', '/reports/days', '/reports/orders', '/reports/history'];
 
 function rawHash() {
   return (typeof location !== 'undefined' ? location.hash : '') || '#/';

@@ -1,4 +1,4 @@
-# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1–H4 + Phase III + Phase IV + Phase V
+# QA test plan — Charity Food Stall POS, Phase I + Phase II + Hotfixes H1–H4 + Phase III + Phase IV + Phase V + Phase VI
 
 Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design/*.dc.html`.
 **This plan tests the brief, not the implementation.** Where the app and `CLAUDE.md` disagree, the app is wrong and a bug is raised in `qa/bugs.md`.
@@ -10,7 +10,7 @@ Author: Morpheus (QA). Source of truth: `CLAUDE.md` plus the mock-ups in `design
 In scope:
 
 - Pure logic in `public/js/logic.js` (money, order numbers, Europe/London day string, change due, cash-received parsing and change calculation, report aggregation, CSV) — unit tested with Vitest.
-- The routes `#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days` and `#/reports/orders` — end-to-end tested with Playwright against the Firestore emulator.
+- The routes `#/login`, `#/`, `#/cash`, `#/kitchen`, `#/reports`, `#/reports/days`, `#/reports/orders` and `#/reports/history` — end-to-end tested with Playwright against the Firestore emulator.
 - **Phase II Feature A** — login, session, route guard, Sign out in every header, the cash-counter discard confirm (sections 16).
 - **Phase II Feature B** — Cash received (optional): quick buttons, Other amount, the four display states, resets, that it never blocks sending, and that **nothing about it is persisted** (section 17).
 - Live data flow between two browser contexts (till → kitchen) via Firestore `onSnapshot`.
@@ -21,6 +21,7 @@ In scope:
 - **Hotfix H2 (19 Oct 2026)** — cart line alignment (sections 24–26).
 - **Phase III (19 Oct 2026)** — the Sales by day report `#/reports/days`, the One day / Sales by day toggle, the range rules and the range CSV (sections 27–28), and the app version label on the login card and in every dark header (section 29).
 - **Phase IV (19 Oct 2026)** — the Orders list and order detail `#/reports/orders`, the third report tab, the filters, the live list, the detail panel and the orders CSV (sections 32–34), and the read-only live verification of the deployed v1.3.0 (section 35).
+- **Phase VI (20 Oct 2026)** — Order history `#/reports/history`: the fourth report tab, the 366-day range, the read-only single-query load, the filters and the phone filter sheet, the day-grouped list with its 100-row cap, the detail with its Changes list and Copy link, and the history CSV (sections 56–63).
 - Live smoke against `LIVE_URL`.
 
 Out of scope (per brief): Firestore rules hardening (login is "a screen gate for volunteers, not security": `CLAUDE.md` → Login and sign out 9), Web Audio beep audibility and Screen Wake Lock behaviour (headless Chromium cannot assert these reliably — the *toggle control* is checked, the sound is not), Google Sheets integration, price editing UI.
@@ -1870,3 +1871,546 @@ with a count and a fingerprint of `orders` plus the `menu` ids.
 
 Screenshots `qa/screenshots/live-p5-<project>-<state>.png`, 25 files across the
 two viewports.
+
+---
+
+# Phase VI — Order history in Reports (`#/reports/history`, v1.5.0)
+
+Spec: `CLAUDE.md` → "Phase VI: Order history in Reports (v1.5.0)", requirements
+1–10, plus Design and Technical constraints; the mock-ups
+`design/ReportsHistory.dc.html` (tablet/desktop) and
+`design/ReportsHistoryMobile.dc.html` (phone); the logic names and test ids
+fixed in `.claude/agents/neo.md`.
+
+**This plan tests the brief, not the implementation.** Where the app and
+`CLAUDE.md` disagree, the app is wrong and the failure is logged in
+`qa/bugs.md`. **Read-only screen: it must write nothing, and it must not
+listen.**
+
+| Req | What it says | Covered by |
+|---|---|---|
+| 1 | Fourth tab on every report screen; phone labels One day / By day / Orders / History; the row scrolls sideways, no horizontal page scroll | P6-01, P6-02, P6-03 |
+| 2 | From/To, five quick buttons, This event hidden without `settings/event`, swap, 366-day cap with `history-range-error`, state in the hash | P6-04…P6-08, P6-26, P6-U-01, P6-U-06 |
+| 3 | One `getDocs` per range change, **not** a listener, Refresh, loading and error states | P6-09, P6-10, P6-11, P6-12 |
+| 4 | Search, Status, Payment, Till, Item, Edited only, phone Filters sheet, Clear filters keeps the range | P6-13…P6-18, P6-U-02 |
+| 5 | Summary tiles (tablet) / one summary line (phone), all reflecting range and filters | P6-19, P6-U-04 |
+| 6 | Grouped by day newest first, day header totals, tablet columns, phone cards, 100 then "Show 100 more (<n> left)", empty message | P6-20…P6-23, P6-U-03 |
+| 7 | Detail: fields, cancelled box, timeline with edits, Changes boxes, Copy link, Open this day in Orders, the note, pre-Phase-V orders | P6-24…P6-30, P6-U-05 |
+| 8 | Export CSV: every matched order, Orders columns incl. `edited` and `cancelReason`, `nba-food-stall_history_<from>_<to>.csv` | P6-31, P6-U-07 |
+| 9 | One read per order in range; "Large range: narrow it to load faster" past 5,000 | P6-09, P6-32 (gated) |
+| 10 | `package.json` 1.5.0 and the header label reads v1.5.0 | P6-U-09 pins the number; the existing `V-*` suite checks every label follows `package.json`; `P6L-02`/`P6L-03` check it live |
+
+## 56. Phase VI scope and where it runs
+
+| Suite | File | Projects |
+|---|---|---|
+| Unit — the new pure logic, the hash, the history CSV | `tests/unit/history.test.js` | node |
+| Unit — shared fixture | `tests/unit/history-fixtures.js` | node |
+| E2E — the whole screen | `tests/e2e/reports-history.spec.js` | `tablet`, `phone` |
+| E2E — paging and the >100 export | `tests/e2e/reports-history.spec.js` (`@slow` describe) | `tablet`, `phone` |
+| E2E — live, gated | `tests/e2e/live-p6.spec.js` (written after the deploy) | `tablet`, `iphone13` |
+
+Both e2e projects are the two the brief names: `phone` 390×844 and `tablet`
+1280×800. `iphone13` is **not** added to the emulator run — Phase VI adds no
+geometry claim that only a 664 px-tall phone can falsify (the one small-screen
+claim, the sideways-scrolling tab row, is asserted at 360×740 inside the
+`phone` project, which is stricter). It is used for the live check because the
+brief's phone layout is written against a real phone.
+
+## 57. The DOM contract this suite assumes
+
+`.claude/agents/neo.md` fixes the Phase VI test ids, so they are used first;
+every locator also falls back to the role, the label or the wording that
+`CLAUDE.md` and the mock-ups fix, so a case fails on behaviour rather than on
+a spelling.
+
+| Element | Test id (`neo.md`) | Fallback the test accepts |
+|---|---|---|
+| The fourth tab | `report-view-history` | a link/button named "Order history" / "History" in the report tab row |
+| Range inputs | `history-from`, `history-to` | `input[type=date]` labelled From / To |
+| Quick ranges | `history-range-today`, `-7d`, `-30d`, `-event`, `-year` | buttons named Today / Last 7 days / Last 30 days / This event / This year |
+| Too-long range | `history-range-error` (**brief**) | `role="alert"` holding "Pick 366 days or fewer" |
+| Refresh | `history-refresh` | a button named "Refresh" |
+| Loading / failure | `history-loading`, `history-error` | the text "Loading orders…" / `role="alert"` holding "Couldn't load orders." |
+| Search | `history-search` | input labelled/placeholdered "Search order number or name" |
+| Status / Payment | `history-status-<all\|collected\|cancelled\|open>`, `history-pay-<all\|cash\|card>` | buttons named All / Collected / Cancelled / Not finished, All / Cash / Card inside a group labelled Status / Payment |
+| Till / Item | `history-till`, `history-item` | `select` labelled Till / Item |
+| Edited only / Clear | `history-edited`, `history-clear` | buttons named "Edited only" / "Clear filters" (phone: "Clear") |
+| Phone sheet | `history-filters-open`, `history-filters-sheet` | a "Filters" button and `[role="dialog"][aria-label*="Filters"]` |
+| Summary | `history-kpi-orders`, `-sales`, `-cancelled`, `-edited`, `history-summary` | the tile text / the phone one-liner |
+| Day header | `history-day-<YYYY-MM-DD>` | the row holding the day label and its meta |
+| Row / open | `history-row-<docId>`, `history-open-<docId>` | a `<button>` whose `aria-label` names the order and its day |
+| Paging / empty | `history-more`, `history-empty` | a button "Show 100 more (<n> left)" / the text "No orders match these filters." |
+| Detail | `history-detail`, `history-detail-empty`, `history-changes`, `history-back` | the panel, "Select an order to see its items and history.", the "Changes" heading, "‹ Order history" |
+| Detail actions | `history-copy-link`, `history-open-day` | buttons named "Copy link to this order" / "Open this day in Orders" |
+| Export | `history-export-csv` | a button named "Export these orders (CSV)" |
+
+Logic names (`neo.md`, Phase VI): `clampHistoryRange`, `filterHistory`,
+`groupByDay`, `historySummary`, `orderChanges`, `historyHash`,
+`parseHistoryHash`, `historyCsvFilename`. Each unit case resolves its function
+from that name plus a short alias list and fails with the list it tried.
+
+## 58. The scripted history fixture (hand-calculated)
+
+New fixtures: `historyFixture(today)` / `historyExpect(today)` /
+`seedHistoryRange(today)` in `tests/e2e/helpers.js`, and the same table with
+absolute days (anchor `2026-10-20`, Tue, BST) in
+`tests/unit/history-fixtures.js`. Every item is £5 (500p). Document ids are
+**fixed** (`h01`…`h15`) because requirement 2 puts `order=<docId>` in the hash
+and requirement 7 copies a link to it — `seedDoc(collection, data, id)` already
+takes an id.
+
+Days are offsets from today (`T`), so the default **Last 7 days** = `T-6…T`
+and **Last 30 days** = `T-29…T`:
+
+| id | day | orderNo | time | name | till | pay | status | items | total | extras |
+|---|---|---|---|---|---|---|---|---|---|---|
+| h01 | T | A-003 | 13:12 | Ruma | A | card | collected | 2× Samosa Chat | £10.00 | |
+| h02 | T | A-002 | 13:05 | Guest | A | cash | **cancelled** | 1× Momo | £5.00 | `cancelledFrom: "new"`, `cancelReason: "mistake"`, cancel history entry |
+| h03 | T | **A-001** | 12:58 | Arjun | A | card | collected | 1× Fuchka, 1× Samosa Chat | £10.00 | |
+| h04 | T-1 | B-012 | 15:20 | Meera | B | card | **ready** | 1× Momo, 1× Sweet Box | £10.00 | |
+| h05 | T-1 | A-031 | 15:10 | Ahmed | A | cash | collected | 3× Momo | £15.00 | `editCount 1`, edit at 15:13 from `preparing` at till A, `before` 2× Momo + 1× Papri Chat £15.00, `deltaPence 0` |
+| h06 | T-1 | A-030 | 15:02 | Priya | A | card | collected | 2× Fuchka, 1× Choc Marshmallow | £15.00 | |
+| h07 | T-3 | A-012 | 11:40 | Tom | A | cash | **preparing** | 1× Samosa, 1× Choc Strawberry | £10.00 | |
+| h08 | T-3 | C-001 | 11:05 | Dev | **C** | card | **cancelled** | 1× Fuchka | £5.00 | `cancelledFrom: "ready"`, `cancelReason: "not_collected"`, cancelled 11:23 |
+| h09 | T-6 | **A-001** | 16:40 | Josh | A | card | **new** | 1× Papri Chat, 2× Choc Marshmallow | £15.00 | |
+| h10 | T-6 | B-002 | 16:31 | Sohini | B | cash | collected | 2× Sweet Box | £10.00 | `editCount 2`; edit 1 at 16:33 from `new` at till **B**, `before` 1× Sweet Box £5.00, `deltaPence +1000`; edit 2 at 16:36 from `preparing` at till **A**, `before` 3× Sweet Box £15.00, `deltaPence −500` |
+| h11 | T-7 | A-007 | 12:30 | Lucy | A | cash | collected | 2× Fuchka | £10.00 | **Phase I order**: carries `tendered: 2000`, and **no** `editCount`, `history`, `cancelReason` or `changeSeenAtMs` at all |
+| h12 | T-13 | B-005 | 18:05 | Nadia | B | card | collected | 1× **`fountain`** (unknown id, line name "Chocolate Fountain"), 1× Momo | £10.00 | |
+| h13 | T-29 | A-050 | 10:10 | Imran | A | cash | collected | 3× Papri Chat | £15.00 | first day of Last 30 |
+| h14 | T-30 | **A-001** | 09:15 | Ekta | A | card | collected | 1× Sweet Box | £5.00 | one day **outside** Last 30 |
+| h15 | T-39 | B-001 | 19:45 | Raj | B | cash | collected | 2× Momo | £10.00 | oldest seeded day |
+
+Timestamps: `startedAtMs` = placed + 2 min, `readyAtMs` = placed + 6 min,
+`collectedAtMs` = placed + 8 min for collected orders; a `ready` order has
+placed/started/ready; `preparing` has placed/started; `new` has placed only;
+h02 is cancelled at 13:09 with no started/ready; h08 is cancelled at 11:23
+after reaching ready. So **Wait is 6 min** for every order that reached ready
+(h01, h03, h04, h05, h06, h08, h10…h15) and **"—"** for h02, h07 and h09.
+
+`settings/event` is seeded (where a case needs it) as
+`{name: "Durga Puja 2026", from: T-3, to: T-1}`.
+
+### 58.1 Hand-calculated expectations
+
+Quick ranges (all filters clear):
+
+| Range | Inputs | Orders | Sales | Cancelled | Trading days | Edited |
+|---|---|---|---|---|---|---|
+| **Last 7 days (default)** | `T-6` … `T` | **10** (h01…h10) | **£95.00** | 2 (£10.00 not taken) | **4** (T, T-1, T-3, T-6) | 2 |
+| Today | `T` … `T` | 3 | £20.00 | 1 (£5.00) | 1 | 0 |
+| Last 30 days | `T-29` … `T` | 13 (+h11, h12, h13) | £130.00 | 2 | 7 | 2 |
+| This event | `T-3` … `T-1` | 5 (h04…h08) | £50.00 | 1 | 2 | 1 |
+| This year | `1 Jan` … `T` | **computed from the fixture**, not a literal (see reading 62.9) | | | | |
+
+Day headers in the default view (newest day first):
+
+| Day header | Meta |
+|---|---|
+| `T` | `3 orders · £20.00 (excludes 1 cancelled)` |
+| `T-1` | `3 orders · £40.00` |
+| `T-3` | `2 orders · £10.00 (excludes 1 cancelled)` |
+| `T-6` | `2 orders · £25.00` |
+
+Row order in the default view: **h01, h02, h03, h04, h05, h06, h07, h08, h09,
+h10** (day newest first, then order newest first inside the day).
+
+Filters over the default range (count = rows shown, including cancelled;
+sales = non-cancelled only):
+
+| Filter | Rows | Orders | Sales | Cancelled in view |
+|---|---|---|---|---|
+| none | all | 10 | £95.00 | 2 |
+| Status Collected | h01, h03, h05, h06, h10 | 5 | £60.00 | 0 |
+| Status Cancelled | h02, h08 | 2 | **£0.00** | 2 |
+| Status Not finished | h04, h07, h09 | 3 | £35.00 | 0 |
+| Pay Cash | h02, h05, h07, h10 | 4 | £35.00 | 1 |
+| Pay Card | h01, h03, h04, h06, h08, h09 | 6 | £60.00 | 1 |
+| Till A | h01, h02, h03, h05, h06, h07, h09 | 7 | £75.00 | 1 |
+| Till B | h04, h10 | 2 | £20.00 | 0 |
+| Till C | h08 | 1 | £0.00 | 1 |
+| Item Momo | h02, h04, h05 | 3 | £25.00 | 1 |
+| Item Samosa Chat | h01, h03 | 2 | £20.00 | 0 |
+| Edited only | h05, h10 | 2 | £25.00 | 0 |
+| search `a-00` | h01, h02, h03, h09 | 4 | £35.00 | 1 |
+| search `a-001` | h03 (day T), h09 (day T-6) | 2 | £25.00 | 0 |
+| search `ahmed` / `AHMED` / `  ahmed  ` | h05 | 1 | £15.00 | 0 |
+| search `zzz` | — | 0 | £0.00 | 0 |
+| Collected + Cash + Till A | h05 | 1 | £15.00 | 0 |
+| Not finished + Card | h04, h09 | 2 | £25.00 | 0 |
+| Cancelled + Till B | — | 0 | £0.00 | 0 |
+
+Option lists derived from the loaded orders (requirement 4):
+
+- Till, default range: **All tills, A, B, C**. Till, Today range: **All tills,
+  A** only (B and C are not loaded).
+- Item, default range: the 8 menu items and **no** "Chocolate Fountain". Item,
+  Last 30 days: the 8 menu items **plus** "Chocolate Fountain" (h12's unknown
+  id, by its stored line name). Selecting it leaves exactly h12.
+
+### 58.2 The paging fixture
+
+`historyBulkFixture()` / `seedHistoryBulk()` — used only by the paging and
+big-export cases, in their own `describe` that clears Firestore first:
+
+230 orders, each 1× Fuchka, £5.00, card, till A, collected: **90 on `T`**
+(A-001…A-090, 10:00 stepping 1 min), **90 on `T-1`**, **50 on `T-2`**. All
+inside the default range.
+
+- First render: 100 rows shown (all 90 of `T`, then the 10 newest of `T-1`),
+  button reads **"Show 100 more (130 left)"**.
+- After one tap: 200 rows, **"Show 100 more (30 left)"**.
+- After a second tap: 230 rows, no button.
+- Summary: `230 orders · £1150.00`, 3 trading days, 0 cancelled.
+- CSV straight after the first render: **230 data rows**, not 100.
+
+### 58.3 Fixture gaps (new work this phase)
+
+Nothing existing covers a multi-day history, so all of the following are new:
+
+1. **A range longer than a week.** `rangeFixture` spans 7 days inside one
+   month; Phase VI needs 40 days and day boundaries at `T-6/T-7`, `T-29/T-30`.
+   → `historyFixture` / `seedHistoryRange`.
+2. **More than 100 orders in one range,** and a bulk seeder. Seeding 230
+   documents one REST POST at a time is ~230 round trips; `seedHistoryBulk`
+   should use the emulator's `documents:batchWrite` endpoint (≤500 writes a
+   call, so one call), with the per-document path as a fallback and the
+   `describe` tagged `@slow`.
+3. **The same order number on two different days** (h03/h09/h14 are all
+   `A-001`). No existing fixture has this, and requirement 2 depends on it
+   ("Order numbers repeat across days, so every result shows its date").
+4. **A third till letter.** Every existing fixture stops at A and B; the Till
+   list is built from the loaded orders, so h08 is till **C**.
+5. **A pre-Phase-V order in a range** — `tendered` present, `history` /
+   `editCount` absent (h11). `ordersFixture` has one, but on a single day.
+6. **An unknown item id in a range** (h12 `fountain`), for the Item list's
+   "any other item id found on loaded order lines" and the plate-icon
+   fallback. `cash-h3.spec.js` has one, on the till only.
+7. **Multi-entry `history`** (h10, two edits) so `orderChanges` has to chain
+   each entry's `after` from the next entry's `before`. Phase V fixtures stop
+   at one edit.
+8. **Clipboard permissions** — a `withClipboard(context)` helper granting
+   `clipboard-read` / `clipboard-write` (127.0.0.1 is a secure context).
+9. **A query-failure hook** — `blockFirestoreQueries(page)` (abort the matching
+   requests) and `delayFirestoreQueries(page, ms)`, so `history-loading` and
+   `history-error` can be observed deterministically.
+10. **A range-query counter** — `countRangeQueries(page, from)`: requests to
+    the emulator whose body mentions the range bounds, split by whether the
+    path is a one-shot query or a `Listen` channel.
+
+## 59. Phase VI unit cases — `tests/unit/history.test.js` (`P6-U-*`)
+
+| id | Case | Expected (`CLAUDE.md` Phase VI) |
+|---|---|---|
+| P6-U-01 | `clampHistoryRange` | To before From swaps them; equal days are a 1-day range; 366 days (`from = to − 365`) is **valid**; 367 days is **invalid** with the message "Pick 366 days or fewer"; the five quick ranges resolve to Today `T…T`, Last 7 `T-6…T`, Last 30 `T-29…T`, This year `<yyyy>-01-01…T`, This event the `settings/event` bounds; a garbage or missing day is rejected without throwing. Counting is **inclusive**, as `clampRange` is in Phase III (2) |
+| P6-U-02 | `filterHistory` | Every row of the filter table in 58.1, by count and by order number, plus: search is a case-insensitive, trimmed substring of **order number or name only** (an item name matches nothing); blank search matches everything; `item` matches an order **containing** that id, including the unknown `fountain`; `edited` is `editCount > 0` and never throws on an order without the field; `status: "open"` means new, preparing **or** ready; cancelled orders are filtered like any other, never hidden; `null` / `[]` / no options at all do not throw; the input array is not reordered or mutated (3, 4) |
+| P6-U-03 | `groupByDay` | Days newest first, orders newest first inside a day; the default fixture gives `[T, T-1, T-3, T-6]` with `[h01,h02,h03]`, `[h04,h05,h06]`, `[h07,h08]`, `[h09,h10]`; each group carries its own count, its non-cancelled total and its cancelled count; a day with only cancelled orders totals £0.00 and still appears; an order with no `createdAtMs` sorts last rather than throwing (6) |
+| P6-U-04 | `historySummary` | Default range: `orders 10`, `tradingDays 4`, `sales 9500`, `cancelled 2`, `cancelledValue 1000`, `edited 2`. Every filter row of 58.1 recomputed. An empty list gives zeroes, never `NaN`. Money is integer pence throughout; the phone one-liner reads `10 orders · £95.00 (excludes 2 cancelled)` and drops the clause entirely when nothing in view is cancelled (5, Phase IV 4) |
+| P6-U-05 | `orderChanges` | h05 → one box, head "Edited 15:13 at till A while Preparing", before "2× Momo, 1× Papri Chat · £15.00", after "3× Momo · £15.00", money "**No payment change**". h10 → two boxes, oldest first: "Edited 16:33 at till B while New" (before 1× Sweet Box £5.00, after 3× Sweet Box £15.00, "**Took £10.00 more**") then "Edited 16:36 at till A while Preparing" (before 3× Sweet Box £15.00, after 2× Sweet Box £10.00, "**Gave back £5.00**") — the last entry's "after" is the order **as stored**. h11 (no `history`) and h01 (never edited) → **`[]`**, no throw. A cancel entry in `history` is **not** an edit box. Times are Europe/London (7) |
+| P6-U-06 | `historyHash` / `parseHistoryHash` | Round trip for every param — `from`, `to`, `status`, `pay`, `till`, `item`, `edited=1`, `q`, `order` — with `q` URL-encoded (spaces, `&`, `#`, a UTF-8 name). Defaults are omitted from the hash (a clean default view is `#/reports/history` or only `from`/`to`). `parseHistoryHash` ignores unknown params, rejects a bad day without throwing and survives a double `?`. `historyHash(parseHistoryHash(h)) === h` for a canonical hash (2) |
+| P6-U-07 | The history CSV | `historyCsvFilename(from, to)` = `nba-food-stall_history_<from>_<to>.csv`. The body is the **Orders** CSV: header exactly `day,orderNo,till,name,item,qty,price,lineTotal,payment,status,createdAt,readyAt,waitSeconds,edited,cancelReason`; one row per order line of **every matched order** (default range = 10 orders = **15 lines**), newest first like the list; `edited` is `yes` for h05/h10 and `no` elsewhere; `cancelReason` is `mistake` for h02, `not_collected` for h08 and blank everywhere else; cancelled orders **are** exported (Phase IV reading 34.6); h12's unknown line exports as "Chocolate Fountain"; h11's `tendered` appears nowhere; a name with a comma is quoted; an empty match gives a header and nothing else (8) |
+| P6-U-08 | Read-only and pure | Filtering, grouping, summarising, building changes, building the hash and exporting leave every order object byte-identical, and `logic.js` still imports nothing from Firebase (heading, Technical constraints) |
+| P6-U-09 | The version | `package.json` `version` is **`1.5.0`**. **This replaces the `1.4.0` assertion in `P5-U-09`** (10) |
+| P6-U-10 | The 5,000 warning | The summary exposes the order count the screen needs to decide; at 5,000 and above the "Large range: narrow it to load faster" note is called for, below it is not. Pure-function level only; see P6-32 for the screen (9) |
+
+## 60. Phase VI end-to-end cases — `#/reports/history` (`P6-*`, `tablet` + `phone`), `tests/e2e/reports-history.spec.js`
+
+Each test clears Firestore and seeds `seedHistoryRange()` (and, where named,
+`settings/event`). The orchestrator's labels `P6-a`…`P6-i` map to the cases in
+the right-hand column.
+
+### Tabs and layout (req 1) — `P6-a`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-01 | The fourth tab is on all four report screens | `report-view-history` is present and at least 48 px tall on `#/reports`, `#/reports/days`, `#/reports/orders` and `#/reports/history`; labels read **One day / Sales by day / Orders / Order history** on tablet and **One day / By day / Orders / History** on phone |
+| P6-02 | Navigation both ways and direct load | Every tab navigates and renders from every other tab; `#/reports/history` loads directly from a cold page; on it the History pill is filled ink `#1C1917` with `aria-current="page"` and no other tab is filled |
+| P6-03 | The phone tab row scrolls sideways, the page does not | At 390 px and again at **360 px**: the tab row's `scrollWidth` may exceed its `clientWidth` (it scrolls) but it does not wrap (all four pills share one row, top edges within 2 px) and `document.documentElement.scrollWidth <= clientWidth + 1`. Repeated with the detail open and with the filter sheet open |
+
+### Range (req 2) — `P6-b`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-04 | The default range | On a cold load `history-from` = `T-6` and `history-to` = `T`, the Last 7 days button is `aria-pressed`, and exactly the 10 hand-counted orders are listed with the four day headers of 58.1. h11 (T-7) is **absent** — the boundary is proved by a day that has data |
+| P6-05 | Each quick button | Today → `T…T`, 3 orders; Last 30 days → `T-29…T`, 13 orders (h11, h12, h13 join; h14 at T-30 does **not**); This year → `<yyyy>-01-01…T` with the computed set; each sets both inputs and marks itself pressed |
+| P6-06 | This event | Without `settings/event` the button is **absent** (not merely disabled). With it seeded (`T-3…T-1`) it appears, sets those inputs and lists the 5 hand-counted orders for £50.00 |
+| P6-07 | To before From swaps | Typing `To = T-6` then `From = T` leaves the inputs as `T-6` / `T` (swapped, not an error) and lists the default 10 |
+| P6-08 | The 366-day cap, and that it makes no query | `From = T-365` (366 days) is accepted, queries and renders. `From = T-366` (367 days) shows `history-range-error` reading exactly **"Pick 366 days or fewer"**, the list keeps whatever it last showed, and **no request carrying the new bounds reaches the emulator** (the P3-11 collector). Correcting the range clears the error and queries once |
+
+### Reads: one query, no listener (req 3, 9) — `P6-h`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-09 | Exactly one query per range change, none per filter change | With the request collector attached: a cold load = **1** range query; each quick-button tap = **1**; `history-refresh` = **1**; changing Status, Payment, Till, Item, Edited only or the search box = **0**; opening a detail = **0**; paging with "Show 100 more" = **0**; exporting = **0**. (A From-then-To edit is two range changes and may make two queries — reading 62.4) |
+| P6-10 | It is not a live listener | With the history screen open on the default range, a second context (a) places a new order today on `#/cash` and (b) takes h04 from Ready to Collected on `#/kitchen`. After 3 s the history list is **unchanged**: still 10 rows, h04 still Ready, summary still `10 orders · £95.00`. Tapping **Refresh** then shows 11 rows and h04 Collected. Additionally, no `Listen`-channel request carrying the range bounds was made |
+| P6-11 | Loading | With the range query delayed 2 s, `history-loading` reading "Loading orders…" is visible before the rows and gone after them; Refresh shows it again |
+| P6-12 | Failure | With the range query forced to fail, `history-error` is a `role="alert"` reading exactly **"Couldn't load orders. Check the connection and tap Refresh."**, Refresh is still usable, and restoring the network plus Refresh renders the list. The `context.setOffline(true)` variant is asserted on a **cold** context (nothing cached) for the same result; an offline reload with a warm cache may legitimately serve cached rows instead (reading 62.5) |
+| P6-13 | It writes nothing | The P4-15 classifier over the whole flow (range changes, every filter, search, paging, opening three details, Copy link, Open this day, export): zero document writes, the `orders` fingerprint unchanged, still 15 documents |
+
+### Filters (req 4) — `P6-c`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-14 | Status | Each of All / Collected / Cancelled / Not finished leaves exactly the hand-calculated rows of 58.1 and is the one with `aria-pressed="true"`; **Not finished** returns h04 (ready), h07 (preparing) and h09 (new) |
+| P6-15 | Payment, Till, Item, Edited only | Each row of 58.1 by rows, count and total. The Till `select` offers **All tills, A, B, C** in the default range and only **All tills, A** in the Today range. The Item `select` offers the 8 menu items in the default range and gains **Chocolate Fountain** in Last 30 days, where choosing it leaves only h12. Edited only leaves h05 and h10 |
+| P6-16 | Search | `a-00`, `a-001`, `ahmed`, `AHMED`, `  ahmed  `, `zzz` as in 58.1; `a-001` returns **two rows under two different day headers**, proving every result shows its date; `fuchka` (an item name) matches nothing |
+| P6-17 | Combinations and Clear filters | Collected + Cash + Till A → h05 only; Not finished + Card → h04, h09; Cancelled + Till B → `history-empty` reading exactly "No orders match these filters.". **Clear filters** resets status, payment, till, item, edited and search **but keeps the range** (still `T-29…T` with 13 orders after being set to Last 30) |
+| P6-18 | The phone Filters sheet | Phone only: no status/payment controls on the list itself; `history-filters-open` is a button labelled **Filters** whose text carries the **count of active filters** (0 → no count, then 1, 2, 3 as status, till and Edited only are set); it opens `history-filters-sheet` (`role="dialog"`, bottom sheet) holding Status, Payment, Till, Item and Edited only; the footer button reads **"Show 3 orders"** and matches what the list then shows; **Clear** resets them; the sheet closes on the footer button, on a backdrop tap and on Escape; focus moves into it and back to the Filters button |
+
+### Summary (req 5) — `P6-c`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-19 | The tiles and the phone line | Tablet: `history-kpi-orders` **10** with the note "across 4 trading days"; `history-kpi-sales` **£95.00** with "excludes cancelled"; `history-kpi-cancelled` **2** with "£10.00 not taken"; `history-kpi-edited` **2**. Phone: `history-summary` reads `10 orders · £95.00 (excludes 2 cancelled)`. All four follow every range and filter change (re-checked for Today, Last 30, Status Collected, Status Cancelled → `2 orders · £0.00 (excludes 2 cancelled)`, and Edited only). With nothing cancelled in view the "(excludes …)" clause is **absent** |
+
+### The list (req 6) — `P6-d`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-20 | Grouping and order | Day headers `T`, `T-1`, `T-3`, `T-6` in that order, each labelled like "Sun 18 Oct 2026" (weekday, day, month, **year**); rows inside each day newest first; the whole rendered sequence is h01…h10 |
+| P6-21 | Day header totals | Each header's right-hand meta matches 58.1 exactly, including "(excludes 1 cancelled)" on `T` and `T-3` and its absence on `T-1` and `T-6` |
+| P6-22 | Row contents | Tablet: Time, Order (a real `<button>` with an `aria-label` naming the order **and its day**), Name, Items in menu `short` names (`2× Momo, 1× Papri Chat`), Total, Pay, Till, Status pill in the Phase IV colours; h05 and h10 carry an amber **Edited** tag in the Items cell and no other row does; h02 and h08 show their total in grey **and struck through**; h12's line reads "Chocolate Fountain". Phone: the Phase IV cards under the same day headings, each with number, name, status pill, items, `HH:MM · Cash · till A` and the total |
+| P6-23 | Paging and the empty state | With `seedHistoryBulk()`: 100 rows, then "Show 100 more (130 left)" → 200 rows and "(30 left)" → 230 rows and the button gone; summary and day headers never change while paging. With `zzz` searched: `history-empty` and no day headers at all |
+
+### Detail (req 7) — `P6-e`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-24 | Nothing selected | Tablet starts with `history-detail-empty` reading "Select an order to see its items and history."; phone starts on the list with no detail |
+| P6-25 | Every field | Opening h10 shows its **date** and order number `B-002`, name Sohini, the Collected pill, Till **B**, Payment Cash, Wait **6 min**, the two item lines with icons, quantities and line totals, and Total **£10.00**; and the note verbatim: "Read-only history. Nothing here changes an order. Cancelled orders are listed but excluded from every total." |
+| P6-26 | The cancelled box | h08 shows a red box reading "Cancelled 11:23 · Not collected · was Ready" (the reason's **label**, and the status it had); h02 shows "Cancelled 13:09 · Placed by mistake · was New"; no such box on any other order |
+| P6-27 | The timeline | h10: Placed 16:31, **Edited 16:33**, **Edited 16:36**, Started, Ready, Collected with their times. h08: Placed 11:05, Started, Ready, **Cancelled 11:23** and no Collected step. h09 (new): Placed only, the rest unreached (`—`, grey dot). h05: one Edited step |
+| P6-28 | Changes | `history-changes` on h10 shows **two** boxes in the order and with the exact text of P6-U-05 (head, Before, After and the money line, including "Took £10.00 more" and "Gave back £5.00"); h05 shows one with "No payment change"; **h01 (never edited) and h11 (pre-Phase-V, no `history`) show no Changes section at all and produce no console error** |
+| P6-29 | Copy link | With clipboard permission granted: on h10's detail with a non-default range and two filters set, `history-copy-link` puts a URL on the clipboard containing `#/reports/history`, the `from`/`to`, both filter params and `order=h10`; the button's label becomes **"Link copied"** and returns to "Copy link to this order" after ~3 s. Opening that URL in a **new page** restores the same range, the same filters and the same selected order |
+| P6-30 | Open this day in Orders, and back | `history-open-day` from h10's detail goes to `#/reports/orders?day=<T-6>` and the Orders screen shows that day with B-002 in it. Phone: `history-back` ("‹ Order history") returns to the list with the range, filters and scroll intact, and the **browser Back button** does too |
+
+### Export (req 8) — `P6-g`
+
+| id | Case | Expected |
+|---|---|---|
+| P6-31 | The history CSV | File name `nba-food-stall_history_<from>_<to>.csv` from the inputs on screen. Header exactly the 15 Orders columns in the Orders order. Default range: **15 data rows** (one per line of the 10 matched orders), newest first, every row 15 fields with `lineTotal = qty × price`; h02 and h08 exported with `cancelled` in `status` and their `cancelReason`; h05 and h10 `edited=yes`; `tendered` nowhere. Filtered to Cancelled: 2 rows. **With `seedHistoryBulk()` and only 100 rows on screen, the export has all 230 rows** (requirement 8: "all of them, not only the 100 shown"). Tablet and phone (the phone mock-up puts the export in the header too) |
+
+### Quality — `P6-i`, `P6-k`-equivalent
+
+| id | Case | Expected |
+|---|---|---|
+| P6-32 (gated `SLOW_P6=1`) | The large-range note | Below 5,000 matched orders "Large range: narrow it to load faster" is **absent**; with 5,000 seeded via `batchWrite` it appears under the tiles and the screen still renders. Gated because the seed and the load are slow (req 9) |
+| P6-33 | Touch targets | The four report tabs, the quick-range buttons, Refresh, the export button and the detail's two action buttons are at least **48 px**; every other control in `main` (filter chips, selects, date inputs, the phone sheet's chips) is at least **44 px**, the floor P4-16 set for filter controls. Anything below 44 px is logged as a **minor** bug citing Design ("Touch targets at least 48 px") — see reading 62.7 |
+| P6-34 | Text size | `body`'s computed `font-size` is at least **17 px** (the X-03 rule). Secondary meta text at 13–15 px matches the mock-ups and is recorded, not failed (reading 62.7) |
+| P6-35 | No horizontal scroll | At 360×740 on the list, with the detail open, with the phone filter sheet open and with the longest day label rendered: `scrollWidth <= clientWidth + 1`. Any table scrolls **inside its card** |
+| P6-36 | Accessibility | `@axe-core/playwright`: zero `serious` or `critical` violations on both projects in four states — the list, an order open, the phone filter sheet open, and the empty state |
+| P6-37 | Console | Zero application console errors across: cold load, every quick range, every filter, search, paging, opening h10 / h08 / h11 (the pre-Phase-V order), Copy link, export, Refresh, the error state and the 367-day error |
+| P6-38 | Screenshots | `qa/screenshots/<project>-reports-history-empty.png` (a range with no orders), `-orders.png` (the default view), `-detail.png`, and on phone `-filters.png` (sheet open). Added to `tests/e2e/screenshots.spec.js` so the route joins the standard set |
+
+## 61. Existing cases changed for Phase VI, and why
+
+| File | Case | Change | Why (`CLAUDE.md`) |
+|---|---|---|---|
+| `tests/unit/orders.test.js` / wherever `P5-U-09` lives | version | `1.4.0` → **`1.5.0`** | Phase VI 10 |
+| `tests/e2e/reports.spec.js`, `reports-days.spec.js`, `reports-orders.spec.js` | the tab-row cases (P3-01, P4-01, P4-02) | three tabs → **four**, with the phone label set One day / By day / Orders / **History** | Phase VI 1 ("Fourth report tab on every report screen") |
+| `tests/e2e/crosscutting.spec.js` | X-01, X-02, X-07, X-08 route lists | `#/reports/history` added | Phase VI 1 — the new route is a screen like any other |
+| `tests/e2e/login.spec.js` | G-10 (route guard, signed out) | `#/reports/history` added to the guarded routes | Login 6: "any route other than `#/login` with no session redirects" |
+| `tests/e2e/version.spec.js` | V-03 | `app-version` is asserted on the history header too | Phase III part 2, 5: "every dark header" |
+| `tests/e2e/screenshots.spec.js` | the screen list | `reports-history` added, empty and with orders, both projects | Definition of done: "Screenshots of every screen at both sizes" |
+| `tests/e2e/helpers.js` | — | new Phase VI fixtures and helpers (58.3) | one place says "seed a history range" / "open the detail" at either size |
+| `tests/e2e/live-smoke.spec.js` and the gated live specs | route lists | `#/reports/history` added after the deploy | live check loads every route |
+| `playwright.config.js` | `iphone13` `testMatch` | gains `live-p6.spec.js` only | the live phone check; the emulator suite stays on `phone` + `tablet` (section 56) |
+
+Nothing is deleted; every changed case still asserts the same behaviour in its
+Phase VI form.
+
+## 62. Phase VI deliberate readings of the brief
+
+1. **366 days is counted inclusively**, like Phase III's 31. So `from = to − 365`
+   is the longest accepted range and `from = to − 366` is the first rejected
+   one. The brief gives a cap, not a counting rule; the Phase III precedent
+   settles it.
+2. **"Not finished" is one filter value**, covering new, preparing and ready
+   (requirement 4 says so). Its hash/test-id token is `open`, from
+   `.claude/agents/neo.md` and the mock-up; the tests pin the **behaviour** and
+   only require the token to round-trip through the hash.
+3. **The 100-row cap is over the whole matched list**, not per day, and the
+   day groups are rendered as far as the cap reaches (so a day can be shown
+   partly). The brief says "Show the first 100 orders", which is a count of
+   orders, not of days.
+4. **"Loaded once per range change" is about a *settled* range.** A quick
+   button sets both inputs in one go and must make exactly one query. Typing
+   From and then To is two range changes, so up to two queries is correct; the
+   test asserts "exactly 1" for the quick buttons, Refresh and the cold load,
+   and "0" for every filter change, which is the claim that actually matters.
+5. **Offline with a warm cache is not a failure.** `getDocs` with
+   `persistentLocalCache` can legitimately resolve from the cache when the
+   network is gone, so "offline shows `history-error`" is asserted on a cold
+   context and on a **forced query failure**; an offline reload that shows
+   cached rows is recorded as an observation, not a bug. A crash, a blank
+   screen or a silent empty list in either case **is** a bug.
+6. **Cancelled orders are exported.** Requirement 8 says "same columns as the
+   Orders CSV", and the Orders CSV exports what is on screen including
+   cancelled rows (Phase IV reading 34.6). Filtering to Cancelled and getting a
+   header with no rows would be plainly wrong. The One day and Sales by day
+   exports still exclude them.
+7. **Control heights: the mock-ups are below the Design floor.**
+   `design/ReportsHistory.dc.html` draws the status/payment chips, the Till and
+   Item selects and the detail buttons at 44 px, and
+   `design/ReportsHistoryMobile.dc.html` draws the quick-range chips at **40 px**
+   — against Design's "Touch targets at least 48 px". The tests use the Phase IV
+   precedent (48 px for tabs and primary actions, 44 px for filter controls) and
+   log anything under 44 px as a **minor** bug naming both documents, rather
+   than failing the build on a conflict in the brief. Same for body text: `body`
+   must be ≥ 17 px; the 13–15 px meta and note text the mock-ups use is recorded
+   as a pre-existing, phase-wide deviation.
+8. **Money is compared with separators stripped.** The paging fixture passes
+   £1,000, where `£1150.00` and `£1,150.00` are both defensible; the brief never
+   fixes a thousands separator, so comparisons normalise `,` away. Every other
+   figure in the fixture is under £1,000, where the two forms are identical.
+9. **"This year" is computed, never a literal.** If the run happens in early
+   January the fixture's older days fall in the previous year, so the expected
+   set for This year (and only for This year) is derived by filtering the
+   fixture on `day >= <yyyy>-01-01`. Every other expectation in 58.1 is a
+   hand-calculated literal.
+10. **`order=<docId>` needs stable ids**, so the fixture writes its own
+    (`h01`…`h15`) instead of letting Firestore generate them. That is a harness
+    choice; the app still reads whatever id a document has.
+11. **The detail's "after" for the last edit is the order as stored.** The
+    brief shows Before and After per `history` entry, but an entry only records
+    `before`; the After of entry *n* is the `before` of entry *n+1*, and the
+    After of the last entry is the current order. h10's two edits exist to pin
+    that chain.
+12. **"One read per order in range" (requirement 9) is not asserted as a read
+    count.** The emulator does not expose a billable-read counter, and the SDK
+    batches a query into one round trip. The testable claim is the one in
+    requirement 3 — one query per range change, none per filter change
+    (P6-09) — plus the absence of a listener (P6-10).
+
+## 63. Phase VI live verification (gated, **read-only, zero writes**) — `tests/e2e/live-p6.spec.js`
+
+Written after the v1.5.0 deploy and run with
+
+```
+LIVE_P6=1 EXPECT_BUILD=<short sha> npx playwright test tests/e2e/live-p6.spec.js \
+  --project=tablet --project=iphone13
+```
+
+Gated behind `LIVE_P6=1` so `npm run test:e2e` stays offline and
+deterministic. `tablet` and `iphone13` are the two the orchestrator named.
+
+**Write discipline.** Phase VI adds no control that writes, which is the point
+of the screen. No order is placed, edited, cancelled or advanced; no till tile
+is tapped; `send-order`, Save changes, Cancel order, Got it and Remove are
+never clicked; no `menu` or `settings` document is touched. Every Firestore
+check in the spec is a REST GET. `P6L-00` and `P6L-09` bracket the run with a
+count and a fingerprint of `orders` and the list of `menu` ids. Expectations
+are recomputed from what live actually holds, never hard-coded, so the spec
+keeps working as live data changes. A fresh context per test with the HTTP
+cache disabled over CDP, as in the P4/P5 live specs.
+
+| id | Case |
+|---|---|
+| P6L-00 | Snapshot `orders` (count + fingerprint) and the `menu` ids; record which live days hold orders, which orders are cancelled or edited, and the till letters present |
+| P6L-01 | Signed out: `#/login` renders a real form; `#/reports/history` redirects to `#/login`; `login-version` reads "Version **1.5.0** · build `<EXPECT_BUILD>` · updated `<date>`"; zero console errors |
+| P6L-02 | Signed in: all seven routes render, no "Storage not configured" banner, `conn-pill` Online, zero console errors |
+| P6L-03 | `app-version` reads **v1.5.0** in every dark header, with matching `title`/`aria-label` and the same build; header buttons still ≥ 44 px on `iphone13` |
+| P6L-04 | The fourth tab on all four report screens, ≥ 48 px, labels per project; `#/reports/history` filled ink with `aria-current="page"`; on `iphone13` the row scrolls sideways with no horizontal page scroll |
+| P6L-05 | **Last 30 days**: the button sets `T-29…T`, the list matches the REST read (day groups newest first, orders newest first, day header counts and totals recomputed from the documents), and the summary tiles / phone line agree. If live holds no orders in 30 days, the empty message is asserted instead and the gap recorded |
+| P6L-06 | Open one order: date, number, name, status, till, payment, wait, timeline, item lines with icons and the total all match its document; the read-only note verbatim; `iphone13` back button and browser Back both return to the list. Copy link and Open this day in Orders are exercised (both read-only) |
+| P6L-07 | The history CSV downloaded and **parsed**: name `nba-food-stall_history_<from>_<to>.csv` from the range on screen, the 15 Orders columns, one row per line of every matched order, each order's line totals adding to its stored `total`, `edited` yes/no, `cancelReason` blank unless cancelled, no `tendered` |
+| P6L-08 | axe on the live history screen — list, detail open, and the phone filter sheet — zero serious or critical, both projects; zero console errors throughout |
+| P6L-09 | Sign out from the history screen returns to `#/login` and clears the session; `orders` count and fingerprint and the `menu` ids are identical to `P6L-00` |
+
+Screenshots `qa/screenshots/live-p6-<project>-<state>.png`:
+`login-version`, `reports-history-list`, `reports-history-detail`,
+`reports-history-filters` (phone), `reports-history-csv`, `header-version`,
+`signed-out` — 14 files across the two viewports.
+
+## 64. Phase VI as built — test ids, corrections and deliberate readings (20 Oct 2026)
+
+The build landed after this plan was written. The suite is
+`tests/unit/history.test.js` (+ `tests/unit/history-fixtures.js`) and
+`tests/e2e/reports-history.spec.js` (+ the `history*` helpers in
+`tests/e2e/helpers.js`). Every case id in sections 59–60 is implemented; the
+list below records where the plan and the build met, and where a case in the
+plan was **wrong against `CLAUDE.md`** and was corrected.
+
+### 64.1 The orchestrator's rulings (DECISIONS.md, 20 Oct 2026)
+
+1. **366 days is inclusive.** `To − 365` loads, `To − 366` errors and makes no
+   query (P6-U-01, P6-08).
+2. **Offline is not an error.** `history-error` comes only from a genuine query
+   failure; a `getDocs` served from `persistentLocalCache` shows cached rows
+   (P6-12, and 64.3 below).
+3. **Heights:** 48 px for the tab row, Refresh, Export, Show 100 more, the
+   phone "Show n orders" and the order buttons; 44 px floor for chips and
+   selects; **nothing below 44 px passes** (P6-33).
+4. The query-count and no-listener substitutes for "one read per order" stand
+   (P6-09, P6-10).
+5. **The 5,000 note** is `isLargeHistory(count)` / `HISTORY_LARGE_COUNT`,
+   driven by the orders loaded in range, so it is unit tested (P6-U-10) and the
+   `SLOW_P6` gate is dropped. The screen case only asserts the note is absent
+   for a small range (P6-19).
+6. **"Not finished" serialises as `status=open`.** The default view writes
+   `from` and `to` into the hash; a bare hash on a cold load falls back to Last
+   7 days; a hashchange with no `from`/`to` keeps the current range. All three
+   are pinned in P6-26b/P6-31.
+7. The 100-row cap is across the whole matched list, so a day group can render
+   partly, and the button always reads "Show 100 more (<n> left)" (P6-23).
+8. The phone summary drops the "(excludes …)" clause when nothing in view is
+   cancelled (P6-19, P6-U-04).
+9. "This year" is computed from the fixture, never a literal (P6-05).
+10. `P5-U-09` moves to 1.5.0 — see 64.4 — and `#/reports/history` joins the
+    route lists in `crosscutting`, `login`, `version` and `screenshots`.
+
+### 64.2 Test ids, as built
+
+All of `.claude/agents/neo.md`, plus the ones Neo added, which the suite uses
+directly: `report-toggle-history`, `history-filters-show`,
+`history-filters-close`, `history-detail-day|no|name|status|pay|till|wait|total`,
+`history-detail-cancelled`, `history-detail-timeline`, `history-step-<key>`
+(`placed`, `started`, `ready`, `collected`, `cancelled`, `edited-1`,
+`edited-2`), `history-line-<itemId>`, `history-change-<n>`.
+
+### 64.3 Cases corrected against the brief during the run
+
+| Case | The plan said | The build does | Which is right |
+|---|---|---|---|
+| P6-26 | Wait is `—` on a cancelled order | h08 reached Ready before it was cancelled, so Wait is **6 min** | **The build.** `CLAUDE.md` Phase IV 5 defines Wait as placed → ready, and h08 has a `readyAtMs`. The test was corrected |
+| P6-18 | the sheet footer reads "Show 1 orders" | "Show 1 **order**" | **The build.** The mock-up renders a plain count; Phase IV reading 34.4 already accepts both. The test accepts `Show 1 orders?` |
+| P6-12 | offline → `history-error` | an unreachable backend is served from the local cache; the error box stays hidden | **The build**, per ruling 2. See below |
+| P6-31 | a hashchange with no range resets to Last 7 days | it keeps the range on screen | **The build**, per ruling 6. The test now pins both halves of the rule |
+| P6-09/P6-10 | one-shot reads can be told from listeners by the channel name | the Web SDK runs `getDocs` as an `addTarget` + `removeTarget` on the **same** `/Listen/channel` | Neither; the **harness** was wrong. `watchFirestore` now decodes the WebChannel `req<n>___data__` messages and counts query targets, so "one query per range change" and "the target is closed again, not held open" are both provable |
+
+**The `history-error` visible state could not be provoked from the emulator.**
+With `persistentLocalCache` in front of every read, an aborted or 403'd backend
+makes the SDK go offline and resolve `getDocs` from the cache instead of
+rejecting, which ruling 2 says is correct behaviour. P6-12 therefore asserts
+(a) the box exists with `role="alert"` and the brief's exact wording, (b) it is
+hidden on a healthy load, (c) an unreachable backend leaves a working screen —
+cached rows, the empty message or the error box, never a blank one — and
+(d) it clears on a healthy Refresh. The wording itself is pinned again in
+P6-U-10. Recorded in `qa/bugs.md` as an observation, not a bug.
+
+**A harness weakness found on the way.** The write classifier copied from P4-15
+matched `"writes"` against a **form-encoded** body, where quotes are `%22`, so
+it could never have caught a write. `watchFirestore().writesTo('orders')` now
+decodes the body first. P6-13 consequently also proves what the old spelling
+could not: loading this screen on an empty emulator writes only the documented
+first-load `menu` seed (`CLAUDE.md` → Menu) and never touches `orders`.
+
+### 64.4 The version
+
+`P6-U-09` pins `package.json` at **1.5.0** (`CLAUDE.md` Phase VI 10). Trinity
+bumps it as part of the deploy, so this case is red until then; it is the only
+expected red in the suite and is logged in `qa/bugs.md` against Trinity, not
+Neo — the same sequence as `BUG-8` in Phase IV. To stop the same pending bump
+failing in three places, `P4-U-09` and `P5-U-09` were relaxed to "the version
+never goes backwards from 1.4.0", with the current number pinned once, here.
+
+### 64.5 Fixtures, as built
+
+`historyFixture` / `historyExpect` / `seedHistoryRange` (15 orders, ids
+`h01`…`h15`, nine trading days, three tills, three `A-001`s, one pre-Phase-V
+order with `tendered`, one unknown item id, one order edited once and one
+edited twice) and `historyBulkFixture` / `seedHistoryBulk` (230 orders over
+three days, written through the emulator's `documents:batchWrite` in two calls,
+with a per-document fallback). New harness helpers: `watchFirestore`,
+`grantClipboard`, `breakFirestore` / `mendFirestore`, `slowFirestore`,
+`countOrders`.

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Order history, phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column; overflow: hidden">
+
+<header style="display: flex; align-items: center; justify-content: space-between; height: 60px; flex: none; padding: 0 16px; background: #1C1917; color: #FFFFFF">
+<span style="display: flex; flex-direction: column; gap: 2px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px; line-height: 24px">Reports</span><span style="font-size: 12px; line-height: 14px; color: #A8A29E; font-weight: 700">v1.5.0</span></span>
+<a href="LoginMobile.dc.html" aria-label="Sign out" style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; box-sizing: border-box; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg></a>
+</header>
+
+<sc-if value="{{isList}}" hint-placeholder-val="{{ true }}">
+<div style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column">
+<div style="flex: none; display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; background: #FFFFFF; border-bottom: 1px solid #E7E5E4">
+<nav aria-label="Report view" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px">
+<a href="Reports.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 12px; border-radius: 999px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">One day</a>
+<a href="ReportsByDay.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 12px; border-radius: 999px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">By day</a>
+<a href="ReportsOrdersMobile.dc.html" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 12px; border-radius: 999px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 15px; font-weight: 700; text-decoration: none">Orders</a>
+<a href="ReportsHistoryMobile.dc.html" aria-current="page" style="flex: none; display: flex; align-items: center; height: 44px; padding: 0 12px; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none">History</a>
+</nav>
+<div style="display: flex; gap: 8px">
+<label for="mf" class="sr">From</label><input id="mf" type="date" value="{{from}}" style="flex: 1 1 0; min-width: 0; height: 44px; padding: 0 6px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 14px; color: #1C1917">
+<label for="mt" class="sr">To</label><input id="mt" type="date" value="{{to}}" style="flex: 1 1 0; min-width: 0; height: 44px; padding: 0 6px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 14px; color: #1C1917">
+</div>
+<div role="group" aria-label="Quick ranges" style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px">
+<sc-for list="{{rangeChips}}" as="c" hint-placeholder-count="5"><button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="flex: none; height: 40px; padding: 0 12px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 14px; font-weight: 700">{{c.label}}</button></sc-for>
+</div>
+<div style="display: flex; gap: 8px">
+<label for="mq" class="sr">Search order number or name</label>
+<input id="mq" value="{{q}}" onChange="{{onQ}}" placeholder="Search no. or name" autocomplete="off" style="flex: 1 1 auto; min-width: 0; height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 16px; color: #1C1917">
+<button onClick="{{openFilters}}" style="flex: none; height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid {{fBorder}}; background: {{fBg}}; color: #1C1917; font-size: 15px; font-weight: 700">{{filterLabel}}</button>
+</div>
+<span style="font-size: 14px; color: #44403C"><b>{{countText}}</b> · {{sumText}}</span>
+</div>
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 6px 16px 16px">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 10px 2px 2px"><b style="font-size: 16px">{{g.label}}</b><span style="font-size: 13px; color: #57534E">{{g.meta}}</span></div>
+<sc-for list="{{g.rows}}" as="o" hint-placeholder-count="3">
+<button onClick="{{o.pick}}" aria-label="View order {{o.no}} on {{o.dayText}}" style="display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 12px 14px; border: none; border-radius: 14px; background: #FFFFFF; color: #1C1917; text-align: left; box-shadow: 0 1px 2px rgba(28,25,23,0.08)">
+<span style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px">
+<span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 20px">{{o.no}} <span style="font-family: 'Atkinson Hyperlegible', sans-serif; font-weight: 700; font-size: 17px">{{o.name}}</span></span>
+<span style="padding: 3px 10px; border-radius: 999px; background: {{o.stBg}}; color: {{o.stFg}}; border: 1.5px solid {{o.stBorder}}; font-size: 13px; font-weight: 700">{{o.statusLabel}}</span>
+</span>
+<span style="font-size: 15px; color: #44403C">{{o.summary}}<sc-if value="{{o.edited}}" hint-placeholder-val="{{ false }}"> <span style="padding: 1px 8px; border-radius: 999px; background: #FEF3C7; color: #78350F; font-size: 12px; font-weight: 700">Edited</span></sc-if></span>
+<span style="display: flex; justify-content: space-between; width: 100%; font-size: 15px; color: #57534E"><span>{{o.time}} · {{o.payLabel}} · till {{o.till}}</span><b style="color: {{o.totalColour}}; text-decoration: {{o.strike}}">{{o.totalText}}</b></span>
+</button>
+</sc-for>
+</sc-for>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 24px; text-align: center; font-size: 16px; color: #57534E">No orders match these filters.</p></sc-if>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isDetail}}" hint-placeholder-val="{{ false }}">
+<div style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px 16px 20px; display: flex; flex-direction: column; gap: 14px; background: #FFFFFF">
+<button onClick="{{back}}" style="align-self: flex-start; height: 44px; padding: 0 14px; border-radius: 10px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 15px; font-weight: 700">‹ Order history</button>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<div style="display: flex; flex-direction: column"><span style="font-size: 14px; font-weight: 700; color: #57534E">{{sel.dayText}} · {{sel.time}}</span><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px">{{sel.no}}</span><span style="font-size: 19px; font-weight: 700">{{sel.name}}</span></div>
+<span style="padding: 5px 12px; border-radius: 999px; background: {{sel.stBg}}; color: {{sel.stFg}}; border: 1.5px solid {{sel.stBorder}}; font-size: 15px; font-weight: 700">{{sel.statusLabel}}</span>
+</div>
+<span style="font-size: 15px; color: #44403C">Till {{sel.till}} · {{sel.payLabel}} · {{sel.totalText}}</span>
+<sc-if value="{{sel.isCancelled}}" hint-placeholder-val="{{ false }}"><div style="padding: 10px 12px; border-radius: 12px; background: #FEF2F2; color: #7F1D1D; font-size: 15px"><b>Cancelled {{sel.cancelTime}}</b> · {{sel.cancelReason}} · was {{sel.statusBefore}}</div></sc-if>
+<div style="display: flex; flex-direction: column; gap: 6px"><b style="font-size: 16px">Items</b>
+<sc-for list="{{sel.lines}}" as="l" hint-placeholder-count="2"><div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 32px 62px; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #E7E5E4; font-size: 15px"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 24 }}" hint-size="24px,24px"></dc-import><b>{{l.name}}</b><span style="text-align: right">{{l.qty}}×</span><b style="text-align: right">{{l.lineText}}</b></div></sc-for></div>
+<sc-if value="{{sel.edited}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 6px"><b style="font-size: 16px">Changes</b>
+<sc-for list="{{sel.changes}}" as="c" hint-placeholder-count="1"><div style="padding: 10px 12px; border-radius: 12px; background: #FFFBEB; border: 1.5px solid #FDE68A; font-size: 14px; line-height: 20px"><b>{{c.head}}</b><br>Before: {{c.before}}<br>After: {{c.after}}<br><b style="color: #78350F">{{c.money}}</b></div></sc-for></div></sc-if>
+<div style="display: flex; flex-direction: column; gap: 4px"><b style="font-size: 16px">Timeline</b>
+<sc-for list="{{sel.steps}}" as="t" hint-placeholder-count="4"><div style="display: flex; align-items: center; gap: 10px; font-size: 15px"><span style="width: 11px; height: 11px; border-radius: 50%; background: {{t.dot}}"></span><b style="width: 86px">{{t.label}}</b>{{t.time}}</div></sc-for></div>
+<button onClick="{{copyLink}}" style="height: 48px; border-radius: 12px; border: 2px solid #1C1917; background: #FFFFFF; color: #1C1917; font-size: 16px; font-weight: 700">{{copyLabel}}</button>
+</div>
+</sc-if>
+
+<sc-if value="{{filtersOpen}}" hint-placeholder-val="{{ false }}">
+<div onClick="{{closeFilters}}" style="position: absolute; inset: 0; z-index: 4; background: rgba(28,25,23,0.45)"></div>
+<section role="dialog" aria-label="Filters" style="position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; padding: 16px 16px 18px; border-radius: 18px 18px 0 0; background: #FFFFFF; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 22px">Filters</span><button onClick="{{reset}}" style="height: 44px; border: none; background: transparent; color: #57534E; font-size: 15px; text-decoration: underline">Clear</button></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><b style="font-size: 14px; color: #44403C">Status</b><div style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{statusChips}}" as="c" hint-placeholder-count="4"><button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 44px; padding: 0 12px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 14px; font-weight: 700">{{c.label}}</button></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><b style="font-size: 14px; color: #44403C">Payment</b><div style="display: flex; gap: 6px"><sc-for list="{{payChips}}" as="c" hint-placeholder-count="3"><button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 14px; font-weight: 700">{{c.label}}</button></sc-for></div></div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 700; color: #44403C">Till<select onChange="{{onTill}}" style="height: 44px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 15px; background: #FFFFFF; color: #1C1917"><option value="all">All tills</option><option value="A">A</option><option value="B">B</option></select></label>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 14px; font-weight: 700; color: #44403C">Item<select onChange="{{onItem}}" style="height: 44px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 15px; background: #FFFFFF; color: #1C1917"><option value="all">Any item</option><option value="fuchka">Fuchka</option><option value="momo">Momo</option><option value="chat">Papri Chat</option><option value="samosa_chat">Samosa Chat</option></select></label>
+</div>
+<button onClick="{{toggleEdited}}" aria-pressed="{{editedOnly}}" style="align-self: flex-start; height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{edBorder}}; background: {{edBg}}; color: #1C1917; font-size: 14px; font-weight: 700">Edited only</button>
+<button onClick="{{closeFilters}}" style="height: 56px; border: none; border-radius: 14px; background: #1C1917; color: #FFFFFF; font-size: 18px; font-weight: 700">Show {{countText}}</button>
+</section>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { view: 'list', range: '7d', sel: null, status: 'all', pay: 'all', till: 'all', item: 'all', edited: false, q: '', copied: false };
+  }
+  renderVals() {
+    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Chocolate Strawberry', marshmallow: 'Chocolate Marshmallow (V)', samosa_chat: 'Samosa Chat' };
+    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow', samosa_chat: 'Samosa Chat' };
+    const DAYS = { '2026-10-20': 'Tue 20 Oct', '2026-10-18': 'Sun 18 Oct', '2026-10-17': 'Sat 17 Oct', '2026-09-26': 'Sat 26 Sep' };
+    const RAW = [
+      ['2026-10-20', 'A-003', '13:12', 'Ruma', 'A', 'card', 'collected', { samosa_chat: 2 }],
+      ['2026-10-20', 'A-002', '13:05', 'Guest', 'A', 'cash', 'cancelled', { momo: 1 }, null, { reason: 'Placed by mistake', at: '13:06', from: 'New' }],
+      ['2026-10-20', 'A-001', '12:58', 'Arjun', 'A', 'card', 'collected', { fuchka: 1, samosa_chat: 1 }],
+      ['2026-10-18', 'B-012', '15:20', 'Meera', 'B', 'card', 'collected', { momo: 1, sweet_box: 1 }],
+      ['2026-10-18', 'A-032', '15:14', 'Kiran', 'A', 'cash', 'cancelled', { chat: 2 }, null, { reason: 'Out of stock', at: '15:19', from: 'Preparing' }],
+      ['2026-10-18', 'A-031', '15:10', 'Ahmed', 'A', 'cash', 'collected', { momo: 3 }, { before: { momo: 2, chat: 1 }, at: '15:13', status: 'Preparing', till: 'A' }],
+      ['2026-10-18', 'A-030', '15:02', 'Priya', 'A', 'card', 'collected', { fuchka: 2, marshmallow: 1 }],
+      ['2026-10-17', 'A-044', '16:40', 'Josh', 'A', 'card', 'collected', { chat: 1, marshmallow: 2 }],
+      ['2026-10-17', 'B-020', '16:25', 'Dev', 'B', 'card', 'cancelled', { fuchka: 1 }, null, { reason: 'Not collected', at: '16:58', from: 'Ready' }],
+      ['2026-09-26', 'A-012', '14:02', 'Lucy', 'A', 'cash', 'collected', { fuchka: 1, momo: 1 }]
+    ];
+    const ST = { collected: ['Collected', '#E7E5E4', '#1C1917', '#E7E5E4'], cancelled: ['Cancelled', '#FFFFFF', '#B91C1C', '#B91C1C'] };
+    const RANGES = { today: ['Today', '2026-10-20', '2026-10-20'], '7d': ['Last 7 days', '2026-10-14', '2026-10-20'], '30d': ['Last 30 days', '2026-09-21', '2026-10-20'], event: ['This event', '2026-10-17', '2026-10-18'], year: ['This year', '2026-01-01', '2026-10-20'] };
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const toMin = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3), 10);
+    const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const cnt = (items) => Object.keys(items).reduce((a, k) => a + items[k], 0);
+    const sumText = (items) => Object.keys(items).map((k) => items[k] + '× ' + SHORT[k]).join(', ');
+    const s = this.state;
+    const [, from, to] = RANGES[s.range];
+    const all = RAW.map(([day, no, time, name, till, pay, status, items, edit, cancel]) => {
+      const total = cnt(items) * 500;
+      const t0 = toMin(time);
+      const steps = [{ label: 'Placed', time: time }];
+      if (edit) steps.push({ label: 'Edited', time: edit.at });
+      if (status === 'cancelled') steps.push({ label: 'Cancelled', time: cancel.at });
+      else steps.push({ label: 'Ready', time: hhmm(t0 + 6) }, { label: 'Collected', time: hhmm(t0 + 8) });
+      const st = ST[status];
+      return {
+        key: day + '|' + no, day: day, dayText: DAYS[day], no: no, time: time, name: name, till: till, pay: pay, status: status, items: items,
+        payLabel: pay === 'cash' ? 'Cash' : 'Card', summary: sumText(items), total: total, totalText: gbp(total),
+        totalColour: status === 'cancelled' ? '#78716C' : '#1C1917', strike: status === 'cancelled' ? 'line-through' : 'none',
+        statusLabel: st[0], stBg: st[1], stFg: st[2], stBorder: st[3], isCancelled: status === 'cancelled', edited: !!edit,
+        cancelReason: cancel ? cancel.reason : '', cancelTime: cancel ? cancel.at : '', statusBefore: cancel ? cancel.from : '',
+        changes: edit ? [{ head: 'Edited ' + edit.at + ' at till ' + edit.till + ' while ' + edit.status, before: sumText(edit.before) + ' · ' + gbp(cnt(edit.before) * 500), after: sumText(items) + ' · ' + gbp(total), money: total > cnt(edit.before) * 500 ? 'Took ' + gbp(total - cnt(edit.before) * 500) + ' more' : (total < cnt(edit.before) * 500 ? 'Gave back ' + gbp(cnt(edit.before) * 500 - total) : 'No payment change') }] : [],
+        lines: Object.keys(items).map((id) => ({ id: id, name: NAMES[id], qty: items[id], lineText: gbp(items[id] * 500) })),
+        steps: steps.map((x) => ({ label: x.label, time: x.time, dot: x.label === 'Cancelled' ? '#B91C1C' : (x.label === 'Edited' ? '#B45309' : '#0F766E') }))
+      };
+    });
+    const q = s.q.trim().toLowerCase();
+    const rows = all.filter((o) => o.day >= from && o.day <= to && (s.status === 'all' || (s.status === 'open' ? false : o.status === s.status)) && (s.pay === 'all' || o.pay === s.pay)
+      && (s.till === 'all' || o.till === s.till) && (s.item === 'all' || o.items[s.item]) && (!s.edited || o.edited) && (!q || o.no.toLowerCase().indexOf(q) >= 0 || o.name.toLowerCase().indexOf(q) >= 0));
+    const live = rows.filter((o) => !o.isCancelled);
+    const c = rows.length - live.length;
+    const days = [];
+    rows.forEach((o) => { if (days.indexOf(o.day) < 0) days.push(o.day); });
+    const nf = (s.status !== 'all' ? 1 : 0) + (s.pay !== 'all' ? 1 : 0) + (s.till !== 'all' ? 1 : 0) + (s.item !== 'all' ? 1 : 0) + (s.edited ? 1 : 0);
+    const chip = (key, cur, label, set) => ({ label: label, on: key === cur, bg: key === cur ? '#FDE68A' : '#FFFFFF', border: key === cur ? '#1C1917' : '#D6D3D1', pick: () => this.setState(set) });
+    const sel = all.find((o) => o.key === s.sel) || {};
+    return {
+      isList: s.view !== 'detail', isDetail: s.view === 'detail', filtersOpen: s.view === 'filters',
+      from: from, to: to,
+      rangeChips: Object.keys(RANGES).map((k) => chip(k, s.range, RANGES[k][0], { range: k })),
+      q: s.q, onQ: (e) => this.setState({ q: e.target.value }),
+      filterLabel: nf ? 'Filters (' + nf + ')' : 'Filters', fBg: nf ? '#FDE68A' : '#FFFFFF', fBorder: nf ? '#1C1917' : '#A8A29E',
+      openFilters: () => this.setState({ view: 'filters' }), closeFilters: () => this.setState({ view: 'list' }),
+      statusChips: [['all', 'All'], ['collected', 'Collected'], ['cancelled', 'Cancelled'], ['open', 'Not finished']].map(([k, l]) => chip(k, s.status, l, { status: k })),
+      payChips: [['all', 'All'], ['cash', 'Cash'], ['card', 'Card']].map(([k, l]) => chip(k, s.pay, l, { pay: k })),
+      onTill: (e) => this.setState({ till: e.target.value }), onItem: (e) => this.setState({ item: e.target.value }),
+      editedOnly: s.edited, edBg: s.edited ? '#FDE68A' : '#FFFFFF', edBorder: s.edited ? '#1C1917' : '#D6D3D1',
+      toggleEdited: () => this.setState({ edited: !this.state.edited }),
+      reset: () => this.setState({ status: 'all', pay: 'all', till: 'all', item: 'all', edited: false }),
+      countText: rows.length + ' orders', sumText: gbp(live.reduce((a, o) => a + o.total, 0)) + (c ? ' (excludes ' + c + ' cancelled)' : ''),
+      groups: days.map((d) => {
+        const r = rows.filter((o) => o.day === d);
+        return { label: DAYS[d], meta: r.length + ' orders · ' + gbp(r.filter((o) => !o.isCancelled).reduce((a, o) => a + o.total, 0)),
+          rows: r.map((o) => Object.assign({}, o, { pick: () => this.setState({ sel: o.key, view: 'detail', copied: false }) })) };
+      }),
+      noRows: rows.length === 0,
+      sel: sel, back: () => this.setState({ view: 'list' }),
+      copyLabel: s.copied ? 'Link copied' : 'Copy link to this order', copyLink: () => this.setState({ copied: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

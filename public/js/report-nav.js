@@ -1,6 +1,7 @@
-// The "One day / Sales by day / Orders" toggle that sits at the top of all
-// three report screens (CLAUDE.md Phase III 1 and Phase IV 1,
-// design/ReportsByDay.dc.html, design/ReportsOrders.dc.html).
+// The "One day / Sales by day / Orders / Order history" toggle that sits at
+// the top of all four report screens (CLAUDE.md Phase III 1, Phase IV 1 and
+// Phase VI 1; design/ReportsByDay.dc.html, design/ReportsOrders.dc.html,
+// design/ReportsHistory.dc.html).
 
 import { el } from './ui.js';
 import { href } from './router.js';
@@ -8,11 +9,13 @@ import { href } from './router.js';
 const VIEWS = [
   { key: 'day', route: '/reports', label: 'One day', short: 'One day', testid: 'report-view-day', alias: 'report-toggle-day' },
   { key: 'days', route: '/reports/days', label: 'Sales by day', short: 'By day', testid: 'report-view-days', alias: 'report-toggle-days' },
-  { key: 'orders', route: '/reports/orders', label: 'Orders', short: 'Orders', testid: 'report-view-orders', alias: 'report-toggle-orders' }
+  { key: 'orders', route: '/reports/orders', label: 'Orders', short: 'Orders', testid: 'report-view-orders', alias: 'report-toggle-orders' },
+  { key: 'history', route: '/reports/history', label: 'Order history', short: 'History', testid: 'report-view-history', alias: 'report-toggle-history' }
 ];
 
-// Below 700px the middle pill reads "By day" so three pills fit on one row
-// (design/ReportsOrdersMobile.dc.html). The label is swapped in script rather
+// Below 700px the pills read "One day | By day | Orders | History" and the
+// row scrolls sideways rather than wrapping (CLAUDE.md Phase VI 1,
+// design/ReportsHistoryMobile.dc.html). The label is swapped in script rather
 // than with two spans so the pill's text is only ever the one word pair.
 const PHONE = typeof matchMedia === 'function' ? matchMedia('(max-width: 699px)') : null;
 
@@ -34,7 +37,7 @@ if (PHONE) {
 }
 
 /**
- * @param {'day'|'days'|'orders'} current which screen is showing
+ * @param {'day'|'days'|'orders'|'history'} current which screen is showing
  * The pill carries both test ids: the outer wrapper and the link itself, so a
  * test can reach it under either name.
  */

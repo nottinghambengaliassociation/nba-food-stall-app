@@ -24,7 +24,9 @@ const PKG_VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8
 const BUILD_SHAPE = /^(?:[0-9a-f]{7}(?:-dirty)?|dev)$/;
 const DATE_SHAPE = /^\d{1,2} [A-Z][a-z]{2} \d{4}$/;
 
-const SIGNED_IN_ROUTES = ['#/', '#/cash', '#/kitchen', '#/reports', '#/reports/days'];
+// CLAUDE.md Phase III part 2, 5: the version pill is in "every dark header",
+// which since Phase IV and Phase VI means seven routes.
+const SIGNED_IN_ROUTES = ['#/', '#/cash', '#/kitchen', '#/reports', '#/reports/days', '#/reports/orders', '#/reports/history'];
 
 const norm = (s) => (s || '').replace(/\s+/g, ' ').trim();
 

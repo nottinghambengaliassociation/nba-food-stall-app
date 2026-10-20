@@ -1418,3 +1418,125 @@ data cases on an empty collection — it will now find real data, which is an
 improvement, not a problem. P5L-10 already uses it: the two new CSV columns are
 proved against **168 real order lines**, `edited` = `no` on every one and
 `cancelReason` blank, not merely by a header on an empty day.
+
+---
+
+## Round P6 — 2026-10-20 (Phase VI, Order history, v1.5.0)
+
+New suites: `tests/unit/history.test.js` (+ `tests/unit/history-fixtures.js`) and
+`tests/e2e/reports-history.spec.js` (+ the `history*` helpers in
+`tests/e2e/helpers.js`). Plan: `qa/test-plan.md` sections 56–64.
+
+### Totals
+
+| Suite | Result |
+|---|---|
+| Unit (13 files) | **467 / 468 pass**. The one failure is `P6-U-09`, the pending version bump (BUG-13) |
+| E2E, first full pass (835 cases over `phone`, `tablet`, `iphone13`, `iphone17`, `promax`) | **584 pass, 249 skipped** (the gated `live-*.spec.js` suites), **2 fail** — `X-02` on both projects, a harness gap of mine, corrected and re-run green |
+| E2E, `crosscutting.spec.js` re-run after the correction | **22 / 22 pass** |
+| New Phase VI e2e (`phone` + `tablet`) | **50 pass, 2 skipped by design** (`P6-03` is phone-only, `P6-18` is the phone filter sheet) |
+
+**No defect was found in Neo's Phase VI build.** Every first-pass failure in
+`reports-history.spec.js` was a defect in my own test or harness; each is listed
+in `qa/test-plan.md` 64.3 with the clause that settles it. Phase IV and Phase V
+re-ran green after Neo's additive change to `orderChanges()`
+(`reports-orders.spec.js`, `reports-p5.spec.js`, `cash-p5.spec.js`,
+`kitchen-p5.spec.js`: no failures).
+
+### BUG-13 | minor | Platform — `package.json` version | status: **open (Trinity)**
+
+**Steps** `npx vitest run tests/unit/history.test.js`.
+
+**Expected** — `CLAUDE.md` → Phase VI 10: *"`package.json` version 1.5.0"*, and
+the version table lists 1.5.0 as Phase VI. `package.json` is the single source
+of truth for every version label (Phase III part 2, 1).
+
+**Actual** — `package.json` is still `1.4.0`, so `P6-U-09` fails:
+`expected '1.4.0' to be '1.5.0'`.
+
+**Owner** Trinity, as part of the release — the same sequence as BUG-8 in Phase
+IV. Not a Neo defect and not a blocker for the build review. `P4-U-09` and
+`P5-U-09` were relaxed to "never goes backwards from 1.4.0" so the one pending
+bump fails in one place, not three.
+
+**Screenshot** n/a (unit).
+
+### BUG-14 | minor | Reports → Orders (`#/reports/orders`), Phase IV | status: **open**
+
+**Steps**
+1. Load `#/reports/orders` with any day that has orders (phone or tablet).
+2. Measure the order-number buttons (`orders-open-<no>`).
+
+**Expected** — `CLAUDE.md` → Design: *"Touch targets at least 48 px."* The
+equivalent control on the Phase VI history list (`history-open-<id>`) is 48 px,
+so the two report screens disagree with each other.
+
+**Actual** — 44 px on both viewports (`button[orders-open-A-005] = 44px`, and
+the same for every other row). `design/ReportsOrders.dc.html` draws 44 px, which
+is why it shipped in v1.3.0 and why `P4-16` has always used a 44 px floor.
+
+**Found by** adding `#/reports/orders` and `#/reports/history` to the `X-02`
+route list — the Phase IV route had never been in it, so this is **pre-existing
+and not a Phase VI regression**. Cosmetic: the buttons are easily tapped and
+nothing is obscured.
+
+**Test** `tests/e2e/crosscutting.spec.js` → `X-02`, where the exception is held
+at the 44 px floor with a comment naming this bug, so the gap stays visible.
+
+**Screenshot** `qa/screenshots/tablet-reports-orders-orders.png`,
+`qa/screenshots/phone-reports-orders-orders.png`.
+
+### Observation 1 — `history-error` cannot be provoked from the emulator
+
+`CLAUDE.md` Phase VI 3 asks for *"Couldn't load orders. Check the connection and
+tap Refresh."* on failure, and DECISIONS.md (20 Oct 2026) rules that offline is
+**not** a failure. With `persistentLocalCache` in front of every read, an
+aborted *and* a 403'd backend both make the SDK go offline and resolve `getDocs`
+from the cache instead of rejecting, so the visible error state has no reachable
+trigger in the emulator. `P6-12` therefore asserts the box exists with
+`role="alert"` and the exact wording, is hidden on a healthy load, that an
+unreachable backend leaves a usable screen (cached rows, the empty message or
+the error box — never a blank one), and that it clears on a healthy Refresh;
+`P6-U-10` pins the wording. **Not an app defect**, and no code change is asked
+for.
+
+### Observation 2 — the old read-only classifier could never have failed
+
+`P4-15` (Phase IV) matched `/"writes"|commit|"update"\s*:/` against the raw POST
+body, but the Firestore Web SDK **form-encodes** its protocol messages, so the
+quotes arrive as `%22` and the pattern never matched. The test passed for the
+wrong reason. `watchFirestore()` in `tests/e2e/helpers.js` now decodes the
+`req<n>___data__` parameters before looking at them, and both `P4-15` and
+`P6-13` use `watch.writesTo('orders')`. A harness defect, not an app one — and
+with the stronger check both screens still write nothing.
+
+### Observation 3 — the first-load menu seed runs from the report screens too
+
+On an empty emulator, opening `#/reports/history` (or `#/reports/orders`) writes
+the eight `menu` documents. That is the documented app-wide bootstrap
+(`CLAUDE.md` → Menu: *"seed into Firestore on first load if `menu` is empty"*),
+not a history-screen write: `orders` is never touched, which is what Phase VI's
+"read-only" clause protects. Live always has a menu, so it never fires there.
+`P6-13` and `P6-15` assert exactly that split.
+
+### Screenshots regenerated this round
+
+`reports-history` (empty, orders, detail, and `filters` on phone) for both
+projects, plus every screenshot the Phase III/IV/V specs own — the eight PNGs
+Neo's run had touched (`p4-*`, `tablet-reports-days-*`,
+`tablet-reports-orders-edited`) were rewritten by their own tests in the full
+e2e pass, so `qa/screenshots/` is QA-generated again.
+
+### Round P6b — confirmation run, same day
+
+After the `X-02` correction and the stronger read-only classifier:
+
+| Suite | Result |
+|---|---|
+| `npx vitest run` | **467 pass, 1 fail** (BUG-13, the pending 1.5.0 bump) |
+| Full e2e, 835 cases over five projects | **586 pass, 249 skipped, 0 fail** (exit 0, 34.7 min) |
+| `reports-orders.spec.js -g P4-15` with the decoded classifier | **2 / 2 pass** — still no write from the Orders screen |
+
+Open at the end of this round: **BUG-13** (Trinity, the version bump) and
+**BUG-14** (minor, pre-existing Phase IV button height). Nothing open against
+the Phase VI build.

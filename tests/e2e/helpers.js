@@ -1430,3 +1430,400 @@ export async function orderSnapshot(no) {
   const { _id, createdAt, ...rest } = o;
   return JSON.stringify(rest, Object.keys(rest).sort());
 }
+
+/* ------------------------------------ Phase VI: the order-history fixture ----
+ * A scripted 40-day range for #/reports/history, pinned to today's London day
+ * so the screen's default "Last 7 days" covers the first ten orders exactly.
+ * The same table, with absolute days, is in tests/unit/history-fixtures.js;
+ * the hand-calculated expectations are in qa/test-plan.md section 58.
+ *
+ * Document ids are fixed (h01..h15) because CLAUDE.md Phase VI 2 puts
+ * `order=<docId>` in the hash and Phase VI 7 copies a link to it.
+ */
+
+const HISTORY_NAMES = {
+  fuchka: 'Fuchka / Gol Gappa',
+  momo: 'Momo',
+  chat: 'Papri Chat',
+  sweet_box: 'Sweet Box',
+  samosa_only: 'Samosa',
+  choc_strawberry: 'Chocolate Strawberry',
+  marshmallow: 'Chocolate Marshmallow (V)',
+  samosa_chat: 'Samosa Chat',
+  fountain: 'Chocolate Fountain'   // retired in H3: not in the menu any more
+};
+
+const hLine = (id, qty) => ({ id, name: HISTORY_NAMES[id] || id, qty, price: 500 });
+
+/** The nine trading days of the fixture, as day strings. */
+export function historyDays(today = londonDay()) {
+  return {
+    t: today,
+    t1: londonDayOffset(-1, today),
+    t3: londonDayOffset(-3, today),
+    t6: londonDayOffset(-6, today),
+    t7: londonDayOffset(-7, today),
+    t13: londonDayOffset(-13, today),
+    t29: londonDayOffset(-29, today),
+    t30: londonDayOffset(-30, today),
+    t39: londonDayOffset(-39, today)
+  };
+}
+
+export function historyFixture(today = londonDay()) {
+  const D = historyDays(today);
+  const at = (day, h, m) => londonTimeOn(day, h, m);
+  const stamps = (day, h, m, status) => {
+    const out = { createdAtMs: at(day, h, m) };
+    if (status === 'new') return out;
+    out.startedAtMs = at(day, h, m + 2);
+    if (status === 'preparing') return out;
+    out.readyAtMs = at(day, h, m + 6);
+    if (status === 'ready') return out;
+    out.collectedAtMs = at(day, h, m + 8);
+    return out;
+  };
+  const make = (id, day, orderNo, h, m, name, till, payment, status, items, extra = {}) => ({
+    id,
+    doc: {
+      orderNo, name, till, day, items, payment, status,
+      total: items.reduce((sum, l) => sum + l.qty * l.price, 0),
+      ...stamps(day, h, m, status),
+      ...extra
+    }
+  });
+
+  return [
+    make('h01', D.t, 'A-003', 13, 12, 'Ruma', 'A', 'card', 'collected', [hLine('samosa_chat', 2)]),
+
+    make('h02', D.t, 'A-002', 13, 5, 'Guest', 'A', 'cash', 'cancelled', [hLine('momo', 1)], {
+      cancelledAtMs: at(D.t, 13, 9),
+      cancelReason: 'mistake',
+      cancelledFrom: 'new',
+      history: [{
+        atMs: at(D.t, 13, 9), action: 'cancel', till: 'A', fromStatus: 'new', reason: 'mistake',
+        before: { items: [hLine('momo', 1)], total: 500, name: 'Guest', payment: 'cash' }, deltaPence: 0
+      }]
+    }),
+
+    make('h03', D.t, 'A-001', 12, 58, 'Arjun', 'A', 'card', 'collected',
+      [hLine('fuchka', 1), hLine('samosa_chat', 1)]),
+
+    make('h04', D.t1, 'B-012', 15, 20, 'Meera', 'B', 'card', 'ready',
+      [hLine('momo', 1), hLine('sweet_box', 1)]),
+
+    make('h05', D.t1, 'A-031', 15, 10, 'Ahmed', 'A', 'cash', 'collected', [hLine('momo', 3)], {
+      editCount: 1,
+      editedAtMs: at(D.t1, 15, 13),
+      history: [{
+        atMs: at(D.t1, 15, 13), action: 'edit', till: 'A', fromStatus: 'preparing',
+        before: { items: [hLine('momo', 2), hLine('chat', 1)], total: 1500, name: 'Ahmed', payment: 'cash' },
+        deltaPence: 0
+      }]
+    }),
+
+    make('h06', D.t1, 'A-030', 15, 2, 'Priya', 'A', 'card', 'collected',
+      [hLine('fuchka', 2), hLine('marshmallow', 1)]),
+
+    make('h07', D.t3, 'A-012', 11, 40, 'Tom', 'A', 'cash', 'preparing',
+      [hLine('samosa_only', 1), hLine('choc_strawberry', 1)]),
+
+    make('h08', D.t3, 'C-001', 11, 5, 'Dev', 'C', 'card', 'cancelled', [hLine('fuchka', 1)], {
+      cancelledAtMs: at(D.t3, 11, 23),
+      cancelReason: 'not_collected',
+      cancelledFrom: 'ready',
+      history: [{
+        atMs: at(D.t3, 11, 23), action: 'cancel', till: 'C', fromStatus: 'ready', reason: 'not_collected',
+        before: { items: [hLine('fuchka', 1)], total: 500, name: 'Dev', payment: 'card' }, deltaPence: 0
+      }]
+    }),
+
+    make('h09', D.t6, 'A-001', 16, 40, 'Josh', 'A', 'card', 'new',
+      [hLine('chat', 1), hLine('marshmallow', 2)]),
+
+    // Edited twice: 1 -> 3 -> 2 Sweet Box.
+    make('h10', D.t6, 'B-002', 16, 31, 'Sohini', 'B', 'cash', 'collected', [hLine('sweet_box', 2)], {
+      startedAtMs: at(D.t6, 16, 34),
+      readyAtMs: at(D.t6, 16, 37),
+      collectedAtMs: at(D.t6, 16, 39),
+      editCount: 2,
+      editedAtMs: at(D.t6, 16, 36),
+      history: [
+        {
+          atMs: at(D.t6, 16, 33), action: 'edit', till: 'B', fromStatus: 'new',
+          before: { items: [hLine('sweet_box', 1)], total: 500, name: 'Sohini', payment: 'cash' },
+          deltaPence: 1000
+        },
+        {
+          atMs: at(D.t6, 16, 36), action: 'edit', till: 'A', fromStatus: 'preparing',
+          before: { items: [hLine('sweet_box', 3)], total: 1500, name: 'Sohini', payment: 'cash' },
+          deltaPence: -500
+        }
+      ]
+    }),
+
+    // Phase I order: carries `tendered` and none of the Phase V fields.
+    make('h11', D.t7, 'A-007', 12, 30, 'Lucy', 'A', 'cash', 'collected', [hLine('fuchka', 2)], {
+      tendered: 2000
+    }),
+
+    make('h12', D.t13, 'B-005', 18, 5, 'Nadia', 'B', 'card', 'collected',
+      [hLine('fountain', 1), hLine('momo', 1)]),
+
+    make('h13', D.t29, 'A-050', 10, 10, 'Imran', 'A', 'cash', 'collected', [hLine('chat', 3)]),
+
+    make('h14', D.t30, 'A-001', 9, 15, 'Ekta', 'A', 'card', 'collected', [hLine('sweet_box', 1)]),
+
+    make('h15', D.t39, 'B-001', 19, 45, 'Raj', 'B', 'cash', 'collected', [hLine('momo', 2)])
+  ];
+}
+
+/** Hand-calculated expectations for the fixture (qa/test-plan.md 58.1). */
+export function historyExpect(today = londonDay()) {
+  const D = historyDays(today);
+  return {
+    days: D,
+    defaultRange: { from: D.t6, to: D.t },
+    defaultIds: ['h01', 'h02', 'h03', 'h04', 'h05', 'h06', 'h07', 'h08', 'h09', 'h10'],
+    summary: {
+      orders: 10, tradingDays: 4, sales: '£95.00', cancelled: 2,
+      cancelledNote: '£10.00 not taken', edited: 2,
+      text: '10 orders · £95.00 (excludes 2 cancelled)'
+    },
+    groups: [
+      { day: D.t, ids: ['h01', 'h02', 'h03'], meta: '3 orders · £20.00 (excludes 1 cancelled)' },
+      { day: D.t1, ids: ['h04', 'h05', 'h06'], meta: '3 orders · £40.00' },
+      { day: D.t3, ids: ['h07', 'h08'], meta: '2 orders · £10.00 (excludes 1 cancelled)' },
+      { day: D.t6, ids: ['h09', 'h10'], meta: '2 orders · £25.00' }
+    ],
+    ranges: {
+      today: { from: D.t, to: D.t, ids: ['h01', 'h02', 'h03'], text: '3 orders · £20.00 (excludes 1 cancelled)' },
+      '7d': { from: D.t6, to: D.t, ids: ['h01', 'h02', 'h03', 'h04', 'h05', 'h06', 'h07', 'h08', 'h09', 'h10'], text: '10 orders · £95.00 (excludes 2 cancelled)' },
+      '30d': {
+        from: D.t29, to: D.t,
+        ids: ['h01', 'h02', 'h03', 'h04', 'h05', 'h06', 'h07', 'h08', 'h09', 'h10', 'h11', 'h12', 'h13'],
+        text: '13 orders · £130.00 (excludes 2 cancelled)'
+      },
+      event: { from: D.t3, to: D.t1, ids: ['h04', 'h05', 'h06', 'h07', 'h08'], text: '5 orders · £50.00 (excludes 1 cancelled)' }
+    },
+    filters: [
+      { label: 'status collected', set: { status: 'collected' }, ids: ['h01', 'h03', 'h05', 'h06', 'h10'], text: '5 orders · £60.00' },
+      { label: 'status cancelled', set: { status: 'cancelled' }, ids: ['h02', 'h08'], text: '2 orders · £0.00 (excludes 2 cancelled)' },
+      { label: 'status open', set: { status: 'open' }, ids: ['h04', 'h07', 'h09'], text: '3 orders · £35.00' },
+      { label: 'pay cash', set: { pay: 'cash' }, ids: ['h02', 'h05', 'h07', 'h10'], text: '4 orders · £35.00 (excludes 1 cancelled)' },
+      { label: 'pay card', set: { pay: 'card' }, ids: ['h01', 'h03', 'h04', 'h06', 'h08', 'h09'], text: '6 orders · £60.00 (excludes 1 cancelled)' },
+      { label: 'till A', set: { till: 'A' }, ids: ['h01', 'h02', 'h03', 'h05', 'h06', 'h07', 'h09'], text: '7 orders · £75.00 (excludes 1 cancelled)' },
+      { label: 'till B', set: { till: 'B' }, ids: ['h04', 'h10'], text: '2 orders · £20.00' },
+      { label: 'till C', set: { till: 'C' }, ids: ['h08'], text: '1 orders · £0.00 (excludes 1 cancelled)' },
+      { label: 'item momo', set: { item: 'momo' }, ids: ['h02', 'h04', 'h05'], text: '3 orders · £25.00 (excludes 1 cancelled)' },
+      { label: 'item samosa_chat', set: { item: 'samosa_chat' }, ids: ['h01', 'h03'], text: '2 orders · £20.00' },
+      { label: 'edited only', set: { edited: true }, ids: ['h05', 'h10'], text: '2 orders · £25.00' },
+      { label: 'search a-00', set: { q: 'a-00' }, ids: ['h01', 'h02', 'h03', 'h09'], text: '4 orders · £35.00 (excludes 1 cancelled)' },
+      { label: 'search a-001', set: { q: 'a-001' }, ids: ['h03', 'h09'], text: '2 orders · £25.00' },
+      { label: 'search AHMED', set: { q: 'AHMED' }, ids: ['h05'], text: '1 orders · £15.00' },
+      { label: 'collected + cash + till A', set: { status: 'collected', pay: 'cash', till: 'A' }, ids: ['h05'], text: '1 orders · £15.00' },
+      { label: 'open + card', set: { status: 'open', pay: 'card' }, ids: ['h04', 'h09'], text: '2 orders · £25.00' },
+      { label: 'cancelled + till B', set: { status: 'cancelled', till: 'B' }, ids: [], text: '0 orders · £0.00' }
+    ]
+  };
+}
+
+/** Seed the scripted history range and wait until the emulator holds it all. */
+export async function seedHistoryRange(today = londonDay()) {
+  const fixture = historyFixture(today);
+  for (const { id, doc } of fixture) await seedDoc('orders', doc, id);
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const got = await readCollection('orders');
+    if (got.length === fixture.length) return fixture;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  const got = await readCollection('orders');
+  throw new Error(`seedHistoryRange expected ${fixture.length} orders, emulator holds ${got.length}`);
+}
+
+/**
+ * 230 identical £5 orders over three days, for the 100-row cap and the
+ * "export everything, not just the 100 shown" case (qa/test-plan.md 58.2).
+ * Written with the emulator's batchWrite endpoint: 230 single POSTs would add
+ * most of a minute to the run.
+ */
+export function historyBulkFixture(today = londonDay()) {
+  const plan = [[today, 90], [londonDayOffset(-1, today), 90], [londonDayOffset(-2, today), 50]];
+  const out = [];
+  for (const [day, count] of plan) {
+    for (let i = 1; i <= count; i++) {
+      const minutes = i - 1;
+      const h = 10 + Math.floor(minutes / 60);
+      const m = minutes % 60;
+      const at = (plus) => londonTimeOn(day, h, m + plus);
+      out.push({
+        id: `b-${day}-${String(i).padStart(3, '0')}`,
+        doc: {
+          orderNo: `A-${String(i).padStart(3, '0')}`,
+          name: `Guest ${i}`, till: 'A', day,
+          items: [hLine('fuchka', 1)],
+          total: 500, payment: 'card', status: 'collected',
+          createdAtMs: at(0), startedAtMs: at(2), readyAtMs: at(6), collectedAtMs: at(8)
+        }
+      });
+    }
+  }
+  return out;
+}
+
+export async function seedHistoryBulk(today = londonDay()) {
+  const fixture = historyBulkFixture(today);
+  const chunks = [];
+  for (let i = 0; i < fixture.length; i += 200) chunks.push(fixture.slice(i, i + 200));
+  for (const chunk of chunks) {
+    const res = await emuFetch(`${DOCS}:batchWrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        writes: chunk.map(({ id, doc }) => ({
+          update: { name: `projects/${PROJECT}/databases/(default)/documents/orders/${id}`, fields: toFields(doc) }
+        }))
+      })
+    });
+    if (!res.ok) {
+      // Fall back to one POST per document if the emulator build has no
+      // batchWrite: slower, but the case still runs.
+      for (const { id, doc } of chunk) await seedDoc('orders', doc, id);
+    }
+  }
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const got = await countOrders();
+    if (got >= fixture.length) return fixture;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error(`seedHistoryBulk expected ${fixture.length} orders, emulator holds ${await countOrders()}`);
+}
+
+/** How many documents `orders` holds, paging past the 300-document read. */
+export async function countOrders() {
+  let count = 0;
+  let token = '';
+  for (;;) {
+    const url = `${DOCS}/orders?pageSize=300&mask.fieldPaths=day` + (token ? `&pageToken=${token}` : '');
+    const res = await emuFetch(url).catch(() => null);
+    if (!res || !res.ok) return count;
+    const body = await res.json();
+    count += (body.documents || []).length;
+    token = body.nextPageToken || '';
+    if (!token) return count;
+  }
+}
+
+/* --------------------------------------------- Phase VI: request watching */
+
+/**
+ * Watch what the page asks the emulator for.
+ *
+ * The Firestore Web SDK tunnels everything through two WebChannel endpoints,
+ * `/Listen/channel` and `/Write/channel`, and form-encodes a batch of protocol
+ * messages into `req<n>___data__` parameters. A one-shot `getDocs` is an
+ * `addTarget` followed by a `removeTarget`; a live `onSnapshot` is an
+ * `addTarget` that is never removed. So the transport cannot be read by URL
+ * alone: the bodies have to be decoded, which is what this does.
+ *
+ * CLAUDE.md Phase VI 3: the history screen makes one query per range change,
+ * is not a listener, and never writes.
+ */
+export function watchFirestore(page) {
+  const messages = [];
+  page.on('request', (req) => {
+    const url = req.url();
+    if (!/127\.0\.0\.1:8080|localhost:8080/.test(url)) return;
+    let body = '';
+    try { body = req.postData() || ''; } catch { body = ''; }
+    if (!body) return;
+    let params;
+    try { params = new URLSearchParams(body); } catch { return; }
+    for (const [key, value] of params) {
+      if (!/^req\d+___data__$/.test(key)) continue;
+      let data;
+      try { data = JSON.parse(value); } catch { continue; }
+      messages.push({ url, method: req.method(), data, text: JSON.stringify(data) });
+    }
+  });
+
+  const adds = () => messages.filter((m) => m.data && m.data.addTarget);
+  return {
+    messages,
+    reset: () => { messages.length = 0; },
+    /** Query targets opened for a range, found by the day bound in the query. */
+    queriesFor: (day) => adds().filter((m) => m.text.includes(day)),
+    /** Their target ids. */
+    targetsFor: (day) => adds().filter((m) => m.text.includes(day))
+      .map((m) => m.data.addTarget.targetId),
+    /** Target ids the client has asked the server to stop watching. */
+    removedTargets: () => messages
+      .filter((m) => m.data && m.data.removeTarget !== undefined)
+      .map((m) => m.data.removeTarget),
+    /** Document writes, by collection: ["orders/abc", "menu/fuchka"]. */
+    writtenDocs: () => {
+      const out = [];
+      for (const m of messages) {
+        for (const w of (m.data && Array.isArray(m.data.writes) ? m.data.writes : [])) {
+          const name = (w.update && w.update.name) || w.delete || '';
+          const path = String(name).split('/documents/').pop();
+          if (path) out.push(path);
+        }
+      }
+      return out;
+    },
+    writesTo: (collection) => {
+      const prefix = collection + '/';
+      const out = [];
+      for (const m of messages) {
+        for (const w of (m.data && Array.isArray(m.data.writes) ? m.data.writes : [])) {
+          const name = (w.update && w.update.name) || w.delete || '';
+          const path = String(name).split('/documents/').pop();
+          if (path.startsWith(prefix)) out.push(path);
+        }
+      }
+      return out;
+    }
+  };
+}
+
+/** Let the page read and write the clipboard (127.0.0.1 is a secure context). */
+export async function grantClipboard(context) {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://127.0.0.1:5173' })
+    .catch(() => { /* older Chromium: the write still works, the read may not */ });
+}
+
+/**
+ * Make every Firestore query fail *permanently*, so the error state can be
+ * observed. A plain abort is not enough: an unreachable backend makes the SDK
+ * go offline and serve `getDocs` from the local cache, which is the documented
+ * behaviour (DECISIONS.md, 20 Oct 2026) and not an error. A 403 is mapped to
+ * PERMISSION_DENIED, which is not retryable, so the read really does reject.
+ */
+export async function breakFirestore(page) {
+  await page.route(/127\.0\.0\.1:8080|localhost:8080/, (route) => route.fulfill({
+    status: 403,
+    contentType: 'text/plain; charset=utf-8',
+    // The SDK sends these with credentials, so a wildcard origin would be a
+    // CORS console error of the harness's own making.
+    headers: {
+      'Access-Control-Allow-Origin': 'http://127.0.0.1:5173',
+      'Access-Control-Allow-Credentials': 'true'
+    },
+    body: 'Forbidden'
+  }));
+}
+
+export async function mendFirestore(page) {
+  await page.unroute(/127\.0\.0\.1:8080|localhost:8080/);
+}
+
+/** Hold every Firestore request back by `ms`, so "Loading orders…" is visible. */
+export async function slowFirestore(page, ms = 2000) {
+  await page.route(/127\.0\.0\.1:8080|localhost:8080/, async (route) => {
+    await new Promise((r) => setTimeout(r, ms));
+    await route.continue();
+  });
+}

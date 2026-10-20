@@ -497,14 +497,18 @@ describe('P4-U-08 the screen is read-only (CLAUDE.md Phase IV, heading)', () => 
 /* ------------------------------------------------------------- version */
 
 describe('P4-U-09 the version in package.json', () => {
-  it('is on 1.4.0, the Phase V release', async () => {
+  it('has not gone backwards from 1.4.0, the Phase V 8 release', async () => {
     const { readFileSync } = await import('node:fs');
     const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
-    expect(pkg.version,
-      'CLAUDE.md -> Phase V 8: "package.json version 1.4.0", and the version table lists ' +
-      '1.4.0 as Phase V ("Edit or cancel an open order, plus Samosa Chat"). package.json is ' +
-      'the single source of truth (Phase III part 2, 1), so the header pill and the login ' +
-      'version line follow it. Duplicated by P5-U-09 in tests/unit/edit-cancel.test.js.'
-    ).toBe('1.4.0');
+    const parts = String(pkg.version).split('.').map(Number);
+    expect(parts, 'package.json carries a three-part version').toHaveLength(3);
+    expect(parts.every(Number.isInteger)).toBe(true);
+    const asNumber = parts[0] * 1e6 + parts[1] * 1e3 + parts[2];
+    expect(asNumber,
+      'CLAUDE.md -> Phase V 8: "package.json version 1.4.0". package.json is the single '
+      + 'source of truth (Phase III part 2, 1), so the header pill and the login version line '
+      + 'follow it. The current release number is pinned in one place only, P6-U-09 in '
+      + 'tests/unit/history.test.js; this case only guards against going backwards.'
+    ).toBeGreaterThanOrEqual(1 * 1e6 + 4 * 1e3 + 0);
   });
 });

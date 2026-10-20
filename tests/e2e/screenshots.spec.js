@@ -13,7 +13,10 @@ const SCREENS = [
   ['reports', '#/reports'],
   // Phase IV: the Orders list. The detail-panel shots are taken by P4-19 in
   // tests/e2e/reports-orders.spec.js, which has the scripted day seeded.
-  ['reports-orders', '#/reports/orders']
+  ['reports-orders', '#/reports/orders'],
+  // Phase VI: Order history. The detail and filter-sheet shots are taken by
+  // P6-38 in tests/e2e/reports-history.spec.js, which seeds the scripted range.
+  ['reports-history', '#/reports/history']
 ];
 
 test('screenshots: empty state', async ({ page }, info) => {

@@ -46,6 +46,7 @@ One static single-page app, a shared login, three working screens, shared data i
 | `#/reports` | One day: daily totals, per item, peak demand, cash vs card, CSV export | Organisers |
 | `#/reports/days` | Phase III. Sales by day across a date range | Organisers |
 | `#/reports/orders` | Phase IV. List a day's orders and view each order's items | Organisers |
+| `#/reports/history` | Phase VI. Order history: find and review past orders across any date range | Organisers |
 | `#/` | Landing page after sign-in: three big buttons to the above, till letter setting | Everyone |
 
 ### Menu (seed into Firestore on first load if `menu` is empty)
@@ -184,7 +185,8 @@ Mock-ups: footer of `design/Login.dc.html` and `design/LoginMobile.dc.html`; the
 | 1.3.0 | Phase IV: Orders list and order detail in Reports (19 Oct, live) |
 | 1.3.1 | Hotfix H3: phone cash counter layout, 7-item menu, live reset (19 Oct, live) |
 | 1.3.2 | Hotfix H4: Card is the default payment (19 Oct, live) |
-| **1.4.0** | **Phase V: edit or cancel an open order, plus Samosa Chat (next run)** |
+| 1.4.0 | Phase V: edit or cancel an open order, plus Samosa Chat (20 Oct, live) |
+| **1.5.0** | **Phase VI: Order history in Reports (next run)** |
 
 1. `package.json` `version` is the single source of truth. Set it to `1.2.0` in this run. Every later phase bumps the minor number, every hotfix the patch number, and `HANDOVER.md` "What changed" names the version.
 2. `scripts/write-version.mjs` (Trinity) writes `public/js/version.js`: `APP_VERSION` from `package.json`, `APP_BUILD` the 7-character commit SHA, `APP_DATE` the build date (Europe/London, `YYYY-MM-DD`). Locally it uses `git rev-parse --short HEAD`, adding `-dirty` when the working tree has uncommitted changes. In CI it uses `GITHUB_SHA`. The file is generated and gitignored, like the other config files. Add a Pages workflow step that runs it before the upload.
@@ -239,7 +241,7 @@ Most customers pay by card, so the till should start on Card.
 3. Nothing else changes: order data, reports and CSV are unaffected (`payment` is still "cash" or "card").
 4. `package.json` version 1.3.2.
 
-### Phase V: Edit or cancel an open order, plus Samosa Chat (v1.4.0)
+### Phase V: Edit or cancel an open order, plus Samosa Chat (v1.4.0, shipped 20 Oct, don't rebuild)
 Problem: a mistake can only be fixed with Cancel in the Recent strip (last 5 orders from the same till, status New). Once the food counter taps Start nothing can be corrected, and reports keep the wrong sale.
 
 Mock-ups: `design/OrderChangesRules.dc.html` (rules, money prompts, data fields), `design/CashOpenOrders.dc.html` (tablet/desktop cash counter), `design/CashOpenOrdersSmall.dc.html` (phone, iPhone 13), `design/FoodCounterChanges.dc.html` (food counter cards), `design/ItemIcon.dc.html` (new `samosa_chat` icon).
@@ -291,6 +293,29 @@ Mock-ups: `design/OrderChangesRules.dc.html` (rules, money prompts, data fields)
    No new collections, no composite index, Firestore rules unchanged.
 7. **Samosa Chat.** Add `samosa_chat` to the `MENU` seed in `public/js/logic.js` exactly as in the menu table (name and short "Samosa Chat", 500, #A5F3FC, chaat, sort 8) and its icon (bowl with a samosa on top, `design/ItemIcon.dc.html`). It appears last on the till (8 tiles, still no scrolling at 390×664 on phone), under the Chaat station filter, and in every report and CSV. Live gets it from `scripts/menu-sync.mjs` after the deploy (creates the missing document only; no other menu changes).
 8. `package.json` version 1.4.0.
+
+### Phase VI: Order history in Reports (v1.5.0)
+Problem: the Orders screen (Phase IV) covers one day at a time, so finding a past order for a review (a customer query, a refund check, a trustee question) means guessing the day. HANDOVER "Known issues" lists this.
+
+Mock-ups: `design/ReportsHistory.dc.html` (tablet/desktop), `design/ReportsHistoryMobile.dc.html` (phone). Read-only: no writes, no change to how orders are stored. Existing report screens are unchanged apart from the extra tab.
+
+1. **Fourth report tab** on every report screen: One day | Sales by day | Orders | **Order history** (`#/reports/history`). Phone labels: One day | By day | Orders | History, in a row that scrolls sideways if it doesn't fit (no wrapping, no horizontal page scroll).
+2. **Range.** From and To date inputs (Europe/London days) plus quick buttons Today, Last 7 days, Last 30 days, This event (hidden without `settings/event`, as in Phase III), This year (1 Jan to today). Default Last 7 days. To before From swaps them. Maximum **366 days**; longer shows "Pick 366 days or fewer" (`history-range-error`) and doesn't query. The range and filters live in the hash (`#/reports/history?from=…&to=…&status=…&pay=…&till=…&item=…&edited=1&q=…&order=<docId>`) so a link opens the same view.
+3. **Data.** One `getDocs` (not a live listener) with `where("day", ">=", from)` and `where("day", "<=", to)` (single field, no index; reuse the Phase III range query in `store.js`). Loaded once per range change; a **Refresh** button reloads. Filters and search run on the client. While loading: "Loading orders…"; on failure: "Couldn't load orders. Check the connection and tap Refresh." (`role="alert"`).
+4. **Filters** (tablet: two rows above the list; phone: search box plus a **Filters** button showing the count of active filters, opening a bottom sheet with a "Show <n> orders" button and Clear):
+   - Search "Search order number or name", case-insensitive, matches order number or name. Order numbers repeat across days, so every result shows its date.
+   - Status: All, Collected, Cancelled, Not finished (new, preparing or ready).
+   - Payment: All, Cash, Card (phone: in the sheet).
+   - Till: All tills plus every till letter found in the loaded orders.
+   - Item: Any item plus every item in the menu and any other item id found on loaded order lines (shown by its stored name). Matches orders containing that item.
+   - **Edited only** toggle (`editCount > 0`).
+   - Clear filters resets everything except the range.
+5. **Summary tiles** (tablet; phone shows one line "<n> orders · £<total> (excludes <c> cancelled)"): Orders ("across <d> trading days"), Sales (excludes cancelled), Cancelled (count, "£x not taken"), Edited after sending (count). All reflect range and filters.
+6. **List.** Grouped by day, newest day first, newest order first within a day. Day header row: "Sun 18 Oct 2026", right side "<n> orders · £<total> (excludes <c> cancelled)". Tablet columns: Time, Order (a `<button>` that opens the detail), Name, Items (menu `short` names, plus an amber "Edited" tag when `editCount > 0`), Total (grey and struck through when cancelled), Pay, Till, Status pill (Phase IV colours). Phone: the Phase IV order cards under day headings. Show the first 100 orders, then "Show 100 more (<n> left)". Empty: "No orders match these filters."
+7. **Detail** (tablet: right-hand panel, stacks below under 1100 px; phone: full screen with "‹ Order history" back, browser Back also returns): date and order number, name, status pill; Till, Payment, Wait; for cancelled orders a red box "Cancelled HH:MM · <reason> · was <status before>"; Timeline (Placed, Edited HH:MM for each edit, Started, Ready, Collected or Cancelled); Items with icon, qty and line totals and the Total; **Changes** (only when edited): one box per `history` edit entry, "Edited HH:MM at till A while Preparing", Before items and total, After items and total, and "Took £5.00 more" / "Gave back £5.00" / "No payment change". Buttons: **Copy link to this order** (copies the hash URL with `order=<docId>`; label changes to "Link copied" for 3 s) and **Open this day in Orders** (`#/reports/orders?day=…`). Note: "Read-only history. Nothing here changes an order. Cancelled orders are listed but excluded from every total." Orders from before Phase V (no `history`) show no Changes section and no errors.
+8. **Export these orders (CSV)** in the header: the orders currently matched (all of them, not only the 100 shown), same columns as the Orders CSV including `edited` and `cancelReason`, file `nba-food-stall_history_<from>_<to>.csv`.
+9. **Reads.** One read per order in range. Fine on the free plan for a charity stall; if the summary passes 5,000 orders, show "Large range: narrow it to load faster" under the tiles.
+10. `package.json` version 1.5.0.
 
 ## Design
 

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Order history report</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&amp;family=Bricolage+Grotesque:wght@600;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FDE68A}
+button,input,select{font-family:inherit}
+button{cursor:pointer}
+th{padding:12px 10px;border-bottom:1.5px solid #D6D3D1;text-align:left;color:#57534E;font-size:15px}
+td{padding:6px 10px;border-bottom:1px solid #E7E5E4;vertical-align:middle}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 1180px; box-sizing: border-box; background: #F5F5F4; color: #1C1917; font-family: 'Atkinson Hyperlegible', system-ui, sans-serif; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 24px; background: #1C1917; color: #FFFFFF">
+<span style="display: flex; align-items: center; gap: 12px"><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 28px">Reports</span><span title="Version 1.5.0, build a1b2c3d" style="padding: 3px 9px; border-radius: 999px; border: 1px solid #57534E; color: #D6D3D1; font-size: 13px; line-height: 16px; font-weight: 700">v1.5.0</span></span>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font-size: 17px">
+<button style="height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #FDE68A; color: #1C1917; font-size: 17px; font-weight: 700">Export these orders (CSV)</button>
+<a href="CashOpenOrders.dc.html" style="font-weight: 700">Cash counter</a>
+<a href="Login.dc.html" style="display: flex; align-items: center; height: 44px; padding: 0 14px; border: 2px solid #78716C; border-radius: 10px; color: #FFFFFF; font-weight: 700; text-decoration: none">Sign out</a>
+</div>
+</header>
+
+<main style="width: 100%; max-width: 1400px; box-sizing: border-box; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<nav aria-label="Report view" style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="Reports.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">One day</a>
+<a href="ReportsByDay.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">Sales by day</a>
+<a href="ReportsOrders.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #D6D3D1; background: #FFFFFF; color: #1C1917; font-size: 17px; font-weight: 700; text-decoration: none">Orders</a>
+<a href="ReportsHistory.dc.html" aria-current="page" style="display: flex; align-items: center; height: 48px; padding: 0 22px; border-radius: 999px; background: #1C1917; color: #FFFFFF; font-size: 17px; font-weight: 700; text-decoration: none">Order history</a>
+</nav>
+
+<section aria-label="Range and filters" style="display: flex; flex-direction: column; gap: 14px; background: #FFFFFF; border-radius: 16px; padding: 18px 20px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="hfrom" style="font-size: 15px; font-weight: 700; color: #44403C">From</label><input id="hfrom" type="date" value="{{from}}" style="height: 48px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 17px; color: #1C1917"></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="hto" style="font-size: 15px; font-weight: 700; color: #44403C">To</label><input id="hto" type="date" value="{{to}}" style="height: 48px; padding: 0 12px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 17px; color: #1C1917"></div>
+<div role="group" aria-label="Quick ranges" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{rangeChips}}" as="c" hint-placeholder-count="5">
+<button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 48px; padding: 0 16px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 16px; font-weight: 700">{{c.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px; flex: 1 1 240px; min-width: 0"><label for="hsearch" style="font-size: 15px; font-weight: 700; color: #44403C">Search order number or name</label><input id="hsearch" value="{{q}}" onChange="{{onQ}}" placeholder="e.g. A-041 or Priya" autocomplete="off" style="height: 48px; padding: 0 14px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 17px; color: #1C1917"></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #44403C">Status</span>
+<div role="group" aria-label="Status" style="display: flex; flex-wrap: wrap; gap: 6px"><sc-for list="{{statusChips}}" as="c" hint-placeholder-count="4"><button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 15px; font-weight: 700">{{c.label}}</button></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><span style="font-size: 15px; font-weight: 700; color: #44403C">Payment</span>
+<div role="group" aria-label="Payment" style="display: flex; gap: 6px"><sc-for list="{{payChips}}" as="c" hint-placeholder-count="3"><button onClick="{{c.pick}}" aria-pressed="{{c.on}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{c.border}}; background: {{c.bg}}; color: #1C1917; font-size: 15px; font-weight: 700">{{c.label}}</button></sc-for></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="htill" style="font-size: 15px; font-weight: 700; color: #44403C">Till</label><select id="htill" onChange="{{onTill}}" style="height: 44px; padding: 0 10px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 16px; background: #FFFFFF; color: #1C1917"><option value="all">All tills</option><option value="A">A</option><option value="B">B</option></select></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><label for="hitem" style="font-size: 15px; font-weight: 700; color: #44403C">Item</label><select id="hitem" onChange="{{onItem}}" style="height: 44px; padding: 0 10px; border-radius: 10px; border: 2px solid #A8A29E; font-size: 16px; background: #FFFFFF; color: #1C1917"><option value="all">Any item</option><option value="fuchka">Fuchka</option><option value="momo">Momo</option><option value="chat">Papri Chat</option><option value="sweet_box">Sweet Box</option><option value="samosa_only">Samosa</option><option value="choc_strawberry">Choc Strawberry</option><option value="marshmallow">Choc Marshmallow</option><option value="samosa_chat">Samosa Chat</option></select></div>
+<button onClick="{{toggleEdited}}" aria-pressed="{{editedOnly}}" style="height: 44px; padding: 0 14px; border-radius: 999px; border: 2px solid {{edBorder}}; background: {{edBg}}; color: #1C1917; font-size: 15px; font-weight: 700">Edited only</button>
+<button onClick="{{reset}}" style="height: 44px; padding: 0 10px; border: none; background: transparent; color: #57534E; font-size: 15px; text-decoration: underline">Clear filters</button>
+</div>
+</section>
+
+<section aria-label="Summary" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 18px"><span style="font-size: 14px; color: #57534E">Orders</span><div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px">{{kOrders}}</div><span style="font-size: 14px; color: #57534E">{{kDays}}</span></div>
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 18px"><span style="font-size: 14px; color: #57534E">Sales</span><div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px">{{kSales}}</div><span style="font-size: 14px; color: #57534E">excludes cancelled</span></div>
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 18px"><span style="font-size: 14px; color: #57534E">Cancelled</span><div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px; color: #B91C1C">{{kCancelled}}</div><span style="font-size: 14px; color: #57534E">{{kCancelledValue}}</span></div>
+<div style="background: #FFFFFF; border-radius: 14px; padding: 14px 18px"><span style="font-size: 14px; color: #57534E">Edited after sending</span><div style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 32px; color: #B45309">{{kEdited}}</div><span style="font-size: 14px; color: #57534E">open one to see what changed</span></div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-label="Orders" style="flex: 3 1 680px; min-width: 0; background: #FFFFFF; border-radius: 16px; padding: 8px 8px 12px">
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 820px; border-collapse: collapse; font-size: 16px">
+<thead><tr><th>Time</th><th>Order</th><th>Name</th><th>Items</th><th style="text-align: right">Total</th><th>Pay</th><th>Till</th><th>Status</th></tr></thead>
+<tbody>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+<tr><td colspan="8" style="padding: 14px 10px 8px; background: #FAFAF9; border-bottom: 1.5px solid #D6D3D1"><span style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px"><b style="font-size: 18px">{{g.label}}</b><span style="font-size: 15px; color: #57534E">{{g.meta}}</span></span></td></tr>
+<sc-for list="{{g.rows}}" as="o" hint-placeholder-count="4">
+<tr style="background: {{o.rowBg}}">
+<td style="color: #44403C">{{o.time}}</td>
+<td><button onClick="{{o.pick}}" aria-pressed="{{o.selected}}" aria-label="View order {{o.no}} on {{o.dayText}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 2px solid {{o.btnBorder}}; background: #FFFFFF; color: #1C1917; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 18px">{{o.no}}</button></td>
+<td style="font-weight: 700">{{o.name}}</td>
+<td style="color: #44403C">{{o.summary}}<sc-if value="{{o.edited}}" hint-placeholder-val="{{ false }}"> <span style="margin-left: 4px; padding: 2px 8px; border-radius: 999px; background: #FEF3C7; color: #78350F; font-size: 13px; font-weight: 700">Edited</span></sc-if></td>
+<td style="text-align: right; font-weight: 700; color: {{o.totalColour}}; text-decoration: {{o.strike}}">{{o.totalText}}</td>
+<td>{{o.payLabel}}</td>
+<td>{{o.till}}</td>
+<td><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; background: {{o.stBg}}; color: {{o.stFg}}; border: 1.5px solid {{o.stBorder}}; font-size: 14px; font-weight: 700">{{o.statusLabel}}</span></td>
+</tr>
+</sc-for>
+</sc-for>
+</tbody>
+</table>
+</div>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 32px; text-align: center; font-size: 18px; color: #57534E">No orders match these filters.</p></sc-if>
+<p style="margin: 10px 10px 0; font-size: 14px; color: #57534E">Shows 100 orders at a time, then "Show 100 more". Range up to 366 days, loaded once; Refresh reloads.</p>
+</section>
+
+<aside aria-label="Order detail" style="flex: 2 1 400px; min-width: 0; background: #FFFFFF; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700; color: #57534E">{{sel.dayText}}</span><span style="font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 34px; line-height: 38px">{{sel.no}}</span><span style="font-size: 21px; font-weight: 700">{{sel.name}}</span></div>
+<span style="padding: 6px 14px; border-radius: 999px; background: {{sel.stBg}}; color: {{sel.stFg}}; border: 1.5px solid {{sel.stBorder}}; font-size: 16px; font-weight: 700">{{sel.statusLabel}}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; font-size: 16px">
+<div><span style="display: block; color: #57534E; font-size: 14px">Till</span><b>{{sel.till}}</b></div>
+<div><span style="display: block; color: #57534E; font-size: 14px">Payment</span><b>{{sel.payLabel}}</b></div>
+<div><span style="display: block; color: #57534E; font-size: 14px">Wait</span><b>{{sel.wait}}</b></div>
+</div>
+<sc-if value="{{sel.isCancelled}}" hint-placeholder-val="{{ false }}"><div style="padding: 10px 14px; border-radius: 12px; background: #FEF2F2; color: #7F1D1D; font-size: 16px"><b>Cancelled {{sel.cancelTime}}</b> · {{sel.cancelReason}} · was {{sel.statusBefore}}</div></sc-if>
+<div style="display: flex; flex-direction: column; gap: 6px"><h3 style="margin: 0; font-size: 17px">Timeline</h3>
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px"><sc-for list="{{sel.steps}}" as="t" hint-placeholder-count="4"><li style="display: flex; align-items: center; gap: 10px; font-size: 16px; color: {{t.colour}}"><span style="width: 12px; height: 12px; flex: none; border-radius: 50%; background: {{t.dot}}"></span><span style="width: 92px; font-weight: 700">{{t.label}}</span><span>{{t.time}}</span></li></sc-for></ol></div>
+<div style="display: flex; flex-direction: column; gap: 6px"><h3 style="margin: 0; font-size: 17px">Items</h3>
+<sc-for list="{{sel.lines}}" as="l" hint-placeholder-count="2"><div style="display: grid; grid-template-columns: 26px minmax(0, 1fr) 40px 70px; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #E7E5E4; font-size: 16px"><dc-import name="ItemIcon" kind="{{l.id}}" size="{{ 26 }}" hint-size="26px,26px"></dc-import><b>{{l.name}}</b><span style="text-align: right">{{l.qty}}×</span><b style="text-align: right">{{l.lineText}}</b></div></sc-for>
+<div style="display: flex; justify-content: space-between; padding-top: 4px; font-weight: 700"><span>Total</span><span style="font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; color: {{sel.totalColour}}">{{sel.totalText}}</span></div></div>
+<sc-if value="{{sel.edited}}" hint-placeholder-val="{{ false }}"><div style="display: flex; flex-direction: column; gap: 6px"><h3 style="margin: 0; font-size: 17px">Changes</h3>
+<sc-for list="{{sel.changes}}" as="c" hint-placeholder-count="1"><div style="padding: 10px 12px; border-radius: 12px; background: #FFFBEB; border: 1.5px solid #FDE68A; font-size: 15px; line-height: 21px"><b>{{c.head}}</b><br><span style="color: #57534E">Before:</span> {{c.before}}<br><span style="color: #57534E">After:</span> {{c.after}}<br><b style="color: #78350F">{{c.money}}</b></div></sc-for></div></sc-if>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button onClick="{{copyLink}}" style="height: 48px; padding: 0 16px; border-radius: 12px; border: 2px solid #1C1917; background: #FFFFFF; color: #1C1917; font-size: 16px; font-weight: 700">{{copyLabel}}</button>
+<a href="ReportsOrders.dc.html" style="display: flex; align-items: center; height: 48px; padding: 0 16px; border-radius: 12px; border: 2px solid #D6D3D1; color: #1C1917; font-size: 16px; font-weight: 700; text-decoration: none">Open this day in Orders</a>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: #57534E">Read-only history. Nothing here changes an order. Cancelled orders are listed but excluded from every total.</p>
+</div>
+</sc-if>
+<sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 40px 0; text-align: center; font-size: 18px; color: #57534E">Select an order to see its items and history.</p></sc-if>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { range: '7d', sel: '2026-10-18|A-031', status: 'all', pay: 'all', till: 'all', item: 'all', edited: false, q: '', copied: false };
+  }
+  renderVals() {
+    const NAMES = { fuchka: 'Fuchka / Gol Gappa', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Chocolate Strawberry', marshmallow: 'Chocolate Marshmallow (V)', samosa_chat: 'Samosa Chat' };
+    const SHORT = { fuchka: 'Fuchka', momo: 'Momo', chat: 'Papri Chat', sweet_box: 'Sweet Box', samosa_only: 'Samosa', choc_strawberry: 'Choc Strawberry', marshmallow: 'Choc Marshmallow', samosa_chat: 'Samosa Chat' };
+    const DAYS = { '2026-10-20': 'Tue 20 Oct 2026', '2026-10-18': 'Sun 18 Oct 2026', '2026-10-17': 'Sat 17 Oct 2026', '2026-09-26': 'Sat 26 Sep 2026' };
+    // day, no, time, name, till, pay, status, items, edit {before, at}, cancel {reason, at, from}
+    const RAW = [
+      ['2026-10-20', 'A-003', '13:12', 'Ruma', 'A', 'card', 'collected', { samosa_chat: 2 }],
+      ['2026-10-20', 'A-002', '13:05', 'Guest', 'A', 'cash', 'cancelled', { momo: 1 }, null, { reason: 'Placed by mistake', at: '13:06', from: 'New' }],
+      ['2026-10-20', 'A-001', '12:58', 'Arjun', 'A', 'card', 'collected', { fuchka: 1, samosa_chat: 1 }],
+      ['2026-10-18', 'B-012', '15:20', 'Meera', 'B', 'card', 'collected', { momo: 1, sweet_box: 1 }],
+      ['2026-10-18', 'A-032', '15:14', 'Kiran', 'A', 'cash', 'cancelled', { chat: 2 }, null, { reason: 'Out of stock', at: '15:19', from: 'Preparing' }],
+      ['2026-10-18', 'A-031', '15:10', 'Ahmed', 'A', 'cash', 'collected', { momo: 3 }, { before: { momo: 2, chat: 1 }, at: '15:13', status: 'Preparing', till: 'A' }],
+      ['2026-10-18', 'A-030', '15:02', 'Priya', 'A', 'card', 'collected', { fuchka: 2, marshmallow: 1 }],
+      ['2026-10-18', 'B-011', '14:55', 'Tom', 'B', 'cash', 'collected', { samosa_only: 1, choc_strawberry: 1 }, { before: { samosa_only: 1 }, at: '14:57', status: 'New', till: 'B' }],
+      ['2026-10-17', 'A-044', '16:40', 'Josh', 'A', 'card', 'collected', { chat: 1, marshmallow: 2 }],
+      ['2026-10-17', 'A-043', '16:31', 'Sohini', 'A', 'cash', 'collected', { sweet_box: 2 }],
+      ['2026-10-17', 'B-020', '16:25', 'Dev', 'B', 'card', 'cancelled', { fuchka: 1 }, null, { reason: 'Not collected', at: '16:58', from: 'Ready' }],
+      ['2026-09-26', 'A-012', '14:02', 'Lucy', 'A', 'cash', 'collected', { fuchka: 1, momo: 1 }]
+    ];
+    const ST = {
+      new: ['New', '#FDE68A', '#1C1917', '#FDE68A'], preparing: ['Preparing', '#BFDBFE', '#1C1917', '#BFDBFE'], ready: ['Ready', '#0F766E', '#FFFFFF', '#0F766E'],
+      collected: ['Collected', '#E7E5E4', '#1C1917', '#E7E5E4'], cancelled: ['Cancelled', '#FFFFFF', '#B91C1C', '#B91C1C']
+    };
+    const RANGES = { today: ['Today', '2026-10-20', '2026-10-20'], '7d': ['Last 7 days', '2026-10-14', '2026-10-20'], '30d': ['Last 30 days', '2026-09-21', '2026-10-20'], event: ['This event', '2026-10-17', '2026-10-18'], year: ['This year', '2026-01-01', '2026-10-20'] };
+    const gbp = (p) => '£' + (p / 100).toFixed(2);
+    const toMin = (t) => parseInt(t.slice(0, 2), 10) * 60 + parseInt(t.slice(3), 10);
+    const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+    const sumText = (items) => Object.keys(items).map((k) => items[k] + '× ' + SHORT[k]).join(', ');
+    const cnt = (items) => Object.keys(items).reduce((a, k) => a + items[k], 0);
+    const s = this.state;
+    const [, from, to] = RANGES[s.range];
+    const all = RAW.map(([day, no, time, name, till, pay, status, items, edit, cancel]) => {
+      const total = cnt(items) * 500;
+      const t0 = toMin(time);
+      const st = ST[status];
+      const steps = [{ label: 'Placed', time: time }];
+      if (edit) steps.push({ label: 'Edited', time: edit.at });
+      if (status === 'cancelled') steps.push({ label: 'Cancelled', time: cancel.at });
+      else steps.push({ label: 'Started', time: hhmm(t0 + 1) }, { label: 'Ready', time: hhmm(t0 + 6) }, { label: 'Collected', time: hhmm(t0 + 8) });
+      const changes = edit ? [{
+        head: 'Edited ' + edit.at + ' at till ' + edit.till + ' while ' + edit.status,
+        before: sumText(edit.before) + ' · ' + gbp(cnt(edit.before) * 500),
+        after: sumText(items) + ' · ' + gbp(total),
+        money: (() => { const d = total - cnt(edit.before) * 500; return d > 0 ? 'Took ' + gbp(d) + ' more' : d < 0 ? 'Gave back ' + gbp(-d) : 'No payment change'; })()
+      }] : [];
+      return {
+        key: day + '|' + no, day: day, dayText: DAYS[day], no: no, time: time, name: name, till: till, pay: pay, status: status, items: items,
+        payLabel: pay === 'cash' ? 'Cash' : 'Card', summary: sumText(items), total: total, totalText: gbp(total),
+        totalColour: status === 'cancelled' ? '#78716C' : '#1C1917', strike: status === 'cancelled' ? 'line-through' : 'none',
+        statusLabel: st[0], stBg: st[1], stFg: st[2], stBorder: st[3],
+        edited: !!edit, changes: changes, isCancelled: status === 'cancelled',
+        cancelReason: cancel ? cancel.reason : '', cancelTime: cancel ? cancel.at : '', statusBefore: cancel ? cancel.from : '',
+        wait: status === 'cancelled' ? '—' : '6 min',
+        lines: Object.keys(items).map((id) => ({ id: id, name: NAMES[id], qty: items[id], lineText: gbp(items[id] * 500) })),
+        steps: steps.map((x) => ({ label: x.label, time: x.time, dot: x.label === 'Cancelled' ? '#B91C1C' : (x.label === 'Edited' ? '#B45309' : '#0F766E'), colour: '#1C1917' }))
+      };
+    });
+    const q = s.q.trim().toLowerCase();
+    const statusOk = (o) => s.status === 'all' || (s.status === 'open' ? ['new', 'preparing', 'ready'].indexOf(o.status) >= 0 : o.status === s.status);
+    const rows = all.filter((o) => o.day >= from && o.day <= to && statusOk(o) && (s.pay === 'all' || o.pay === s.pay) && (s.till === 'all' || o.till === s.till)
+      && (s.item === 'all' || o.items[s.item]) && (!s.edited || o.edited) && (!q || o.no.toLowerCase().indexOf(q) >= 0 || o.name.toLowerCase().indexOf(q) >= 0));
+    const live = rows.filter((o) => !o.isCancelled);
+    const canc = rows.filter((o) => o.isCancelled);
+    const days = [];
+    rows.forEach((o) => { if (days.indexOf(o.day) < 0) days.push(o.day); });
+    const chip = (key, cur, label, set) => ({ label: label, on: key === cur, bg: key === cur ? '#FDE68A' : '#FFFFFF', border: key === cur ? '#1C1917' : '#D6D3D1', pick: () => this.setState(set) });
+    const sel = all.find((o) => o.key === s.sel) || null;
+    return {
+      from: from, to: to,
+      rangeChips: Object.keys(RANGES).map((k) => chip(k, s.range, RANGES[k][0], { range: k })),
+      q: s.q, onQ: (e) => this.setState({ q: e.target.value }),
+      statusChips: [['all', 'All'], ['collected', 'Collected'], ['cancelled', 'Cancelled'], ['open', 'Not finished']].map(([k, l]) => chip(k, s.status, l, { status: k })),
+      payChips: [['all', 'All'], ['cash', 'Cash'], ['card', 'Card']].map(([k, l]) => chip(k, s.pay, l, { pay: k })),
+      onTill: (e) => this.setState({ till: e.target.value }), onItem: (e) => this.setState({ item: e.target.value }),
+      editedOnly: s.edited, edBg: s.edited ? '#FDE68A' : '#FFFFFF', edBorder: s.edited ? '#1C1917' : '#D6D3D1',
+      toggleEdited: () => this.setState({ edited: !this.state.edited }),
+      reset: () => this.setState({ status: 'all', pay: 'all', till: 'all', item: 'all', edited: false, q: '' }),
+      kOrders: String(rows.length), kDays: 'across ' + days.length + (days.length === 1 ? ' trading day' : ' trading days'),
+      kSales: gbp(live.reduce((a, o) => a + o.total, 0)),
+      kCancelled: String(canc.length), kCancelledValue: gbp(canc.reduce((a, o) => a + o.total, 0)) + ' not taken',
+      kEdited: String(rows.filter((o) => o.edited).length),
+      groups: days.map((d) => {
+        const r = rows.filter((o) => o.day === d);
+        const l = r.filter((o) => !o.isCancelled);
+        const c = r.length - l.length;
+        return {
+          label: DAYS[d], meta: r.length + ' orders · ' + gbp(l.reduce((a, o) => a + o.total, 0)) + (c ? ' (excludes ' + c + ' cancelled)' : ''),
+          rows: r.map((o) => Object.assign({}, o, {
+            selected: o.key === s.sel, rowBg: o.key === s.sel ? '#FEF3C7' : 'transparent', btnBorder: o.key === s.sel ? '#1C1917' : '#D6D3D1',
+            pick: () => this.setState({ sel: o.key, copied: false })
+          }))
+        };
+      }),
+      noRows: rows.length === 0,
+      hasSel: !!sel, noSel: !sel, sel: sel || {},
+      copyLabel: s.copied ? 'Link copied' : 'Copy link to this order',
+      copyLink: () => this.setState({ copied: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

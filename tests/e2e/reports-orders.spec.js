@@ -13,7 +13,7 @@ import {
   clearFirestore, openApp, gotoRoute, tid, londonDay, heightOf, boxOf,
   seedOrdersDay, ordersExpect, textOf, gbp, parseCsv, shot,
   attachConsole, expectNoConsoleErrors, readCollection, placeOrder,
-  ordersNav, ordersRow, ordersOpen, ordersCard, ordersBack, ordersExport,
+  ordersNav, ordersRow, ordersOpen, ordersCard, ordersBack, ordersExport, watchFirestore,
   orderEntry, openOrder, listedOrders, detailText, detailField
 } from './helpers.js';
 
@@ -618,18 +618,11 @@ test.describe('Phase IV — Orders list and order detail', () => {
       .map((o) => [o._id, o.orderNo, o.status, o.total, o.day].join('|')).sort().join('\n');
     const before = await fingerprint();
 
+    // The Firestore Web SDK form-encodes its protocol messages, so a plain
+    // regex over the raw body never matches (the quotes are %22). watchFirestore
+    // decodes them first — see qa/test-plan.md 64.3.
+    const watch = watchFirestore(page);
     const { X } = await openOrders(page);
-    const writes = [];
-    page.on('request', (req) => {
-      const url = req.url();
-      if (!/127\.0\.0\.1:8080|localhost:8080/.test(url)) return;
-      if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method())) {
-        const body = (() => { try { return req.postData() || ''; } catch { return ''; } })();
-        // The Firestore Web SDK tunnels listens through POST /Listen and
-        // /Write channels; only a body carrying a document write counts.
-        if (/"writes"|commit|"update"\s*:/i.test(body)) writes.push(req.method() + ' ' + url);
-      }
-    });
 
     await pickStatus(page, 'collected');
     if (!isPhone(info)) await pickPay(page, 'cash');
@@ -637,7 +630,10 @@ test.describe('Phase IV — Orders list and order detail', () => {
     await openOrder(page, 'A-041');
     await page.waitForTimeout(1200);
 
+    const writes = watch.writesTo('orders');
     expect(writes, `CLAUDE.md Phase IV: "Read-only … no writes"\n${writes.join('\n')}`).toEqual([]);
+    expect(watch.writtenDocs().filter((d) => !d.startsWith('menu/')),
+      'nothing outside the documented first-load menu seed is written').toEqual([]);
     expect(await fingerprint(), 'no order document changed').toBe(before);
     expect((await readCollection('orders')).length).toBe(10);
     expect(X.rowCount).toBe(9);
@@ -658,7 +654,7 @@ test.describe('Phase IV — Orders list and order detail', () => {
     });
     expect(small, `CLAUDE.md Design / Phase IV: filter controls at least 44 px\n${small.join('\n')}`).toEqual([]);
 
-    const navHeights = await page.evaluate(() => ['report-view-day', 'report-view-days', 'report-view-orders']
+    const navHeights = await page.evaluate(() => ['report-view-day', 'report-view-days', 'report-view-orders', 'report-view-history']
       .map((id) => {
         const el = document.querySelector(`[data-testid="${id}"]`);
         return el ? Math.round(el.getBoundingClientRect().height) : 0;

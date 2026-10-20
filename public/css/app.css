@@ -2267,3 +2267,313 @@ table.order-items .totals-row td { background: none; padding-top: 10px; }
   .tab { position: relative; }
   .tab__dot { position: absolute; top: 6px; right: 8px; }
 }
+
+/* ===========================================================================
+   Phase VI (v1.5.0): Order history report.
+   design/ReportsHistory.dc.html, design/ReportsHistoryMobile.dc.html
+   =========================================================================== */
+
+.reports-history { gap: 18px; }
+
+/* ---------------------------------------------------- range and filters */
+
+.history-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--card);
+  border-radius: 16px;
+}
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.history-row--phone { display: none; }
+.history-row--range .orders-field--search { flex: 1 1 240px; }
+.history-select {
+  min-height: 48px;
+  padding: 0 10px;
+  border: 2px solid var(--stone-400);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+}
+.chip--edited { align-self: flex-end; }
+.history-clear { align-self: flex-end; min-height: 48px; }
+.history-refresh { font-weight: 700; }
+.history-note { margin: 0; font-size: 17px; color: var(--muted); }
+.history-note[hidden], .history-large[hidden], .history-more[hidden],
+.history-list-note[hidden], .history-table-wrap[hidden], .history-cards[hidden],
+.history-sheet[hidden], .history-sheet__backdrop[hidden] { display: none; }
+
+.history-kpis { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.kpi[data-testid='history-kpi-cancelled'] .kpi__value { color: var(--red); }
+.kpi[data-testid='history-kpi-edited'] .kpi__value { color: var(--amber); }
+.history-large { margin: 0; font-size: 15px; color: var(--amber); font-weight: 700; }
+.history-summary { margin: 0; }
+
+/* ------------------------------------------------------------- the list */
+
+.history-cols { align-items: flex-start; }
+.history-list-card {
+  flex: 3 1 680px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 8px 12px;
+  background: var(--card);
+  border-radius: 16px;
+}
+table.history-table { min-width: 820px; }
+/* The order number is the way into the detail, so it is a primary action. */
+.history-table .orders-no { min-height: 48px; }
+.history-day > td {
+  padding: 14px 10px 8px;
+  background: #FAFAF9;
+  border-bottom: 1.5px solid var(--stone-300);
+}
+.history-day__inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.history-day__label { font-size: 18px; }
+.history-day__meta { font-size: 15px; color: var(--muted); }
+.history-total--cancelled { text-decoration: line-through; }
+.history-more {
+  align-self: center;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 2px solid var(--stone-300);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+}
+.history-more:hover { background: var(--page); }
+.history-list-note { margin: 0 10px; }
+
+.history-cards { display: flex; flex-direction: column; gap: 8px; }
+.history-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 2px 2px;
+}
+.history-card-wrap { display: block; }
+
+/* ----------------------------------------------------------- the detail */
+
+.history-detail { flex: 2 1 400px; }
+.history-detail__day { font-size: 15px; font-weight: 700; color: var(--muted); }
+.history-cancel-box {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #FEF2F2;
+  color: #7F1D1D;
+  font-size: 16px;
+  font-weight: 700;
+}
+.history-lines { display: flex; flex-direction: column; }
+.history-line {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 44px 74px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 16px;
+}
+.history-line__name { min-width: 0; overflow-wrap: break-word; }
+.history-line__qty { text-align: right; font-variant-numeric: tabular-nums; }
+.history-line__amount { text-align: right; font-variant-numeric: tabular-nums; }
+.history-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 6px;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.history-changes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.history-change {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #FFFBEB;
+  border: 1.5px solid var(--marigold);
+  font-size: 15px;
+  line-height: 21px;
+}
+.history-change__head { font-size: 16px; }
+.history-change__row { display: flex; gap: 6px; }
+.history-change__label { flex: none; color: var(--muted); }
+.history-change__money { color: #78350F; }
+
+.history-detail__actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.history-copy {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.history-copy:hover { background: var(--page); }
+.history-open-day { min-height: 48px; }
+
+/* ------------------------------------------------- phone filters sheet */
+
+.history-filters-btn {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 2px solid var(--stone-400);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+}
+.history-filters-btn[data-on='true'] { background: var(--marigold); border-color: var(--ink); }
+.history-sheet, .history-sheet__backdrop { display: none; }
+
+@media (min-width: 700px) {
+  .history-cards { display: none; }
+  .reports-history .orders-back-wrap { display: none; }
+}
+
+/* ------------------------------------------------------------- phone */
+
+@media (max-width: 699px) {
+  /* The four report tabs scroll sideways rather than wrapping, and the page
+     itself never scrolls sideways (CLAUDE.md Phase VI 1). */
+  .report-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .report-nav__item { flex: none; }
+  .report-pill { padding: 0 12px; font-size: 15px; white-space: nowrap; }
+
+  .reports-history { gap: 12px; }
+  .history-filters { padding: 12px 14px; gap: 10px; }
+  .history-row { gap: 8px; }
+  .history-row--range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-row--range .range-quick {
+    grid-column: 1 / -1;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+  .history-row--range .range-quick .quick-btn { flex: none; min-height: 48px; padding: 0 12px; font-size: 15px; }
+  .history-row--range .orders-field--search { grid-column: 1 / -1; flex: 1 1 auto; }
+  .history-row--range .range-label {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .reports-history .range-input,
+  .reports-history .orders-search { width: 100%; min-height: 48px; font-size: 16px; }
+  .history-row--filters { display: none; }
+  .history-row--phone { display: flex; }
+  .history-row--phone .history-filters-btn { width: 100%; }
+
+  .history-kpis { display: none; }
+  .history-summary { font-size: 15px; }
+  .history-table-wrap { display: none; }
+  .history-list-card { flex: 1 1 auto; padding: 0; background: none; border-radius: 0; }
+  .history-list-note { display: none; }
+  .history-day-head { padding: 10px 2px 2px; }
+  .history-day__label { font-size: 16px; }
+  .history-day__meta { font-size: 13px; }
+  .orders-empty { padding: 28px 16px; background: var(--card); border-radius: 14px; }
+
+  .history-detail { padding: 16px; gap: 14px; }
+  .history-line { grid-template-columns: 24px minmax(0, 1fr) 36px 66px; gap: 8px; font-size: 15px; }
+  .history-detail__actions { flex-direction: column; align-items: stretch; }
+  .history-copy, .history-open-day { width: 100%; justify-content: center; text-align: center; }
+
+  /* List and detail are two screens on the phone; which one shows follows the
+     hash, so the browser Back button walks from the detail to the list. */
+  .reports-history[data-view='list'] .history-detail { display: none; }
+  .reports-history[data-view='detail'] .report-nav,
+  .reports-history[data-view='detail'] .history-filters,
+  .reports-history[data-view='detail'] .history-kpis,
+  .reports-history[data-view='detail'] .history-summary,
+  .reports-history[data-view='detail'] .history-large,
+  .reports-history[data-view='detail'] .history-list-card { display: none; }
+
+  /* Filters bottom sheet, the same shape as Review & send (Phase VI 4). */
+  .history-sheet__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(28, 25, 23, 0.45);
+    display: block;
+  }
+  .history-sheet__backdrop[hidden] { display: none; }
+  .history-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 42;
+    max-height: 86vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    background: var(--card);
+    box-shadow: 0 -8px 24px rgba(28, 25, 23, 0.22);
+  }
+  .history-sheet[hidden] { display: none; }
+  .history-sheet:focus { outline: none; }
+  .history-sheet__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .history-sheet__title { font-size: 22px; }
+  .history-sheet__close {
+    min-height: 48px;
+    padding: 0 12px;
+    border: 2px solid var(--stone-300);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .history-sheet__body { display: flex; flex-direction: column; gap: 14px; }
+  .history-sheet__body .orders-field { gap: 6px; }
+  .history-sheet__body .orders-chips { flex-wrap: wrap; }
+  .history-sheet__body .history-select { width: 100%; }
+  .history-sheet__body .chip--edited,
+  .history-sheet__body .history-clear { align-self: flex-start; }
+  .history-sheet__show {
+    min-height: 56px;
+    border: none;
+    border-radius: 14px;
+    background: var(--ink);
+    color: #FFFFFF;
+    font-size: 18px;
+    font-weight: 700;
+  }
+}
