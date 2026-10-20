@@ -1362,3 +1362,59 @@ Playwright `webServer` child was killed part-way through — `curl` to
 long-lived `npx http-server public -p 5173 -c-1` started first (Playwright
 reuses it: `reuseExistingServer: !process.env.CI`) and the suite was healthy.
 Worth doing for any long local run; it is an environment flake, not a defect.
+
+---
+
+## Round P5-live — 2026-10-20 (read-only live check of v1.4.0)
+
+`LIVE_P5=1 EXPECT_BUILD=6394978 npx playwright test tests/e2e/live-p5.spec.js --project=tablet --project=iphone13`
+→ **26 passed, 0 failed** (13 cases × 2 viewports, 1.5 min). **No bugs raised.**
+
+Write discipline held: `orders` was **127 documents before and 127 after**, same
+fingerprint; `menu` the same 8 ids. `send-order`, `save-changes`,
+`cancel-confirm`, `got-it-*` and `remove-*` were never clicked.
+
+Confirmed live (both viewports): the 8-tile till with Samosa Chat last at
+`#A5F3FC` with its own icon (all 8 inside 390×664, 3 columns, no scrolling);
+the Open orders button and badge in both headers, opening a 480 px right-hand
+drawer on tablet and a bottom sheet on phone, closing on Close, backdrop tap
+and Escape; no Recent strip and no ☰ Recent orders item, with "Next A-001"
+above the version line in ☰; `v1.4.0` / build `6394978` on the login card and
+in every dark header; six routes signed in with the Online pill and **zero
+console errors**; zero serious/critical axe violations on the cash counter
+(drawer closed and open) and the food counter — the live confirmation that
+BUG-10's fix shipped.
+
+### Could not be verified live (recorded, not worked around)
+
+Live holds **no open orders today** (127 collected orders, all from
+2026-10-19), so three things could not be exercised without creating an order,
+which this run forbids:
+
+| What | Case | Emulator cover |
+|---|---|---|
+| Open orders row contents, the 48 px Edit/Cancel buttons, the "Ready: cancel only" rule | `P5L-07` records it | `cash-p5.spec.js` P5-04, P5-06, P5-07 |
+| Edit mode, the amber banner, the `edit-delta` wording | `P5L-08` records it | `cash-p5.spec.js` P5-08, P5-10, P5-11, P5-12, P5-17 |
+| A Samosa Chat line greying under the station filter | `P5L-09` records it, and checks `menu/samosa_chat.station == "chaat"` live plus the filter buttons | `kitchen-p5.spec.js` P5-K-08 |
+
+No order was created to make any of them pass.
+
+### Observation, not a bug: the One day CSV file name
+
+The live One day export downloads as `orders-2026-10-19.csv`, while the other
+two are `nba-food-stall_orders_<day>.csv` and
+`nba-food-stall_<from>_<to>.csv`. `CLAUDE.md` Reports 6 names no file for the
+One day export (Phase III 9 and Phase IV 8 name the other two), so this breaks
+no requirement and no test asserts it. Flagged only because the three exports
+now look like they come from different apps; if a name is wanted, that is a
+one-line decision for the orchestrator, not a defect.
+
+### Context for the next live run
+
+The live `orders` collection is **no longer empty**: 127 collected orders from
+2026-10-19, so the stall has traded since the H3 reset. `live-p4.spec.js`
+P4L-00 was written when "reports start empty" (H3 7) still held and skips its
+data cases on an empty collection — it will now find real data, which is an
+improvement, not a problem. P5L-10 already uses it: the two new CSV columns are
+proved against **168 real order lines**, `edited` = `no` on every one and
+`cancelReason` blank, not merely by a header on an empty day.

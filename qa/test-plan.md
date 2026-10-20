@@ -1830,3 +1830,43 @@ in-page confirm — intercepting it needs a history entry that collides with the
 one the H3 Review sheet already pushes. Nothing is written either way, so Back
 drops the edit. P5-15 asserts the three paths that do confirm: Sign out,
 navigating away through the header/☰, and starting Edit on another order.
+
+## 55. Phase V live verification (gated, **read-only, zero writes**) — `tests/e2e/live-p5.spec.js`
+
+Run after the v1.4.0 deploy and the single `menu-sync` write:
+
+```
+LIVE_P5=1 EXPECT_BUILD=6394978 npx playwright test tests/e2e/live-p5.spec.js \
+  --project=tablet --project=iphone13
+```
+
+Gated behind `LIVE_P5=1` so `npm run test:e2e` stays offline. `iphone13` is
+added to the project's `testMatch` in `playwright.config.js`: Phase V 1 moves
+two controls into the one-row 52 px header, which only the small phone can
+falsify.
+
+**Write discipline.** Phase V adds four controls that write — Save changes,
+Cancel order, Got it and Remove. **None is ever clicked.** Edit mode is entered
+only to read the banner and the payment prompt and is always left through
+Discard changes. Tiles and the +/− steppers are in-page state that reaches
+Firestore only through Send and Save. `P5L-00` and `P5L-12` bracket the run
+with a count and a fingerprint of `orders` plus the `menu` ids.
+
+| id | Case |
+|---|---|
+| P5L-00 | Snapshot `orders` and `menu`; the live menu is exactly the 8 ids and `samosa_chat` is Samosa Chat / 500 / `#A5F3FC` / chaat / active / sort 8; the H3 rename is untouched; which live orders are open, editable or carry `samosa_chat` |
+| P5L-01 | The deployed `js/version.js` is 1.4.0 with a clean 7-character build (pinned by `EXPECT_BUILD`) |
+| P5L-02 | The login card reads "Version 1.4.0 · build <sha> · updated <date>", with matching `title`/`aria-label` |
+| P5L-03 | Six routes signed in: header, no storage banner, Online pill, the `v1.4.0` label (in ☰ on the small cash counter), zero console errors |
+| P5L-04 | 8 tiles in sort order with Samosa Chat last, its own icon, `#A5F3FC`, £5 on tablet; at 390×664 three columns, all 8 inside the viewport, menu area does not scroll |
+| P5L-05 | The Open orders button and badge (count checked against REST), its height, `aria-expanded`; phone placement between the dot and ☰ with the header still one row; `role="dialog"` labelled "Open orders"; 480 px right-hand drawer / full-width bottom sheet; closes on Close, backdrop tap and Escape |
+| P5L-06 | No Recent strip and no "Recent orders" wording; on phone no `menu-recent`, and "Next A-0NN" inside ☰ above the version line |
+| P5L-07 | The Open orders list matches the REST read, newest first; row contents and the 48 px Edit/Cancel buttons with the "Ready: cancel only" rule **when live has open orders**, otherwise the empty state plus a recorded gap |
+| P5L-08 | Edit mode on a live open order: banner, `edit-delta` "No changes yet" then "Take £5.00 more…", Discard, and a REST re-read proving the document is untouched — **when live has an editable order**, otherwise a recorded gap |
+| P5L-09 | The station filter exists; a live `samosa_chat` line stays lit under Chaat and greys under Sweets **when one is on the board**, otherwise the live `menu/samosa_chat.station` is checked and the gap recorded |
+| P5L-10 | One day, Orders and Sales by day exports all end `…,waitSeconds,edited,cancelReason`; on the newest day that holds orders every body row has 15 fields, `edited` is yes/no and `cancelReason` is blank unless cancelled |
+| P5L-11 | axe on the live cash counter (drawer closed and open) and the live food counter: zero serious or critical |
+| P5L-12 | Sign out returns to `#/login` and clears the session; `orders` count and fingerprint and the `menu` ids are unchanged |
+
+Screenshots `qa/screenshots/live-p5-<project>-<state>.png`, 25 files across the
+two viewports.

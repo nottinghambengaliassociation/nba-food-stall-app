@@ -1064,3 +1064,121 @@ H3L RESULT (build b03fecd, projects tablet + iphone13): 21 passed, 1 skipped.
     has never run the live H3 check.
   playwright-report/index.html does not hold this run: it was overwritten at 13:24:44 by a later
     invocation in which all 613 cases are listed as skipped with no results at all.
+P5L-00 tablet: live orders = 127 document(s), menu = 8 document(s); today (2026-10-20) open = 0, editable = 0, carrying samosa_chat = 0
+P5L-00 tablet: PASS - menu [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_chat, samosa_only, sweet_box], samosa_chat = Samosa Chat/500/#A5F3FC/chaat/sort 8
+P5L-01 tablet: published js/version.js -> 1.4.0 / 6394978 / 2026-10-20
+P5L-01 tablet: PASS - v1.4.0, build 6394978
+P5L-02 tablet: PASS - login card reads "Version 1.4.0 · build 6394978 · updated 20 Oct 2026", 0 console error(s)
+P5L-03 tablet: #/ loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/cash loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/kitchen loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports/days loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports/orders loaded signed in, pill "Online · synced"
+P5L-03 tablet: PASS - 6 routes signed in, v1.4.0 everywhere, 0 console error(s)
+P5L-04 tablet: PASS - 8 live tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, samosa_chat], 0 console error(s)
+P5L-05 tablet: PASS - Open orders button (badge 0) opens a 480px drawer and closes on Close, backdrop and Escape, 0 console error(s)
+P5L-06 tablet: PASS - no Recent strip on the live tablet till
+P5L-07 tablet: NOT VERIFIABLE LIVE - live holds no open orders today (2026-10-20), so the row contents, the 48 px Edit/Cancel buttons and the "Ready: cancel only" rule could not be exercised against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-04, P5-06 and P5-07.
+P5L-08 tablet: NOT VERIFIABLE LIVE - live holds no new or preparing order today (2026-10-20), so edit mode, the amber banner and the edit-delta wording could not be opened against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-08, P5-10, P5-11, P5-12 and P5-17.
+P5L-09 tablet: PARTLY VERIFIABLE LIVE - the live menu document says samosa_chat.station = "chaat" and the Chaat filter works, but live has no Samosa Chat line on the board today (2026-10-20), so the greying itself could not be seen. No order was created. Covered on the emulator by kitchen-p5.spec.js P5-K-08.
+P5L-10 tablet: One day CSV "orders-2026-10-20.csv" -> 0 body row(s), header OK
+P5L-10 tablet: Orders CSV "nba-food-stall_orders_2026-10-20.csv" header OK
+P5L-10 tablet: Sales by day CSV "nba-food-stall_2026-10-14_2026-10-20.csv" header OK
+P5L-10 tablet: PASS - live exports end ",edited,cancelReason", 0 console error(s)
+P5L-11 tablet: axe cash counter, Open orders closed -> 0 serious/critical
+P5L-11 tablet: axe cash counter, Open orders open -> 0 serious/critical
+P5L-11 tablet: axe food counter -> 0 serious/critical
+P5L-11 tablet: PASS - no serious or critical axe violations on the live Phase V surfaces
+P5L-12 tablet: live orders = 127 document(s) after the check (was 127)
+P5L-12 tablet: PASS - signed out, orders unchanged, menu unchanged
+P5L-00 iphone13: live orders = 127 document(s), menu = 8 document(s); today (2026-10-20) open = 0, editable = 0, carrying samosa_chat = 0
+P5L-00 iphone13: PASS - menu [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_chat, samosa_only, sweet_box], samosa_chat = Samosa Chat/500/#A5F3FC/chaat/sort 8
+P5L-01 iphone13: published js/version.js -> 1.4.0 / 6394978 / 2026-10-20
+P5L-01 iphone13: PASS - v1.4.0, build 6394978
+P5L-02 iphone13: PASS - login card reads "Version 1.4.0 · build 6394978 · updated 20 Oct 2026", 0 console error(s)
+P5L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/cash loaded signed in, pill "Online"
+P5L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+P5L-03 iphone13: PASS - 6 routes signed in, v1.4.0 everywhere, 0 console error(s)
+P5L-04 iphone13: 8 tiles in 3 columns, all inside 390x664, menu area does not scroll
+P5L-04 iphone13: PASS - 8 live tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, samosa_chat], 0 console error(s)
+P5L-05 iphone13: PASS - Open orders button (badge 0) opens a bottom sheet and closes on Close, backdrop and Escape, 0 console error(s)
+P5L-06 iphone13: PASS - no ☰ Recent orders item, "Next A-001" above the version line
+P5L-07 iphone13: NOT VERIFIABLE LIVE - live holds no open orders today (2026-10-20), so the row contents, the 48 px Edit/Cancel buttons and the "Ready: cancel only" rule could not be exercised against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-04, P5-06 and P5-07.
+P5L-08 iphone13: NOT VERIFIABLE LIVE - live holds no new or preparing order today (2026-10-20), so edit mode, the amber banner and the edit-delta wording could not be opened against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-08, P5-10, P5-11, P5-12 and P5-17.
+P5L-09 iphone13: PARTLY VERIFIABLE LIVE - the live menu document says samosa_chat.station = "chaat" and the Chaat filter works, but live has no Samosa Chat line on the board today (2026-10-20), so the greying itself could not be seen. No order was created. Covered on the emulator by kitchen-p5.spec.js P5-K-08.
+P5L-10 iphone13: One day CSV "orders-2026-10-20.csv" -> 0 body row(s), header OK
+P5L-10 iphone13: Orders CSV "nba-food-stall_orders_2026-10-20.csv" header OK
+P5L-10 iphone13: Sales by day CSV "nba-food-stall_2026-10-14_2026-10-20.csv" header OK
+P5L-10 iphone13: PASS - live exports end ",edited,cancelReason", 0 console error(s)
+P5L-11 iphone13: axe cash counter, Open orders closed -> 0 serious/critical
+P5L-11 iphone13: axe cash counter, Open orders open -> 0 serious/critical
+P5L-11 iphone13: axe food counter -> 0 serious/critical
+P5L-11 iphone13: PASS - no serious or critical axe violations on the live Phase V surfaces
+P5L-12 iphone13: live orders = 127 document(s) after the check (was 127)
+P5L-12 iphone13: PASS - signed out, orders unchanged, menu unchanged
+P5L-00 tablet: live trading days [2026-10-19]; newest with orders = 2026-10-19 (127 order(s))
+P5L-00 tablet: live orders = 127 document(s), menu = 8 document(s); today (2026-10-20) open = 0, editable = 0, carrying samosa_chat = 0
+P5L-00 tablet: PASS - menu [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_chat, samosa_only, sweet_box], samosa_chat = Samosa Chat/500/#A5F3FC/chaat/sort 8
+P5L-01 tablet: published js/version.js -> 1.4.0 / 6394978 / 2026-10-20
+P5L-01 tablet: PASS - v1.4.0, build 6394978
+P5L-02 tablet: PASS - login card reads "Version 1.4.0 · build 6394978 · updated 20 Oct 2026", 0 console error(s)
+P5L-03 tablet: #/ loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/cash loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/kitchen loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports/days loaded signed in, pill "Online · synced"
+P5L-03 tablet: #/reports/orders loaded signed in, pill "Online · synced"
+P5L-03 tablet: PASS - 6 routes signed in, v1.4.0 everywhere, 0 console error(s)
+P5L-04 tablet: PASS - 8 live tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, samosa_chat], 0 console error(s)
+P5L-05 tablet: PASS - Open orders button (badge 0) opens a 480px drawer and closes on Close, backdrop and Escape, 0 console error(s)
+P5L-06 tablet: PASS - no Recent strip on the live tablet till
+P5L-07 tablet: NOT VERIFIABLE LIVE - live holds no open orders today (2026-10-20), so the row contents, the 48 px Edit/Cancel buttons and the "Ready: cancel only" rule could not be exercised against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-04, P5-06 and P5-07.
+P5L-08 tablet: NOT VERIFIABLE LIVE - live holds no new or preparing order today (2026-10-20), so edit mode, the amber banner and the edit-delta wording could not be opened against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-08, P5-10, P5-11, P5-12 and P5-17.
+P5L-09 tablet: PARTLY VERIFIABLE LIVE - the live menu document says samosa_chat.station = "chaat" and the Chaat filter works, but live has no Samosa Chat line on the board today (2026-10-20), so the greying itself could not be seen. No order was created. Covered on the emulator by kitchen-p5.spec.js P5-K-08.
+P5L-10 tablet: One day CSV "orders-2026-10-20.csv" -> 0 body row(s), header OK
+P5L-10 tablet: 2026-10-19 CSV "orders-2026-10-19.csv" -> 168 body row(s), 15 fields each, 0 marked edited, cancelReason blank on every live order
+P5L-10 tablet: Orders CSV "nba-food-stall_orders_2026-10-19.csv" -> 168 body row(s), header OK
+P5L-10 tablet: Sales by day CSV "nba-food-stall_2026-10-14_2026-10-20.csv" header OK
+P5L-10 tablet: PASS - live exports end ",edited,cancelReason", 0 console error(s)
+P5L-11 tablet: axe cash counter, Open orders closed -> 0 serious/critical
+P5L-11 tablet: axe cash counter, Open orders open -> 0 serious/critical
+P5L-11 tablet: axe food counter -> 0 serious/critical
+P5L-11 tablet: PASS - no serious or critical axe violations on the live Phase V surfaces
+P5L-12 tablet: live orders = 127 document(s) after the check (was 127)
+P5L-12 tablet: PASS - signed out, orders unchanged, menu unchanged
+P5L-00 iphone13: live trading days [2026-10-19]; newest with orders = 2026-10-19 (127 order(s))
+P5L-00 iphone13: live orders = 127 document(s), menu = 8 document(s); today (2026-10-20) open = 0, editable = 0, carrying samosa_chat = 0
+P5L-00 iphone13: PASS - menu [chat, choc_strawberry, fuchka, marshmallow, momo, samosa_chat, samosa_only, sweet_box], samosa_chat = Samosa Chat/500/#A5F3FC/chaat/sort 8
+P5L-01 iphone13: published js/version.js -> 1.4.0 / 6394978 / 2026-10-20
+P5L-01 iphone13: PASS - v1.4.0, build 6394978
+P5L-02 iphone13: PASS - login card reads "Version 1.4.0 · build 6394978 · updated 20 Oct 2026", 0 console error(s)
+P5L-03 iphone13: #/ loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/cash loaded signed in, pill "Online"
+P5L-03 iphone13: #/kitchen loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports/days loaded signed in, pill "Online · synced"
+P5L-03 iphone13: #/reports/orders loaded signed in, pill "Online · synced"
+P5L-03 iphone13: PASS - 6 routes signed in, v1.4.0 everywhere, 0 console error(s)
+P5L-04 iphone13: 8 tiles in 3 columns, all inside 390x664, menu area does not scroll
+P5L-04 iphone13: PASS - 8 live tiles [fuchka, momo, chat, sweet_box, samosa_only, choc_strawberry, marshmallow, samosa_chat], 0 console error(s)
+P5L-05 iphone13: PASS - Open orders button (badge 0) opens a bottom sheet and closes on Close, backdrop and Escape, 0 console error(s)
+P5L-06 iphone13: PASS - no ☰ Recent orders item, "Next A-001" above the version line
+P5L-07 iphone13: NOT VERIFIABLE LIVE - live holds no open orders today (2026-10-20), so the row contents, the 48 px Edit/Cancel buttons and the "Ready: cancel only" rule could not be exercised against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-04, P5-06 and P5-07.
+P5L-08 iphone13: NOT VERIFIABLE LIVE - live holds no new or preparing order today (2026-10-20), so edit mode, the amber banner and the edit-delta wording could not be opened against live. No order was created. Covered on the emulator by cash-p5.spec.js P5-08, P5-10, P5-11, P5-12 and P5-17.
+P5L-09 iphone13: PARTLY VERIFIABLE LIVE - the live menu document says samosa_chat.station = "chaat" and the Chaat filter works, but live has no Samosa Chat line on the board today (2026-10-20), so the greying itself could not be seen. No order was created. Covered on the emulator by kitchen-p5.spec.js P5-K-08.
+P5L-10 iphone13: One day CSV "orders-2026-10-20.csv" -> 0 body row(s), header OK
+P5L-10 iphone13: 2026-10-19 CSV "orders-2026-10-19.csv" -> 168 body row(s), 15 fields each, 0 marked edited, cancelReason blank on every live order
+P5L-10 iphone13: Orders CSV "nba-food-stall_orders_2026-10-19.csv" -> 168 body row(s), header OK
+P5L-10 iphone13: Sales by day CSV "nba-food-stall_2026-10-14_2026-10-20.csv" header OK
+P5L-10 iphone13: PASS - live exports end ",edited,cancelReason", 0 console error(s)
+P5L-11 iphone13: axe cash counter, Open orders closed -> 0 serious/critical
+P5L-11 iphone13: axe cash counter, Open orders open -> 0 serious/critical
+P5L-11 iphone13: axe food counter -> 0 serious/critical
+P5L-11 iphone13: PASS - no serious or critical axe violations on the live Phase V surfaces
+P5L-12 iphone13: live orders = 127 document(s) after the check (was 127)
+P5L-12 iphone13: PASS - signed out, orders unchanged, menu unchanged

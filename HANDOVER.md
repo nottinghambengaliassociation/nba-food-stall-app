@@ -1,6 +1,6 @@
 # Charity Food Stall POS — handover
 
-Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**; hotfix H3, rebuilding the cash counter for small phones and cutting the menu to seven items, shipped 19 October 2026 as **v1.3.1**; hotfix H4, starting every order on Card, shipped 19 October 2026 as **v1.3.2**. Live, tested and deployed.
+Phase I prototype built 17 October 2026; shared login, sign out and the Cash received calculator added 18 October 2026; hotfix H1 splitting the menu into eight items and hotfix H2 aligning the cart lines shipped 19 October 2026; the Sales by day report and the app version label shipped 19 October 2026 as **v1.2.0**; the Orders list and order detail shipped 19 October 2026 as **v1.3.0**; hotfix H3, rebuilding the cash counter for small phones and cutting the menu to seven items, shipped 19 October 2026 as **v1.3.1**; hotfix H4, starting every order on Card, shipped 19 October 2026 as **v1.3.2**; editing and cancelling an order after it has been sent, plus the Samosa Chat menu item, shipped 20 October 2026 as **v1.4.0**. Live, tested and deployed.
 
 **Live site: https://nottinghambengaliassociation.github.io/nba-food-stall-app/**
 
@@ -60,11 +60,13 @@ Prices are read from Firestore, not hard-coded. To change one, edit it in the Fi
 
 ## What it does
 
-Seven menu items at £5 each: Fuchka, Momo, Papri Chat, Sweet Box, Samosa, Choc Strawberry and Choc Marshmallow. They are seeded automatically on first load if the `menu` collection is empty.
+Eight menu items at £5 each: Fuchka, Momo, Papri Chat, Sweet Box, Samosa, Choc Strawberry, Choc Marshmallow and Samosa Chat. They are seeded automatically on first load if the `menu` collection is empty.
 
-Hotfix H1 split two previously combined items into four in October 2026, and hotfix H3 then dropped Chocolate Fountain and renamed Marshmallow to Chocolate Marshmallow (V). The retired ids from the split, `samosa`, `straw` and `fountain`, were deleted outright in the H3 reset, which was safe because the database held no orders at the time. **Never reuse a retired id.** If an order ever does carry an item the menu no longer knows, it still shows under the name stored on that order line, with the plain plate icon.
+Hotfix H1 split two previously combined items into four in October 2026, and hotfix H3 then dropped Chocolate Fountain and renamed Marshmallow to Chocolate Marshmallow (V), and v1.4.0 added Samosa Chat as the eighth. The retired ids from the split, `samosa`, `straw` and `fountain`, were deleted outright in the H3 reset, which was safe because the database held no orders at the time. **Never reuse a retired id.** If an order ever does carry an item the menu no longer knows, it still shows under the name stored on that order line, with the plain plate icon.
 
 The till builds an order, takes a name to call out, takes cash or card, and sends it. With Cash selected there is an optional **Cash received** calculator: tap Exact, £5, £10, £20 or £50, or type any amount, and it shows the change to give, or how much the order is short by. It is a calculator for the volunteer and nothing more, so it never blocks sending and nothing about it is saved. The order gets a number like `A-043` (till letter plus a daily sequence) and appears on the food counter instantly. Volunteers move it New → Preparing → Ready → Collected with one big button, with an undo for mis-taps. Ready orders show the name in large capitals for calling out. Cards turn amber once an order is six minutes old.
+
+An order that has already been sent can still be put right. **Open orders** on the cash counter lists every unfinished order from every till and offers Edit and Cancel on each, up to the point the customer has it: an order being prepared can still be edited, an order sitting Ready can only be cancelled, and a collected order is closed to both. The food counter never edits or cancels — it is shown the change, in amber for an edit and red for a cancellation, and has to acknowledge it before carrying on. Both need a connection, because the check that stops two volunteers changing the same order at once cannot be queued offline.
 
 Reports give total sales, order count, items sold, average order, average wait, sales per item, orders per 30 minutes with the peak highlighted, the cash-versus-card split, and a CSV export with one row per order line. Cancelled orders are excluded from every figure.
 
@@ -79,6 +81,36 @@ Every screen now shows the app version. The login card carries a line reading `V
 ## What changed
 
 Newest first. The app updates itself when a device loads it, but a till left open on a screen keeps the version it started with.
+
+**20 October 2026, v1.4.0 — an order can be changed or cancelled after it has been sent, and Samosa Chat joins the menu.**
+
+Until now a mistake could only be caught in the first few seconds. The Recent strip showed the last five orders from that one till, and Cancel disappeared the moment the food counter tapped Start. After that the only fix was to shout across the stall, and the reports kept the wrong sale either way.
+
+The cash counter now has an **Open orders** button in its header with a count of how many orders are still live. It opens a list of every unfinished order from **every till**, not just the one you are standing at, newest first, with a search box that matches an order number or a name. Each row has **Edit** and **Cancel…**.
+
+**Edit** loads the order back into the order panel, which turns amber and tells you which order you are changing and what it was before. Change the name, add or take away items, switch between cash and card. The panel says what to do about the money in plain words: "Take £5.00 more", "Give back £5.00", "Refund £5.00 on the card machine", or "No payment change". The app never moves any money itself; it tells the volunteer what to hand over or put through the card machine. **Save changes** writes the order; **Discard changes** leaves it exactly as it was. If you take every item off, it stops you saving an empty order and offers to cancel it instead.
+
+**Cancel…** asks for a reason in one tap — placed by mistake, customer changed mind, out of stock, not collected, other — and shows the refund line before you commit. Neither button will let you change an order somebody has already collected.
+
+**What the food counter sees.** It has no Edit and no Cancel, deliberately: a change only ever comes from the till. What it gets instead is a warning it cannot miss. An order changed before anyone started it simply updates, with a small "Changed" tag. An order changed *while it is being made* turns amber, headed **ORDER CHANGED · CHECK ITEMS**, with each line marked NEW, "+1 (was 2)" or struck through, and the Ready button is replaced by **Got it** — which has to be tapped before that order can be marked ready, so nobody plates up the old order by muscle memory. An order cancelled after somebody has started it turns red, headed **CANCELLED · STOP MAKING**, and stays on screen until somebody taps **Remove**, rather than vanishing from under the person cooking it. On a phone, a tab with an unseen change shows a dot.
+
+What can be done, by status:
+
+| Order status | Edit at the till | Cancel at the till |
+|---|---|---|
+| New | Yes | Yes |
+| Preparing | Yes | Yes |
+| Ready | No — cancel only | Yes |
+| Collected or already cancelled | No | No |
+
+**Editing and cancelling need a connection.** Both buttons are switched off when the till is offline, with the note "Needs a connection", because the safety check that stops two people changing the same order at once cannot be queued. Taking *new* orders offline still works exactly as before: they queue on the device and sync when the signal comes back.
+
+**Reports.** An edited order carries a small "Edited" tag next to its status, its timeline shows when it was edited and, if cancelled, why, and a Changes list shows what each edit did. Totals need no explaining: an edited order has always been counted at whatever it currently says, and cancelled orders are still left out. All three CSV exports gain two new last columns, `edited` and `cancelReason`.
+
+**Samosa Chat** is the eighth item on the till, £5, last in the row, filed under Chaat on the food counter. It was added to the live menu after this release went out; nothing else on the menu changed.
+
+Every screen now reads `v1.4.0`.
+
 
 **19 October 2026, hotfix H4 — the till starts on Card.**
 
@@ -127,18 +159,20 @@ Nothing changed about how orders are stored, so there is nothing to do on any ti
 
 Phase I took two rounds of the fix loop, Phase II one, hotfixes H1 and H2 none, and Phase III one, for a pair of accessibility defects on the new Sales by day screen, both fixed and re-verified. Phase IV took none against the app: the only thing the loop caught was the version bump, and four first-round failures that turned out to be defects in the new tests rather than in the screen. Final numbers come from a clean run with nothing else driving the emulator, which matters: two earlier rounds were muddied by two agents sharing one Firestore emulator and clearing each other's data mid-test.
 
-Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. Hotfix H4 took none against the app either: Neo's change was green on its first full run, and the only red test was the version bump itself, which is Trinity's step rather than a defect. The numbers below come from a clean run on the bumped tree, plus a separate read-only live check against the deployed v1.3.2.
+Phase V took one round. Fifteen e2e cases failed on the first full run and all fifteen came from two accessibility defects rather than from the feature: the Open orders button's spoken name did not start with the words printed on it, and the cancelled food-counter card used a grey too faint against its pink background. Both were fixed and re-verified. The second of them is worth recording, because the fix that was proposed was not the fix that shipped: the suggested grey measured 4.39:1 against that card, just under the 4.5:1 the text size requires, and would have re-opened the bug on the exact card it was raised against. A darker grey at 6.97:1 went in instead, and the measurement was redone independently before it was accepted. No defect was found in the Phase V build itself.
+
+Hotfix H3 took none either. Nine tests failed on the first full run and every one of them was a test asserting the phone layout H3 deliberately replaces, or the menu entries it deliberately removes; each was checked against the brief before being updated, not simply made to agree with the new code. No defect was found in the H3 build. Hotfix H4 took none against the app either: Neo's change was green on its first full run, and the only red test was the version bump itself, which is Trinity's step rather than a defect. The numbers below come from a clean run on the bumped tree, plus a separate read-only live check against the deployed v1.4.0.
 
 | Suite | Tests | Passed | Failed |
 |---|---|---|---|
-| Unit (Vitest) | 307 | 307 | 0 |
-| E2E (Playwright), five viewports | 408 | 408 | 0 |
-| Live checks on v1.3.2 (against the deployed site) | 81 | 81 | 0 |
-| **Total** | **796** | **796** | **0** |
+| Unit (Vitest) | 370 | 370 | 0 |
+| E2E (Playwright), five viewports | 534 | 534 | 0 |
+| Live check on v1.4.0 (against the deployed site) | 26 | 26 | 0 |
+| **Total** | **930** | **930** | **0** |
 
 The e2e suite now runs five viewports rather than two. The original phone 390×844 and tablet 1280×800 projects still run everything; three new projects model the phones H3 was built for — **iPhone 13 at 390×664, iPhone 17 at 402×694 and a Pro Max at 430×752**, each being the device width less the 180px of Safari chrome that gives the brief's figures. Those three run the H3 cash counter spec only, because the rest of the suite already covers the new layout through the 390×844 phone project and tripling a 286-case suite would make the fix loop unusable.
 
-A further 172 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
+A further 208 e2e cases are skipped by design rather than failing: the viewport-gated ones that only make sense at one width, and the live-gated ones that only run against the deployed site when their environment flag is set.
 
 The v1.3.2 live check was read-only, as every live check since Phase I has been. It signed in, loaded all six screens on a tablet and an iPhone 13, exercised the cart and the Review & send sheet by adding items and taking them out again, and read the live database before and after to prove nothing was written: `orders` empty both times, `menu` the same seven documents, `settings` untouched. One thing cannot be checked that way — that the panel returns to Card **after an order is sent**, which needs a real order. That case is covered on the emulator and is recorded as untestable live rather than quietly skipped.
 
@@ -154,6 +188,12 @@ To run the tests yourself: `npm install`, then `npm test`. Needs Java 21 for the
 ### Live smoke test
 
 Run against the deployed site, not the emulator, after each phase.
+
+**Phase V (20 October 2026), 26 checks passed, 0 failed, read-only.** On the deployed build `6394978` at 1280×800 and 390×664, with zero console errors on any route at either size and the pill reading Online. Eight tiles with Samosa Chat last in its own colour and its own icon, all eight inside an iPhone 13 screen without scrolling. Open orders in both headers with its count, the drawer 480px on a tablet and a full-width sheet on a phone, closing on Close, a backdrop tap and Escape. The Recent strip is gone, and "Next A-001" now sits inside the ☰ menu above the version line, checked by measuring where it is rather than where it appears in the markup. Every screen reads `v1.4.0` and the login card reads `Version 1.4.0 · build 6394978 · updated 20 Oct 2026`. All three CSV exports end `…,waitSeconds,edited,cancelReason`, proved against 168 real order lines from 19 October rather than against an empty day. Zero serious or critical accessibility violations on the live cash counter and food counter.
+
+Nothing was written: `orders` held 127 documents before and after with the same fingerprint, and `menu` the same eight ids. Save changes, Cancel order, Got it and Remove were never tapped.
+
+Three things could not be checked live and are recorded rather than quietly skipped, because the live database held no *unfinished* orders on the day of the check: what an Open orders row looks like with a real order in it, edit mode and its payment prompt, and a Samosa Chat line greying under a station filter. Creating an order to test them would have broken the read-only rule. All three are covered on the emulator.
 
 **Hotfix H4 (19 October 2026), 81 checks passed, 0 failed, read-only.** On the deployed build `b03fecd` at 1280×800 and 390×664, with zero console errors on any route at either size and the pill reading Online. The cash counter opens with Card selected and `pay-cash` unpressed, and the words "Cash received" appear nowhere on the screen until Cash is tapped. Tapping Cash brings the calculator up with its live change and short wording; tapping Card puts it away and clears both the quick button and the Other amount box. Clear order on the tablet, and taking the last item out with the − stepper on either size, both return the panel to Card. On the phone, the Review & send sheet opens on Card with no calculator.
 
@@ -209,6 +249,12 @@ The other two: selecting Card still showed the cash tender buttons, and the Canc
 ---
 
 ## Known issues and Phase I limits
+
+**The browser Back button while editing an order drops the edit without asking.** Sign out, the header and ☰ navigation links, and starting Edit on a second order all show a confirm first. Back does not, because intercepting it needs a history entry that collides with the one the phone's Review & send sheet already uses. Nothing is written either way, so the worst case is retyping a change, not a wrong order. Use Discard changes rather than Back.
+
+**Greyed-out lines under a station filter are too faint.** On the food counter, lines belonging to another station are shown in a grey that measures 2.52:1 against white, below the accessibility minimum. It has been there since v1.0.0 and Phase V did not touch it; it is logged as BUG-12 with the fix and the missing test case written up. It was left out of this release rather than changing untested v1.0.0 code on the way out of the door.
+
+**The three CSV exports do not share a naming scheme.** Sales by day gives you `nba-food-stall_<from>_<to>.csv` and Orders gives you `nba-food-stall_orders_<day>.csv`, but the One day export is still `orders-<day>.csv` from Phase I. All three open correctly; they just look like they came from different apps when they are sitting in a downloads folder. The brief only ever specified a name for the two newer ones, so it was left alone.
 
 **`qa/live-smoke-record.txt` double-counts retried runs.** The live specs append their pass lines from inside each test, and Playwright is configured to retry a failed file from the start in serial mode, so a run that fails part-way leaves a truncated block behind and the whole file restarts. The H3 block was cleaned up during the v1.3.2 release, with a note recording what was removed and why, but the `H4L`, `P3L`, `P4L` and `H-22` blocks still carry duplicates from the same mechanism. The file is an evidence log, not a test fixture, so nothing depends on it; read the pass counts in the handover rather than counting lines in it. The Playwright HTML report is not a safe cross-check either: it is regenerated by the next invocation, so a later listing-only run can overwrite the report for the run you wanted to read.
 

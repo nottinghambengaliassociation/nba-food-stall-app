@@ -70,7 +70,7 @@ export default defineConfig({
       // two controls into the one-row 52 px H3 header (the "Orders" button with
       // its badge, and "Next A-045" into the ☰ menu) and adds an eighth tile,
       // which are geometry claims only the small phone can falsify.
-      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|cash-p5|live-h3|live-h4)\.spec\.js/ },
+      { name: "iphone13", width: 390, height: 664, match: /(cash-h3|cash-h4|cash-p5|live-h3|live-h4|live-p5)\.spec\.js/ },
       { name: "iphone17", width: 402, height: 694, match: /(cash-h3|live-h3)\.spec\.js/ },
       { name: "promax", width: 430, height: 752, match: /(cash-h3|live-h3)\.spec\.js/ },
     ].map(({ name, width, height, match }) => ({
